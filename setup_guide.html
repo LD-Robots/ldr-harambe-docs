@@ -207,7 +207,7 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
 <p class="lead">The whole system rests on one Claude Code feature: <code>additionalDirectories</code>. One session operates across multiple folders without merging them into a monorepo. The robot repo remains the primary workspace; the docs repo is a loaded sibling that Claude can read and edit freely.</p>
 
 <div class="flow" data-label="system architecture">
-<svg viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+<svg viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#e8a33d"/>
@@ -221,7 +221,7 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
   <text x="20" y="22" fill="#6b6354" font-size="10" letter-spacing="2">~/humanoid/  (filesystem)</text>
 
   <!-- robot repo box -->
-  <rect x="20" y="38" width="280" height="130" fill="#15120d" stroke="#2a2419"/>
+  <rect x="20" y="38" width="420" height="180" fill="#15120d" stroke="#2a2419"/>
   <text x="40" y="62" fill="#e8a33d" font-size="12" font-weight="500">robot/</text>
   <text x="40" y="78" fill="#6b6354" font-size="10">[git repo · independent]</text>
   <text x="40" y="100" fill="#ece2cf" font-size="11">• URDFs, ROS 2 code, configs</text>
@@ -229,38 +229,33 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
   <text x="40" y="132" fill="#ece2cf" font-size="11">• CLAUDE.md (robot-specific)</text>
   <text x="40" y="148" fill="#ece2cf" font-size="11">• .claude/settings.json</text>
   <text x="40" y="160" fill="#8fa968" font-size="10">↳ includes additionalDirectories</text>
+  <text x="40" y="184" fill="#e8a33d" font-size="11">• humanoid.code-workspace</text>
+  <text x="40" y="196" fill="#6b6354" font-size="10">↳ VS Code multi-root: "." + "../docs"</text>
+  <text x="40" y="208" fill="#6b6354" font-size="10">↳ open this in VS Code</text>
 
   <!-- docs repo box -->
-  <rect x="340" y="38" width="280" height="130" fill="#15120d" stroke="#2a2419"/>
-  <text x="360" y="62" fill="#e8a33d" font-size="12" font-weight="500">docs/</text>
-  <text x="360" y="78" fill="#6b6354" font-size="10">[git repo · independent]</text>
-  <text x="360" y="100" fill="#ece2cf" font-size="11">• design_guide.md (style system)</text>
-  <text x="360" y="116" fill="#ece2cf" font-size="11">• tuning/*.html, strategy/*.html</text>
-  <text x="360" y="132" fill="#ece2cf" font-size="11">• CLAUDE.md (docs conventions)</text>
-  <text x="360" y="148" fill="#ece2cf" font-size="11">• .claude/skills/write-field-note.md</text>
-
-  <!-- workspace file -->
-  <rect x="660" y="60" width="210" height="86" fill="#0a0806" stroke="#e8a33d" stroke-dasharray="4,3"/>
-  <text x="765" y="92" text-anchor="middle" fill="#e8a33d" font-size="12" font-weight="500">humanoid.code-workspace</text>
-  <text x="765" y="112" text-anchor="middle" fill="#ece2cf" font-size="10">VS Code opens this file</text>
-  <text x="765" y="128" text-anchor="middle" fill="#6b6354" font-size="10">both repos in sidebar</text>
+  <rect x="460" y="38" width="420" height="180" fill="#15120d" stroke="#2a2419"/>
+  <text x="480" y="62" fill="#e8a33d" font-size="12" font-weight="500">docs/</text>
+  <text x="480" y="78" fill="#6b6354" font-size="10">[git repo · independent]</text>
+  <text x="480" y="100" fill="#ece2cf" font-size="11">• design_guide.md (style system)</text>
+  <text x="480" y="116" fill="#ece2cf" font-size="11">• tuning/*.html, strategy/*.html</text>
+  <text x="480" y="132" fill="#ece2cf" font-size="11">• CLAUDE.md (docs conventions)</text>
+  <text x="480" y="148" fill="#ece2cf" font-size="11">• .claude/skills/write-field-note.md</text>
 
   <!-- bottom: vs code + claude code -->
-  <rect x="20" y="220" width="860" height="80" fill="#15120d" stroke="#e8a33d"/>
-  <text x="40" y="244" fill="#e8a33d" font-size="13" font-weight="500">VS Code + Claude Code terminal</text>
-  <text x="40" y="264" fill="#ece2cf" font-size="11">Primary workspace: robot/ · Additional directory: docs/ · sees & edits both</text>
-  <text x="40" y="284" fill="#6b6354" font-size="10">claude runs here → reads robot code + writes doc updates in one session</text>
+  <rect x="20" y="250" width="860" height="80" fill="#15120d" stroke="#e8a33d"/>
+  <text x="40" y="274" fill="#e8a33d" font-size="13" font-weight="500">VS Code + Claude Code terminal</text>
+  <text x="40" y="294" fill="#ece2cf" font-size="11">Primary workspace: robot/ · Additional directory: docs/ · sees &amp; edits both</text>
+  <text x="40" y="314" fill="#6b6354" font-size="10">claude runs here → reads robot code + writes doc updates in one session</text>
 
   <!-- arrows -->
-  <line x1="160" y1="170" x2="160" y2="218" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="480" y1="170" x2="480" y2="218" stroke="#5fb3b3" stroke-width="1.5" marker-end="url(#arr2)"/>
-  <line x1="765" y1="148" x2="765" y2="218" stroke="#e8a33d" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+  <line x1="230" y1="220" x2="230" y2="248" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="670" y1="220" x2="670" y2="248" stroke="#5fb3b3" stroke-width="1.5" marker-end="url(#arr2)"/>
 
-  <text x="165" y="200" fill="#e8a33d" font-size="10">primary</text>
-  <text x="485" y="200" fill="#5fb3b3" font-size="10">via additionalDirectories</text>
-  <text x="635" y="200" fill="#6b6354" font-size="10">opens the workspace</text>
+  <text x="240" y="240" fill="#e8a33d" font-size="10">primary</text>
+  <text x="490" y="240" fill="#5fb3b3" font-size="10">via additionalDirectories</text>
 </svg>
-<div class="flow-caption">The workspace file is optional VS Code sugar; the actual Claude-Code wiring is <code>additionalDirectories</code> in <code>robot/.claude/settings.json</code>. That single setting makes docs/ visible in every session.</div>
+<div class="flow-caption">The workspace file is optional VS Code sugar that lives inside the robot repo; the actual Claude-Code wiring is <code>additionalDirectories</code> in <code>robot/.claude/settings.json</code>. That single setting makes docs/ visible in every session.</div>
 </div>
 
 <h3>What this gives you</h3>
@@ -287,9 +282,9 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
 <!-- ─── §02 LAYOUT ─── -->
 <section id="layout">
 <span class="section-num">§ 02 — Directory layout</span>
-<h2>Sibling repos, <em>one</em> parent folder.</h2>
+<h2>Sibling repos under <em>one</em> shallow parent.</h2>
 
-<p>The layout is deliberately shallow. A non-git parent directory holds both repos as siblings. The parent exists only to own the VS Code workspace file — nothing else lives there.</p>
+<p>The layout is deliberately shallow. A non-git parent directory holds both repos as siblings — that's the whole point of the parent. The VS Code workspace file lives <em>inside</em> the robot repo (committed there) and reaches across to the docs sibling with a relative <code>../docs</code> path.</p>
 
 <div class="tree">
 <span class="dim">~/</span>humanoid/                          <span class="dim">← not a git repo, just a folder</span>
@@ -300,27 +295,26 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
 │   ├── .claude/commands/
 │   │   └── sync-docs.md              <span class="dim">← /sync-docs slash command</span>
 │   ├── CLAUDE.md                     <span class="dim">← robot-repo context</span>
+│   ├── humanoid.code-workspace       <span class="dim">← open this in VS Code (committed)</span>
 │   ├── urdf/
 │   ├── ros2_ws/
 │   └── ... <span class="dim">(your existing robot files)</span>
 │
-├── <span class="amber">docs/</span>                           <span class="dim">← git repo (documentation)</span>
-│   ├── .claude/
-│   │   ├── settings.json
-│   │   └── skills/
-│   │       └── write-field-note.md   <span class="dim">← the core skill</span>
-│   ├── CLAUDE.md                     <span class="dim">← docs-repo context</span>
-│   ├── design_guide.md               <span class="dim">← Field Notes design system</span>
-│   ├── README.md                     <span class="dim">← index of all docs</span>
-│   ├── tuning/
-│   │   ├── pd_tuning_guide.html
-│   │   └── motor_id_report.html
-│   ├── strategy/
-│   │   └── sim_to_real_guide.html
-│   └── hardware/
-│       └── ...
-│
-└── humanoid.code-workspace           <span class="dim">← open this in VS Code</span>
+└── <span class="amber">docs/</span>                           <span class="dim">← git repo (documentation)</span>
+    ├── .claude/
+    │   ├── settings.json
+    │   └── skills/
+    │       └── write-field-note.md   <span class="dim">← the core skill</span>
+    ├── CLAUDE.md                     <span class="dim">← docs-repo context</span>
+    ├── design_guide.md               <span class="dim">← Field Notes design system</span>
+    ├── README.md                     <span class="dim">← index of all docs</span>
+    ├── tuning/
+    │   ├── pd_tuning_guide.html
+    │   └── motor_id_report.html
+    ├── strategy/
+    │   └── sim_to_real_guide.html
+    └── hardware/
+        └── ...
 </div>
 
 <div class="warn">
@@ -843,19 +837,19 @@ Give me a short summary:
 <span class="section-num">§ 11 — VS Code workspace file</span>
 <h2>One file to open, <em>both</em> repos loaded.</h2>
 
-<p>VS Code supports "multi-root workspaces" via a <code>.code-workspace</code> file. Put it in the parent <code>~/humanoid/</code> directory. When you open this file in VS Code, both repos appear in the sidebar with their git status, their own searches, their own terminals.</p>
+<p>VS Code supports "multi-root workspaces" via a <code>.code-workspace</code> file. Keep it inside the robot repo at its root and commit it — the workspace file is part of the robot project. When you open this file in VS Code, both repos appear in the sidebar with their git status, their own searches, their own terminals.</p>
 
-<span class="file-label">FILE <span class="path">~/humanoid/humanoid.code-workspace</span></span>
+<span class="file-label">FILE <span class="path">~/humanoid/robot/humanoid.code-workspace</span></span>
 
 <pre data-lang="json"><code>{
   <span class="tok-s">"folders"</span>: [
     {
       <span class="tok-s">"name"</span>: <span class="tok-s">"robot (code)"</span>,
-      <span class="tok-s">"path"</span>: <span class="tok-s">"robot"</span>
+      <span class="tok-s">"path"</span>: <span class="tok-s">"."</span>
     },
     {
       <span class="tok-s">"name"</span>: <span class="tok-s">"docs (field notes)"</span>,
-      <span class="tok-s">"path"</span>: <span class="tok-s">"docs"</span>
+      <span class="tok-s">"path"</span>: <span class="tok-s">"../docs"</span>
     }
   ],
   <span class="tok-s">"settings"</span>: {
@@ -885,7 +879,7 @@ Give me a short summary:
 <h4>Opening the workspace</h4>
 
 <pre data-lang="bash"><code><span class="tok-c"># option 1: from command line</span>
-code ~/humanoid/humanoid.code-workspace
+code ~/humanoid/robot/humanoid.code-workspace
 
 <span class="tok-c"># option 2: from within VS Code</span>
 <span class="tok-c"># File → Open Workspace from File... → select humanoid.code-workspace</span>
@@ -1040,15 +1034,8 @@ claude
     <tr><td>.claude/settings.json</td><td class="v">additionalDirectories + permissions</td><td class="v">yes</td></tr>
     <tr><td>.claude/settings.local.json</td><td class="v">Personal overrides (e.g., enable git push)</td><td class="v">no (gitignored)</td></tr>
     <tr><td>.claude/commands/sync-docs.md</td><td class="v">The /sync-docs slash command</td><td class="v">yes</td></tr>
+    <tr><td>humanoid.code-workspace</td><td class="v">VS Code multi-root workspace: both repos in one window (paths "." + "../docs")</td><td class="v">yes</td></tr>
     <tr><td>.gitignore</td><td class="v">Must include .claude/settings.local.json</td><td class="v">yes</td></tr>
-  </tbody>
-</table>
-
-<h3>Parent directory</h3>
-<table class="ref">
-  <thead><tr><th>Path</th><th>Purpose</th><th>Commit?</th></tr></thead>
-  <tbody>
-    <tr><td>humanoid.code-workspace</td><td class="v">VS Code workspace: both repos in one window</td><td class="v">not in any repo (lives outside)</td></tr>
   </tbody>
 </table>
 </section>
