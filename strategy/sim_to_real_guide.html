@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>From one motor, a humanoid — a sim-to-real field guide</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0e0c09; --bg-panel:#15120d; --bg-inset:#0a0806;
+  --ink:#ece2cf; --ink-dim:#a79a82; --ink-faint:#6b6354;
+  --rule:#2a2419; --rule-soft:#1e1a13;
+  --amber:#e8a33d; --amber-deep:#b87a1e;
+  --cyan:#5fb3b3; --rose:#d97757; --moss:#8fa968;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"S2R/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"pendulum → humanoid";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+hr.divider{border:none;border-top:1px solid var(--rule);margin:72px 0}
+hr.divider-soft{border:none;border-top:1px dashed var(--rule-soft);margin:32px 0}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.panel.inset{background:var(--bg-inset)}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+nav.toc .toc-col{display:flex;flex-direction:column}
+nav.toc .toc-head{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--amber-deep)}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+.graph-wrap{background:var(--bg-panel);border:1px solid var(--rule);margin:28px 0;padding:24px 28px 28px;position:relative}
+.graph-wrap .g-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:12px}
+.graph-wrap .g-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink)}
+.graph-wrap .g-sub{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase}
+.graph-wrap .g-desc{color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px}
+.graph-canvas{position:relative;height:340px;width:100%}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+
+/* ─── part divider ─── */
+.part{margin:144px 0 48px;padding:48px 0 8px;border-top:1px solid var(--amber-deep);position:relative}
+.part::before{
+  content:"";position:absolute;top:-1px;left:0;width:80px;height:3px;background:var(--amber);
+}
+.part .pnum{font-family:var(--mono);font-size:11px;letter-spacing:.35em;color:var(--amber);text-transform:uppercase;margin-bottom:12px}
+.part h2.phead{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(36px,5vw,58px);line-height:1.05;letter-spacing:-.015em;margin:0 0 14px;color:var(--ink);max-width:860px}
+.part h2.phead em{color:var(--amber);font-style:italic;font-weight:500}
+.part .pdesc{font-family:var(--serif);font-weight:300;font-size:20px;color:var(--ink-dim);line-height:1.4;max-width:60ch;margin:0}
+
+/* ─── option comparison grid ─── */
+.options-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:32px 0;border:1px solid var(--rule)}
+@media (max-width:900px){.options-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:540px){.options-grid{grid-template-columns:1fr}}
+.opt{padding:24px 22px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);background:var(--bg-panel)}
+.opt:last-child{border-right:none}
+.opt .on{font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);margin-bottom:8px}
+.opt h5{font-family:var(--serif);font-weight:500;font-size:18px;margin:0 0 10px;color:var(--ink);line-height:1.2}
+.opt .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:3px 8px;border:1px solid var(--rule);color:var(--ink-dim);margin:0 4px 12px 0;border-radius:2px;text-transform:uppercase}
+.opt .tag.good{border-color:var(--moss);color:var(--moss)}
+.opt .tag.warn{border-color:var(--rose);color:var(--rose)}
+.opt .tag.fair{border-color:var(--amber-deep);color:var(--amber)}
+.opt p{font-size:13.5px;color:var(--ink-dim);margin:0;line-height:1.55}
+
+/* ─── flow diagram ─── */
+.flow{background:var(--bg-panel);border:1px solid var(--rule);padding:40px 32px;margin:24px 0;position:relative;overflow-x:auto}
+.flow::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.flow svg{width:100%;height:auto;min-width:700px;display:block}
+.flow-caption{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-faint);margin-top:16px;padding-top:14px;border-top:1px dashed var(--rule)}
+
+/* ─── timeline ─── */
+.timeline{margin:32px 0;border-left:1px solid var(--rule);padding-left:32px;position:relative}
+.timeline::before{content:"";position:absolute;left:-1px;top:0;width:2px;height:60px;background:var(--amber)}
+.tl-item{position:relative;padding:0 0 36px 0;max-width:72ch}
+.tl-item::before{content:"";position:absolute;left:-41px;top:8px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:2px solid var(--amber)}
+.tl-item .tl-when{font-family:var(--mono);font-size:11px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase;margin-bottom:6px}
+.tl-item .tl-what{font-family:var(--serif);font-weight:500;font-size:22px;color:var(--ink);margin:0 0 10px;line-height:1.25}
+.tl-item .tl-body{font-size:15px;color:var(--ink-dim);margin:0;line-height:1.6}
+
+/* ─── pipeline diagram boxes ─── */
+.pipe3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin:32px 0;border:1px solid var(--rule)}
+@media (max-width:800px){.pipe3{grid-template-columns:1fr}}
+.pipe3 .stage{padding:28px 24px;border-right:1px solid var(--rule);background:var(--bg-panel);position:relative}
+.pipe3 .stage:last-child{border-right:none}
+.pipe3 .stage .tag{font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase;margin-bottom:10px}
+.pipe3 .stage h5{font-family:var(--serif);font-weight:500;font-size:22px;margin:0 0 8px;color:var(--ink)}
+.pipe3 .stage .what{font-size:14px;color:var(--ink);margin:0 0 14px;line-height:1.5}
+.pipe3 .stage .meta-item{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.05em;padding:3px 0;border-top:1px dashed var(--rule-soft)}
+.pipe3 .stage .meta-item:first-of-type{border-top:none}
+.pipe3 .stage .meta-item strong{color:var(--ink-dim);font-weight:500;display:inline-block;min-width:76px;font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="eyebrow">Strategy · Architecture · Working code</div>
+  <h1 class="title">From one motor,<br>a <em>humanoid</em>.</h1>
+  <p class="subtitle">You have a tuned pendulum. A policy that "kinda works." Identified parameters. This is how you turn that into a reliable sim-to-real pipeline — and then multiply it by 25 joints.</p>
+
+  <div class="meta">
+    <div><span class="k">Stage now</span><span class="v">PD tuned · <em>one joint</em></span></div>
+    <div><span class="k">Stage next</span><span class="v">Isaac → <em>Gazebo → real</em></span></div>
+    <div><span class="k">Stage final</span><span class="v">Humanoid <em>bring-up</em></span></div>
+    <div><span class="k">Horizon</span><span class="v">~4 weeks for <em>pipeline</em></span></div>
+  </div>
+
+  <nav class="toc">
+    <div class="toc-col">
+      <div class="toc-head">Part I — Diagnosis</div>
+      <a href="#assess"><span class="n">01</span>Why "URDF + mass" plateaus</a>
+      <a href="#hierarchy"><span class="n">02</span>The real sim-to-real gap</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part II — Isaac with a baseline</div>
+      <a href="#unlocks"><span class="n">03</span>What one identified joint unlocks</a>
+      <a href="#weeks"><span class="n">04</span>A four-week plan</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part III — Three simulators</div>
+      <a href="#pipeline"><span class="n">05</span>Isaac → Gazebo → real</a>
+      <a href="#catches"><span class="n">06</span>What each layer catches</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part IV — Gazebo actuator</div>
+      <a href="#gap"><span class="n">07</span>Why default Gazebo fails</a>
+      <a href="#arch"><span class="n">08</span>Architecture of the model</a>
+      <a href="#options"><span class="n">09</span>The four options</a>
+      <a href="#opt2"><span class="n">10</span>Option 2 — Python wrapper</a>
+      <a href="#opt3"><span class="n">11</span>Option 3 — HW interface</a>
+      <a href="#opt4"><span class="n">12</span>Option 4 — MuJoCo</a>
+      <a href="#randomize"><span class="n">13</span>Randomization in sim</a>
+      <a href="#validate"><span class="n">14</span>Validating sim vs real</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part V — Bigger picture</div>
+      <a href="#roadmap"><span class="n">15</span>End-to-end roadmap</a>
+    </div>
+  </nav>
+</header>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART I — DIAGNOSIS
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part I</div>
+  <h2 class="phead">Where you <em>actually</em> are.</h2>
+  <p class="pdesc">An honest read on the current training approach, and what it's not telling you.</p>
+</div>
+
+<!-- ─── §01 ASSESS ─── -->
+<section id="assess">
+<span class="section-num">§ 01 — Assessing the current approach</span>
+<h2>"Kinda works" is <em>meaningful</em>, but not enough.</h2>
+
+<p class="lead">You trained policies with URDF + mass randomization and got ones that "kinda work." That's a real achievement — it means the policy is learning robust strategies rather than overfitting to a specific trajectory. But it's also the ceiling of what mass-only randomization can give you, and here's why.</p>
+
+<h3>What's working</h3>
+<ul class="bullets">
+  <li>The policy <em>is</em> learning locomotion-compatible control strategies, not memorized trajectories.</li>
+  <li>Mass randomization gives you robustness along one real axis of uncertainty (payloads, assembly tolerance).</li>
+  <li>The core pipeline — URDF ingest, training, ONNX export, deployment — is evidently end-to-end functional.</li>
+</ul>
+
+<h3>Why it plateaus</h3>
+<p>Mass is not the dominant sim-to-real gap. Policies trained only against mass variation become robust to mass and brittle to everything else. When they deploy and "kinda work," what's actually happening is that the policy found strategies that <em>happen</em> to tolerate the unmodeled effects — not because it learned to handle them, but because mass happens to overlap with them stochastically during training. That's fragile.</p>
+
+<div class="warn">
+  <strong>The failure mode to watch for.</strong> Policies that succeed in 7 out of 10 deployments on identical hardware, with no pattern to the failures. That's the signature of an unmodeled dynamic effect: the policy works when the unmodeled term happens to be small, and fails when it isn't. Adding more mass randomization will not fix this — you have to add the <em>right</em> randomization.
+</div>
+</section>
+
+<!-- ─── §02 HIERARCHY ─── -->
+<section id="hierarchy">
+<span class="section-num">§ 02 — The real sim-to-real gap hierarchy</span>
+<h2>What actually makes the policy <em>fail</em> on real hardware.</h2>
+
+<p class="lead">For most humanoid tasks, the rank-ordered list of what kills transfer looks like this. Mass uncertainty — the thing you've been randomizing — is near the bottom.</p>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Sim-to-real gap by source</div>
+    <div class="g-sub">relative impact · typical humanoid task</div>
+  </div>
+  <div class="g-desc">Longer bars mean bigger real-world effect when unmodeled. This is approximate and task-dependent, but the ordering is remarkably stable across dynamic tasks — actuator dynamics dominate, mass is near the floor.</div>
+  <div class="graph-canvas"><canvas id="gapChart"></canvas></div>
+</div>
+
+<h3>What to add, in priority order</h3>
+
+<ul class="steps">
+  <li><strong>Match the PD layer exactly between sim and real</strong>
+    If your Isaac env applies some default PD with Kp = 100 under the hood, and your X6 runs Kp = 3, the policy learned to exploit stiffness that doesn't physically exist. This is a <em>silent</em> failure — no one tells you about the implicit PD in Isaac. Read the actuator config in your training wrapper, and make sure it mirrors the real PD gains.
+  </li>
+  <li><strong>Model actuator dynamics, at minimum a first-order torque lag</strong>
+    Real X-series motors have τ_m ≈ 5–15 ms. Default sim actuators have 0. Adding a single low-pass filter between policy output and applied torque closes a huge chunk of the gap, and costs almost nothing in training throughput.
+  </li>
+  <li><strong>Randomize friction around identified values</strong>
+    F_c ±30%, F_v ±30%, sampled per episode. You measured these on the bench — randomize around measurements, not guesses.
+  </li>
+  <li><strong>Inject observation and action latency</strong>
+    1–3 loop periods of delay, uniform randomized. A policy trained with zero latency outputs high-frequency corrections that destabilize real hardware on contact.
+  </li>
+  <li><strong>Freeze observation normalization at export</strong>
+    If you used PPO with running mean/std, the running stats keep updating during training. Freeze them before ONNX export or your deployed policy sees a different observation distribution than the one it was trained on. This is the single most common silent failure in sim-to-real pipelines.
+  </li>
+</ul>
+
+<div class="callout">
+  Domain randomization alone is a blunt tool. Parameter identification plus targeted randomization is a scalpel. You have the identified parameters — use them.
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART II — ISAAC WITH A BASELINE
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part II</div>
+  <h2 class="phead">Isaac, with a <em>baseline</em>.</h2>
+  <p class="pdesc">What one identified joint actually unlocks in simulation — and why the pendulum is the fastest path to the humanoid.</p>
+</div>
+
+<!-- ─── §03 UNLOCKS ─── -->
+<section id="unlocks">
+<span class="section-num">§ 03 — What one identified joint unlocks</span>
+<h2>Why the pendulum is a <em>feature</em>, not a detour.</h2>
+
+<p class="lead">You identified J, mgl, F_c, F_v, τ_m on the bench in an hour. With those numbers in hand, a single-joint Isaac environment becomes seven different experiments, each of which teaches you something you'll need on the humanoid. In order of value:</p>
+
+<h3>1. Model validation before scaling up</h3>
+
+<p>Build the pendulum in Isaac with your identified parameters. Run the <em>same</em> trajectory you run on real hardware. Compare the traces. If they diverge by more than ~10%, your model is wrong — and it's much better to find that out on one joint than on a humanoid with 25 of them.</p>
+
+<p>This is the single highest-leverage thing to do right now. Most humanoid sim-to-real failures trace back to skipping this validation at the single-joint stage.</p>
+
+<h3>2. Train a policy that beats hand-tuned PD</h3>
+
+<p>A learned torque-control policy on a single pendulum can outperform fixed-gain PD on three axes: faster step response without overshoot, better disturbance rejection, graceful torque saturation handling. Training time: minutes. The value isn't the policy itself — it's that you debug the whole pipeline (reward shaping, observation design, PPO hyperparameters, ONNX export, deployment) at a scale where you can still see what's happening.</p>
+
+<h3>3. Swing-up and balance</h3>
+
+<p>Classic RL benchmark, fits your rig perfectly. Let the 1 kg mass rotate past the axis and train the policy to bring it from hanging-down to inverted-balanced. Two regimes in one task: energy pumping far from upright, stabilization near it. Great test of policy quality, great photo-op for reports.</p>
+
+<h3>4. Adaptive control under payload changes</h3>
+
+<p>Train with the 1 kg mass randomized between 0.5 and 2 kg, distance 0.2–0.4 m. Deploy. Swap the weight mid-run. Watch how fast the policy adapts. That's exactly the skill your humanoid needs — arms pick up unknown objects every minute.</p>
+
+<h3>5. Latency-budget characterization</h3>
+
+<p>Inject varying action latency (0–20 ms) during training. Measure real-world performance vs latency. Find the point where transfer degrades. That number tells you how much latency headroom you have before you scale up.</p>
+
+<h3>6. Tune the domain randomization ranges themselves</h3>
+
+<p>On one joint you can actually answer: "does ±30% on F_c help or hurt transfer?" Grid-search the randomization bounds and measure transfer quality. The answers generalize — ranges that work for one joint work for others.</p>
+
+<h3>7. Prove the ROS 2 deployment pipeline end-to-end</h3>
+
+<p>ONNX → ros2_control → EtherCAT → motor. Debug the plumbing on one joint, where a failure just means a bar stops moving, not a robot faceplants. When you scale up, the only new problem is multi-joint coordination — the plumbing is solved.</p>
+
+<div class="callout">
+  The pendulum isn't a simpler version of the humanoid. It's the <em>same problem at a scale where you can debug it</em>.
+</div>
+</section>
+
+<!-- ─── §04 WEEKS ─── -->
+<section id="weeks">
+<span class="section-num">§ 04 — A four-week plan</span>
+<h2>From <em>tuned bench</em> to policy-transfer-ready.</h2>
+
+<p class="lead">A concrete sequence for the next month on the single-joint rig. Each week builds on the previous one; by the end, every piece of the humanoid pipeline has been proven at single-joint scale.</p>
+
+<div class="timeline">
+  <div class="tl-item">
+    <div class="tl-when">Week 1 · Validation</div>
+    <div class="tl-what">Prove the simulation matches reality.</div>
+    <p class="tl-body">Build the pendulum URDF in Isaac with identified J, mgl, F_c, F_v, τ_m. Run the same quintic sweep on both real and sim. Overlay traces, compute tracking-error RMSE. Target: &lt; 10%. If it's higher, debug the model before training anything. <em>No policy training this week.</em></p>
+  </div>
+  <div class="tl-item">
+    <div class="tl-when">Week 2 · First policy</div>
+    <div class="tl-what">Train a position-tracking policy; transfer it.</div>
+    <p class="tl-body">Simplest possible RL task — match a reference trajectory. Train in Isaac with the identified-parameter env, export to ONNX, deploy via ros2_control. The policy doesn't need to beat your PD; it needs to <em>work</em>. What you're actually validating is the training → export → deployment chain.</p>
+  </div>
+  <div class="tl-item">
+    <div class="tl-when">Week 3 · Harder task</div>
+    <div class="tl-what">Swing-up + balance — same pipeline, new task.</div>
+    <p class="tl-body">Now that the plumbing is proven, scale task difficulty. Swing-up forces the policy to learn two different control regimes, and tests whether your actuator model captures saturation correctly. If it works in sim but not real, that's a model gap — usually friction or torque limit.</p>
+  </div>
+  <div class="tl-item">
+    <div class="tl-when">Week 4 · Robustness tools</div>
+    <div class="tl-what">Payload randomization + latency study.</div>
+    <p class="tl-body">Randomize mass and arm length in training; test real-world adaptation when you swap weights. In parallel, sweep action latency during training and measure transfer quality. By end of week 4, you have <em>empirical</em> DR ranges that you know work — instead of the ±20% you guessed at.</p>
+  </div>
+  <div class="tl-item">
+    <div class="tl-when">Week 5+ · Scale up</div>
+    <div class="tl-what">Apply the proven pipeline to the humanoid.</div>
+    <p class="tl-body">Everything you built at pendulum scale — the actuator model, the randomization ranges, the deployment plumbing, the validation protocol — copies over. The new problem is multi-joint coordination. That's still hard, but it's the <em>only</em> remaining hard problem.</p>
+  </div>
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART III — THREE SIMULATORS
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part III</div>
+  <h2 class="phead">Three simulators, <em>one contract</em>.</h2>
+  <p class="pdesc">Isaac for training, Gazebo for ROS integration, real hardware for final test — each layer catches different bug classes.</p>
+</div>
+
+<!-- ─── §05 PIPELINE ─── -->
+<section id="pipeline">
+<span class="section-num">§ 05 — Isaac → Gazebo → real</span>
+<h2>Why three stages, not two.</h2>
+
+<p class="lead">The intuitive pipeline is train-in-sim, deploy-on-real. In practice, inserting Gazebo between them is what makes the jump reliable. Three layers of decreasing speed and increasing realism, each catching bugs the others can't.</p>
+
+<div class="pipe3">
+  <div class="stage">
+    <div class="tag">Stage 1</div>
+    <h5>Isaac</h5>
+    <p class="what">Train the policy. Thousands of parallel envs on GPU. Actuator model identified + randomized.</p>
+    <div class="meta-item"><strong>Optimized for</strong> RL throughput</div>
+    <div class="meta-item"><strong>Rate</strong> ~60 Hz policy, 120 Hz physics</div>
+    <div class="meta-item"><strong>ROS</strong> none</div>
+    <div class="meta-item"><strong>Output</strong> ONNX file</div>
+  </div>
+  <div class="stage">
+    <div class="tag">Stage 2</div>
+    <h5>Gazebo</h5>
+    <p class="what">Validate the policy in the real ROS 2 stack. Same controller plugins, same middleware, same launch files you'll use on hardware.</p>
+    <div class="meta-item"><strong>Optimized for</strong> ROS integration</div>
+    <div class="meta-item"><strong>Rate</strong> ~1 kHz controller</div>
+    <div class="meta-item"><strong>ROS</strong> full — ros2_control, DDS, etc.</div>
+    <div class="meta-item"><strong>Output</strong> go/no-go for real</div>
+  </div>
+  <div class="stage">
+    <div class="tag">Stage 3</div>
+    <h5>Real hardware</h5>
+    <p class="what">Deploy. Same ROS graph as Gazebo, only the hardware interface plugin changes.</p>
+    <div class="meta-item"><strong>Optimized for</strong> reality</div>
+    <div class="meta-item"><strong>Rate</strong> hardware-defined</div>
+    <div class="meta-item"><strong>ROS</strong> same as Gazebo</div>
+    <div class="meta-item"><strong>Output</strong> working robot</div>
+  </div>
+</div>
+
+<h3>The contract that makes this work</h3>
+
+<p><code>ros2_control</code> defines a stable interface surface — the <code>hardware_interface::SystemInterface</code> class — that both Gazebo and real hardware implement. Your controllers, your ONNX inference node, your launch files, your parameter YAMLs — none of them change between Gazebo and real. Only the plugin underneath does.</p>
+
+<p>That's the contract. Stage 2 and Stage 3 are the same ROS graph with one swap: <code>gz_ros2_control/GazeboSimSystem</code> becomes <code>your_package/RealX6CAN</code>. If you architect for this from day one, deployment is a launch-file parameter change.</p>
+
+<div class="callout">
+  The value of ros2_control isn't the controllers — you'll write your own. It's the <em>stable contract</em> between controllers and hardware that makes sim and real interchangeable.
+</div>
+</section>
+
+<!-- ─── §06 CATCHES ─── -->
+<section id="catches">
+<span class="section-num">§ 06 — What each layer catches</span>
+<h2>Different sims, different <em>bug classes</em>.</h2>
+
+<p class="lead">Skipping any layer means discovering its bugs on real hardware, which is the most expensive place to find them.</p>
+
+<h3>Bugs Isaac catches</h3>
+<ul class="bullets">
+  <li>Policy-architecture bugs (reward misspecification, observation normalization, action scaling)</li>
+  <li>Training instability (PPO hyperparameters, entropy collapse, value-function saturation)</li>
+  <li>Gross domain-randomization problems (too narrow, too broad, wrong distribution shape)</li>
+  <li>ONNX export issues (ops that don't serialize, missing metadata)</li>
+</ul>
+
+<h3>Bugs Gazebo catches that Isaac doesn't</h3>
+<ul class="bullets">
+  <li>Message-rate mismatches — policy runs at 50 Hz, controller at 1 kHz, state publishes at 500 Hz — does your interpolation work?</li>
+  <li>Observation-assembly bugs — did you compute θ̇ the same way in both sims?</li>
+  <li>Action-scaling bugs — policy outputs ±1 normalized, did you un-normalize before sending torque?</li>
+  <li>Coordinate-frame mismatches — Isaac might have +Z up, URDF says +Y, Gazebo says +Z…</li>
+  <li>DDS middleware latency — QoS settings, network topology if distributed</li>
+  <li>Controller-manager scheduling — does your 1 kHz effort command actually hit the joint at 1 kHz?</li>
+  <li>Launch-file correctness — if it doesn't launch cleanly in Gazebo, it won't on real</li>
+  <li>Interaction with other ROS nodes (logging, visualization, teleop overrides)</li>
+</ul>
+
+<h3>Bugs only real hardware catches</h3>
+<ul class="bullets">
+  <li>Electrical noise, EMI on CAN / EtherCAT lines</li>
+  <li>Thermal drift — motor parameters change over a 30-minute run</li>
+  <li>Actuator wear — bearings dry out, brushes wear, friction grows</li>
+  <li>Mechanical issues — backlash, bolt loosening, link flex you didn't model</li>
+  <li>Safety events — e-stops, torque trips, comm timeouts</li>
+</ul>
+
+<div class="warn">
+  <strong>The honest warning about Gazebo.</strong> Default Gazebo actuators are even more idealized than Isaac — pure torque sources with zero lag, perfect sensors, no friction unless you add it. If you skip friction and lag injection in Gazebo, your policy will look perfect there and fail on real. Gazebo catches ROS bugs, not physics bugs, unless you explicitly model actuator imperfections. That's what Part IV is about.
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART IV — GAZEBO ACTUATOR
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part IV</div>
+  <h2 class="phead">Building the <em>Gazebo</em> layer.</h2>
+  <p class="pdesc">A simulated actuator that disagrees with the commanded torque the same way your real motor does.</p>
+</div>
+
+<!-- ─── §07 GAP ─── -->
+<section id="gap">
+<span class="section-num">§ 07 — Why default Gazebo fails</span>
+<h2>An ideal torque source is not a <em>motor</em>.</h2>
+
+<p class="lead">Gazebo's default actuator is perfect. Command a torque, the joint experiences that torque, instantly, with zero friction, zero saturation, zero lag. Your policy trains against this and learns strategies that exploit an environment your real motor cannot provide.</p>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Torque response to a 5 N·m step command</div>
+    <div class="g-sub">ideal vs realistic actuator</div>
+  </div>
+  <div class="g-desc">The real motor (and a first-order lag model) rises to commanded torque with a ~10 ms time constant. Gazebo's default is the flat rose line — no dynamics. A policy trained against the flat line has no experience of transient behavior and over-commands when deployed.</div>
+  <div class="graph-canvas"><canvas id="lagChart"></canvas></div>
+</div>
+
+<h3>What the default model is missing</h3>
+
+<table class="ref">
+  <thead><tr><th>Effect</th><th>Real motor</th><th>Gazebo default</th><th>Impact on policy</th></tr></thead>
+  <tbody>
+    <tr><td>Torque lag</td><td class="v">5–15 ms first-order</td><td class="v">0 ms (instant)</td><td class="v">over-commands, oscillates on real</td></tr>
+    <tr><td>Torque saturation</td><td class="v">hard limit (e.g. 12 N·m)</td><td class="v">unbounded</td><td class="v">learns impossible strategies</td></tr>
+    <tr><td>Coulomb friction</td><td class="v">0.1–0.5 N·m constant</td><td class="v">0 (unless URDF)</td><td class="v">slow-motion tracking fails</td></tr>
+    <tr><td>Viscous friction</td><td class="v">linear in θ̇</td><td class="v">only via URDF</td><td class="v">damping mismatch at speed</td></tr>
+    <tr><td>Stiction</td><td class="v">break-away threshold</td><td class="v">none</td><td class="v">dead-band near zero velocity</td></tr>
+    <tr><td>Backlash</td><td class="v">small, real</td><td class="v">none</td><td class="v">repeatability errors on direction change</td></tr>
+    <tr><td>Sensor quantization</td><td class="v">encoder counts</td><td class="v">float64</td><td class="v">reacts to unreal signal resolution</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  A policy trained against a perfect world fails the first time reality disagrees with it. The job of the simulated actuator is to disagree the same way the real one does.
+</div>
+</section>
+
+<!-- ─── §08 ARCH ─── -->
+<section id="arch">
+<span class="section-num">§ 08 — Architecture</span>
+<h2>Where does the actuator model <em>live</em>?</h2>
+
+<p class="lead">One question to answer before any code: at which point in the ROS 2 pipeline do you modify the torque? There are three sensible answers — before the controller, inside the hardware interface, or inside the physics engine itself — and they correspond to Options 2, 3, and 4.</p>
+
+<div class="flow" data-label="torque flow through ROS 2 + Gazebo">
+<svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e8a33d"/>
+    </marker>
+  </defs>
+
+  <text x="0" y="20" fill="#6b6354" font-size="10" letter-spacing="2">DEFAULT (WRONG) — NO ACTUATOR MODEL</text>
+  <rect x="0" y="32" width="150" height="52" fill="#15120d" stroke="#2a2419"/>
+  <text x="75" y="56" text-anchor="middle" fill="#ece2cf" font-size="12">Policy (ONNX)</text>
+  <text x="75" y="72" text-anchor="middle" fill="#6b6354" font-size="10">τ_cmd</text>
+  <line x1="150" y1="58" x2="210" y2="58" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="210" y="32" width="180" height="52" fill="#15120d" stroke="#2a2419"/>
+  <text x="300" y="56" text-anchor="middle" fill="#ece2cf" font-size="12">effort_controller</text>
+  <text x="300" y="72" text-anchor="middle" fill="#6b6354" font-size="10">pass-through</text>
+  <line x1="390" y1="58" x2="450" y2="58" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="450" y="32" width="200" height="52" fill="#15120d" stroke="#2a2419"/>
+  <text x="550" y="56" text-anchor="middle" fill="#ece2cf" font-size="12">hardware_interface</text>
+  <text x="550" y="72" text-anchor="middle" fill="#6b6354" font-size="10">gz_ros2_control</text>
+  <line x1="650" y1="58" x2="710" y2="58" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="710" y="32" width="170" height="52" fill="#15120d" stroke="#d97757"/>
+  <text x="795" y="56" text-anchor="middle" fill="#d97757" font-size="12">Gazebo joint</text>
+  <text x="795" y="72" text-anchor="middle" fill="#6b6354" font-size="10">ideal τ source</text>
+
+  <text x="0" y="120" fill="#6b6354" font-size="10" letter-spacing="2">OPT. 2 — WRAPPER NODE BEFORE CONTROLLER</text>
+  <rect x="0" y="132" width="150" height="52" fill="#15120d" stroke="#2a2419"/>
+  <text x="75" y="156" text-anchor="middle" fill="#ece2cf" font-size="12">Policy (ONNX)</text>
+  <text x="75" y="172" text-anchor="middle" fill="#6b6354" font-size="10">τ_cmd</text>
+  <line x1="150" y1="158" x2="175" y2="158" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="175" y="132" width="140" height="52" fill="#15120d" stroke="#e8a33d"/>
+  <text x="245" y="152" text-anchor="middle" fill="#e8a33d" font-size="11">ActuatorWrapper</text>
+  <text x="245" y="166" text-anchor="middle" fill="#ece2cf" font-size="10">lag, friction, sat</text>
+  <text x="245" y="178" text-anchor="middle" fill="#6b6354" font-size="9">Python node</text>
+  <line x1="315" y1="158" x2="345" y2="158" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="345" y="132" width="150" height="52" fill="#15120d" stroke="#2a2419"/>
+  <text x="420" y="156" text-anchor="middle" fill="#ece2cf" font-size="12">effort_controller</text>
+  <text x="420" y="172" text-anchor="middle" fill="#6b6354" font-size="10">pass-through</text>
+  <line x1="495" y1="158" x2="525" y2="158" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="525" y="132" width="175" height="52" fill="#15120d" stroke="#2a2419"/>
+  <text x="612" y="156" text-anchor="middle" fill="#ece2cf" font-size="12">hardware_interface</text>
+  <text x="612" y="172" text-anchor="middle" fill="#6b6354" font-size="10">gz_ros2_control</text>
+  <line x1="700" y1="158" x2="730" y2="158" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="730" y="132" width="150" height="52" fill="#15120d" stroke="#8fa968"/>
+  <text x="805" y="156" text-anchor="middle" fill="#8fa968" font-size="12">Gazebo joint</text>
+  <text x="805" y="172" text-anchor="middle" fill="#6b6354" font-size="10">receives τ_real</text>
+
+  <text x="0" y="220" fill="#6b6354" font-size="10" letter-spacing="2">OPT. 3 — CUSTOM HARDWARE INTERFACE</text>
+  <rect x="0" y="232" width="150" height="24" fill="#15120d" stroke="#2a2419"/>
+  <text x="75" y="248" text-anchor="middle" fill="#ece2cf" font-size="11">Policy (ONNX)</text>
+  <line x1="150" y1="244" x2="210" y2="244" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="210" y="232" width="180" height="24" fill="#15120d" stroke="#2a2419"/>
+  <text x="300" y="248" text-anchor="middle" fill="#ece2cf" font-size="11">effort_controller</text>
+  <line x1="390" y1="244" x2="450" y2="244" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="450" y="232" width="260" height="24" fill="#15120d" stroke="#e8a33d"/>
+  <text x="580" y="248" text-anchor="middle" fill="#e8a33d" font-size="11">SimulatedX6HardwareInterface (model lives here)</text>
+  <line x1="710" y1="244" x2="730" y2="244" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="730" y="232" width="150" height="24" fill="#15120d" stroke="#8fa968"/>
+  <text x="805" y="248" text-anchor="middle" fill="#8fa968" font-size="11">Gazebo joint</text>
+</svg>
+<div class="flow-caption">Default (top row) leaves the torque command unchanged. Opt 2 and Opt 3 insert the actuator model at different points. Opt 3 mirrors the structure of your real-hardware interface — swap one plugin for another at deployment.</div>
+</div>
+</section>
+
+<!-- ─── §09 OPTIONS ─── -->
+<section id="options">
+<span class="section-num">§ 09 — The four options</span>
+<h2>From <em>laziest</em> to most correct.</h2>
+
+<div class="options-grid">
+  <div class="opt">
+    <div class="on">01</div>
+    <h5>URDF tags</h5>
+    <span class="tag warn">bringup only</span>
+    <p>Use to confirm the launch file and TF tree work. Throw away within a day. Never train against.</p>
+  </div>
+  <div class="opt">
+    <div class="on">02</div>
+    <h5>Python wrapper node</h5>
+    <span class="tag good">start here</span>
+    <p>Working in an afternoon. Catches 90% of sim-to-real bugs. Iterate on the model freely.</p>
+  </div>
+  <div class="opt">
+    <div class="on">03</div>
+    <h5>Custom HW interface</h5>
+    <span class="tag fair">migrate to</span>
+    <p>Day of C++ work. The real long-term answer — same structure as your real-hardware plugin.</p>
+  </div>
+  <div class="opt">
+    <div class="on">04</div>
+    <h5>MuJoCo</h5>
+    <span class="tag fair">consider</span>
+    <p>Built-in actuator models. Drop-in for single joint. Worth considering for the humanoid too.</p>
+  </div>
+</div>
+
+<h4>Quick path through all four</h4>
+<ul class="bullets">
+  <li><strong>Option 1</strong> — day 1, prove launch works. Then move on.</li>
+  <li><strong>Option 2</strong> — this week, start training. Get a policy transferring from Isaac → Gazebo.</li>
+  <li><strong>Option 3</strong> — next month, when the pipeline is stable and you want the permanent architecture.</li>
+  <li><strong>Option 4</strong> — evaluate in parallel; if your actuator model ends up complex, MuJoCo handles it natively.</li>
+</ul>
+</section>
+
+<!-- ─── §10 OPT 2 ─── -->
+<section id="opt2">
+<span class="section-num">§ 10 — Option 2</span>
+<h2>A Python wrapper node <em>before</em> the controller.</h2>
+
+<p class="lead">The actuator model lives in its own ROS 2 node that sits between your policy and the effort controller. Policy publishes raw torque; wrapper consumes it, applies the model, republishes to the controller. Full implementation below — paste into <code>actuator_wrapper.py</code>, adjust topic names, launch alongside everything else.</p>
+
+<pre data-lang="python"><code><span class="tok-c">#!/usr/bin/env python3</span>
+<span class="tok-c">"""
+Actuator-model wrapper for Gazebo sim-to-real validation.
+
+Subscribes:  /policy_effort_raw     (Float64MultiArray)
+             /joint_states          (sensor_msgs/JointState)
+Publishes:   /effort_controllers/commands  (Float64MultiArray)
+
+Applies per joint:  saturation → first-order torque lag → friction.
+Exposes params via ros2 param set for domain randomization.
+"""</span>
+
+<span class="tok-k">import</span> numpy <span class="tok-k">as</span> np
+<span class="tok-k">import</span> rclpy
+<span class="tok-k">from</span> rclpy.node <span class="tok-k">import</span> Node
+<span class="tok-k">from</span> sensor_msgs.msg <span class="tok-k">import</span> JointState
+<span class="tok-k">from</span> std_msgs.msg <span class="tok-k">import</span> Float64MultiArray
+
+
+<span class="tok-k">class</span> <span class="tok-f">ActuatorWrapper</span>(Node):
+
+    <span class="tok-k">def</span> <span class="tok-f">__init__</span>(self):
+        <span class="tok-f">super</span>().__init__(<span class="tok-s">'actuator_wrapper'</span>)
+
+        <span class="tok-c"># ── identified motor params — from the ID procedure ─</span>
+        self.declare_parameter(<span class="tok-s">'Fc'</span>,      <span class="tok-n">0.15</span>)    <span class="tok-c"># Coulomb, N·m</span>
+        self.declare_parameter(<span class="tok-s">'Fv'</span>,      <span class="tok-n">0.05</span>)    <span class="tok-c"># viscous, N·m·s/rad</span>
+        self.declare_parameter(<span class="tok-s">'tau_m'</span>,   <span class="tok-n">0.010</span>)   <span class="tok-c"># motor lag, s</span>
+        self.declare_parameter(<span class="tok-s">'tau_max'</span>, <span class="tok-n">12.0</span>)    <span class="tok-c"># hard limit, N·m</span>
+        self.declare_parameter(<span class="tok-s">'rate_hz'</span>, <span class="tok-n">1000.0</span>)
+        self.declare_parameter(<span class="tok-s">'joint_name'</span>, <span class="tok-s">'pendulum_joint'</span>)
+
+        <span class="tok-c"># ── state ───────────────────────────────────────</span>
+        self.tau_applied = <span class="tok-n">0.0</span>      <span class="tok-c"># filtered torque (lag state)</span>
+        self.tau_cmd     = <span class="tok-n">0.0</span>      <span class="tok-c"># latest raw command from policy</span>
+        self.velocity    = <span class="tok-n">0.0</span>      <span class="tok-c"># latest measured joint velocity</span>
+
+        rate = self.get_parameter(<span class="tok-s">'rate_hz'</span>).value
+        self.dt = <span class="tok-n">1.0</span> / rate
+
+        <span class="tok-c"># ── ROS I/O ─────────────────────────────────────</span>
+        self.create_subscription(
+            Float64MultiArray, <span class="tok-s">'/policy_effort_raw'</span>,
+            self.on_policy_cmd, <span class="tok-n">10</span>)
+        self.create_subscription(
+            JointState, <span class="tok-s">'/joint_states'</span>,
+            self.on_joint_state, <span class="tok-n">10</span>)
+        self.pub = self.create_publisher(
+            Float64MultiArray, <span class="tok-s">'/effort_controllers/commands'</span>, <span class="tok-n">10</span>)
+
+        self.create_timer(self.dt, self.tick)
+
+    <span class="tok-k">def</span> <span class="tok-f">on_policy_cmd</span>(self, msg):
+        <span class="tok-k">if</span> <span class="tok-f">len</span>(msg.data) &gt; <span class="tok-n">0</span>:
+            self.tau_cmd = <span class="tok-f">float</span>(msg.data[<span class="tok-n">0</span>])
+
+    <span class="tok-k">def</span> <span class="tok-f">on_joint_state</span>(self, msg):
+        name = self.get_parameter(<span class="tok-s">'joint_name'</span>).value
+        <span class="tok-k">if</span> name <span class="tok-k">in</span> msg.name:
+            i = msg.name.index(name)
+            self.velocity = msg.velocity[i]
+
+    <span class="tok-k">def</span> <span class="tok-f">tick</span>(self):
+        Fc      = self.get_parameter(<span class="tok-s">'Fc'</span>).value
+        Fv      = self.get_parameter(<span class="tok-s">'Fv'</span>).value
+        tau_m   = self.get_parameter(<span class="tok-s">'tau_m'</span>).value
+        tau_max = self.get_parameter(<span class="tok-s">'tau_max'</span>).value
+
+        <span class="tok-c"># 1. saturate raw policy command</span>
+        tau_c = np.clip(self.tau_cmd, -tau_max, tau_max)
+
+        <span class="tok-c"># 2. first-order torque lag</span>
+        alpha = self.dt / <span class="tok-f">max</span>(tau_m, <span class="tok-n">1e-6</span>)
+        self.tau_applied += (tau_c - self.tau_applied) * alpha
+
+        <span class="tok-c"># 3. friction (opposes motion; tanh replaces sign for smoothness)</span>
+        tau_fric = Fc * np.tanh(self.velocity / <span class="tok-n">0.01</span>) + Fv * self.velocity
+
+        <span class="tok-c"># 4. publish net torque</span>
+        out = Float64MultiArray()
+        out.data = [<span class="tok-f">float</span>(self.tau_applied - tau_fric)]
+        self.pub.publish(out)
+
+
+<span class="tok-k">def</span> <span class="tok-f">main</span>():
+    rclpy.init()
+    rclpy.spin(<span class="tok-f">ActuatorWrapper</span>())
+</code></pre>
+
+<h4>Why this works</h4>
+<ul class="bullets">
+  <li>Policy publishes to <code>/policy_effort_raw</code>; wrapper corrupts it with realistic effects and forwards to the controller.</li>
+  <li>All params are ROS 2 parameters — randomize at training time via <code>ros2 param set</code> between episodes.</li>
+  <li>Same node runs during training and Gazebo validation; remove it for real hardware (the motor has its own lag and friction).</li>
+</ul>
+
+<div class="warn">
+  <strong>Timing gotcha.</strong> The wrapper runs on its own timer, independent of the controller-manager tick. In heavy sim you can miss cycles. If you see sim latency issues, move to Option 3 — model runs inside the <code>write()</code> callback and executes every control tick.
+</div>
+</section>
+
+<!-- ─── §11 OPT 3 ─── -->
+<section id="opt3">
+<span class="section-num">§ 11 — Option 3</span>
+<h2>A custom <em>hardware_interface</em> plugin.</h2>
+
+<p class="lead">The architecturally correct answer. A <code>SystemInterface</code> plugin whose <code>write()</code> method applies the actuator model before forwarding to the Gazebo joint API. Your real-hardware X6 CAN interface becomes a sibling class with the same signature.</p>
+
+<pre data-lang="cpp"><code><span class="tok-c">// include/simulated_x6/simulated_x6.hpp</span>
+<span class="tok-k">#pragma once</span>
+<span class="tok-k">#include</span> <span class="tok-s">&lt;hardware_interface/system_interface.hpp&gt;</span>
+
+<span class="tok-k">namespace</span> simulated_x6 {
+
+<span class="tok-k">class</span> SimulatedX6 : <span class="tok-k">public</span> hardware_interface::SystemInterface {
+<span class="tok-k">public</span>:
+  CallbackReturn on_init(<span class="tok-k">const</span> hardware_interface::HardwareInfo &) <span class="tok-k">override</span>;
+  CallbackReturn on_activate  (<span class="tok-k">const</span> rclcpp_lifecycle::State &) <span class="tok-k">override</span>;
+  CallbackReturn on_deactivate(<span class="tok-k">const</span> rclcpp_lifecycle::State &) <span class="tok-k">override</span>;
+
+  std::vector&lt;hardware_interface::StateInterface&gt;   export_state_interfaces()   <span class="tok-k">override</span>;
+  std::vector&lt;hardware_interface::CommandInterface&gt; export_command_interfaces() <span class="tok-k">override</span>;
+
+  hardware_interface::return_type read (<span class="tok-k">const</span> rclcpp::Time &, <span class="tok-k">const</span> rclcpp::Duration &) <span class="tok-k">override</span>;
+  hardware_interface::return_type write(<span class="tok-k">const</span> rclcpp::Time &, <span class="tok-k">const</span> rclcpp::Duration &) <span class="tok-k">override</span>;
+
+<span class="tok-k">private</span>:
+  <span class="tok-k">double</span> Fc_{<span class="tok-n">0.15</span>}, Fv_{<span class="tok-n">0.05</span>}, tau_m_{<span class="tok-n">0.010</span>}, tau_max_{<span class="tok-n">12.0</span>};
+  std::vector&lt;<span class="tok-k">double</span>&gt; position_, velocity_, effort_;
+  std::vector&lt;<span class="tok-k">double</span>&gt; commanded_effort_, tau_applied_;
+};
+
+}  <span class="tok-c">// namespace</span>
+</code></pre>
+
+<pre data-lang="cpp"><code><span class="tok-c">// src/simulated_x6.cpp — just the write() method</span>
+hardware_interface::return_type SimulatedX6::write(
+    <span class="tok-k">const</span> rclcpp::Time &, <span class="tok-k">const</span> rclcpp::Duration & period)
+{
+  <span class="tok-k">const</span> <span class="tok-k">double</span> dt = period.seconds();
+
+  <span class="tok-k">for</span> (<span class="tok-k">size_t</span> i = <span class="tok-n">0</span>; i &lt; commanded_effort_.size(); ++i) {
+    <span class="tok-c">// 1. saturate</span>
+    <span class="tok-k">double</span> tau_c = std::clamp(commanded_effort_[i], -tau_max_, tau_max_);
+
+    <span class="tok-c">// 2. first-order torque lag</span>
+    <span class="tok-k">const</span> <span class="tok-k">double</span> alpha = dt / std::max(tau_m_, <span class="tok-n">1e-6</span>);
+    tau_applied_[i] += (tau_c - tau_applied_[i]) * alpha;
+
+    <span class="tok-c">// 3. friction (tanh replaces sign to avoid chatter)</span>
+    <span class="tok-k">const</span> <span class="tok-k">double</span> v = velocity_[i];
+    <span class="tok-k">const</span> <span class="tok-k">double</span> tau_f = Fc_ * std::tanh(v / <span class="tok-n">0.01</span>) + Fv_ * v;
+
+    <span class="tok-c">// 4. net torque to forward</span>
+    effort_[i] = tau_applied_[i] - tau_f;
+  }
+  <span class="tok-k">return</span> hardware_interface::return_type::OK;
+}
+</code></pre>
+
+<pre data-lang="xml"><code><span class="tok-c">&lt;!-- URDF ros2_control block --&gt;</span>
+&lt;<span class="tok-k">ros2_control</span> name=<span class="tok-s">"SimulatedX6System"</span> type=<span class="tok-s">"system"</span>&gt;
+  &lt;<span class="tok-k">hardware</span>&gt;
+    &lt;<span class="tok-k">plugin</span>&gt;simulated_x6/SimulatedX6&lt;/<span class="tok-k">plugin</span>&gt;
+    &lt;<span class="tok-k">param</span> name=<span class="tok-s">"Fc"</span>&gt;0.15&lt;/<span class="tok-k">param</span>&gt;
+    &lt;<span class="tok-k">param</span> name=<span class="tok-s">"Fv"</span>&gt;0.05&lt;/<span class="tok-k">param</span>&gt;
+    &lt;<span class="tok-k">param</span> name=<span class="tok-s">"tau_m"</span>&gt;0.010&lt;/<span class="tok-k">param</span>&gt;
+    &lt;<span class="tok-k">param</span> name=<span class="tok-s">"tau_max"</span>&gt;12.0&lt;/<span class="tok-k">param</span>&gt;
+  &lt;/<span class="tok-k">hardware</span>&gt;
+  &lt;<span class="tok-k">joint</span> name=<span class="tok-s">"pendulum_joint"</span>&gt;
+    &lt;<span class="tok-k">command_interface</span> name=<span class="tok-s">"effort"</span>/&gt;
+    &lt;<span class="tok-k">state_interface</span> name=<span class="tok-s">"position"</span>/&gt;
+    &lt;<span class="tok-k">state_interface</span> name=<span class="tok-s">"velocity"</span>/&gt;
+    &lt;<span class="tok-k">state_interface</span> name=<span class="tok-s">"effort"</span>/&gt;
+  &lt;/<span class="tok-k">joint</span>&gt;
+&lt;/<span class="tok-k">ros2_control</span>&gt;
+</code></pre>
+
+<h4>Why this is the long-term answer</h4>
+<ul class="bullets">
+  <li>Model runs inside <code>write()</code>, guaranteed every control tick.</li>
+  <li>Identical interface surface to your real-hardware plugin (<code>RealX6CAN</code>). Deployment is a URDF edit.</li>
+  <li>Parameters settable at runtime via services — domain randomization just works.</li>
+  <li>Same plugin architecture wraps MuJoCo, Isaac, Gazebo, or real hardware. Swap transport, keep model.</li>
+</ul>
+</section>
+
+<!-- ─── §12 OPT 4 ─── -->
+<section id="opt4">
+<span class="section-num">§ 12 — Option 4</span>
+<h2>Use MuJoCo, keep the same <em>ros2_control</em> contract.</h2>
+
+<p class="lead">A serious alternative worth considering on the single-joint stage: run <code>mujoco_ros2_control</code> instead of <code>gz_ros2_control</code>. The ROS 2 side is identical — same controllers, same YAML, same URDF block. The underlying simulator has built-in actuator models closer to reality.</p>
+
+<pre data-lang="xml"><code><span class="tok-c">&lt;!-- MJCF actuator block --&gt;</span>
+&lt;<span class="tok-k">actuator</span>&gt;
+  &lt;<span class="tok-k">motor</span> name=<span class="tok-s">"pendulum_motor"</span>
+         joint=<span class="tok-s">"pendulum_joint"</span>
+         ctrlrange=<span class="tok-s">"-12 12"</span>
+         forcerange=<span class="tok-s">"-12 12"</span>
+         dyntype=<span class="tok-s">"filter"</span> dynprm=<span class="tok-s">"0.010"</span>/&gt;  <span class="tok-c">&lt;!-- 10 ms first-order lag --&gt;</span>
+&lt;/<span class="tok-k">actuator</span>&gt;
+
+&lt;<span class="tok-k">default</span>&gt;
+  &lt;<span class="tok-k">joint</span> damping=<span class="tok-s">"0.05"</span> frictionloss=<span class="tok-s">"0.15"</span>/&gt;  <span class="tok-c">&lt;!-- F_v, F_c --&gt;</span>
+&lt;/<span class="tok-k">default</span>&gt;
+</code></pre>
+
+<table class="ref">
+  <thead><tr><th>Axis</th><th>Gazebo</th><th>MuJoCo</th></tr></thead>
+  <tbody>
+    <tr><td>ROS 2 integration</td><td class="v">native, mature</td><td class="v">via mujoco_ros2_control — newer</td></tr>
+    <tr><td>Actuator fidelity</td><td class="v">ideal source by default</td><td class="v">first-order, friction, saturation built-in</td></tr>
+    <tr><td>Speed</td><td class="v">real-time-ish</td><td class="v">faster on contact-heavy scenes</td></tr>
+    <tr><td>Sensor plugins</td><td class="v">deep ecosystem</td><td class="v">sparser, improving</td></tr>
+    <tr><td>URDF vs MJCF</td><td class="v">URDF native</td><td class="v">MJCF native; URDF import needs tweaks</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  For a single-joint policy validation, MuJoCo is arguably a better choice than Gazebo. For a full humanoid with cameras and rich sensor plugins, Gazebo still wins. They can share the same ros2_control controllers — the decision is per-project, not per-robot.
+</div>
+</section>
+
+<!-- ─── §13 RANDOMIZE ─── -->
+<section id="randomize">
+<span class="section-num">§ 13 — Domain randomization in simulation</span>
+<h2>Sample new parameters every <em>episode</em>.</h2>
+
+<p class="lead">The whole point of a parameterized actuator model is runtime randomization. On each episode reset, sample new values of F_c, F_v, τ_m, J, τ_max. The policy learns to tolerate the variation you measured on real hardware — not guesses, measurements-with-noise.</p>
+
+<table class="ref">
+  <thead><tr><th>Parameter</th><th>Nominal</th><th>Distribution</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>F_c</td><td class="v">0.15 N·m</td><td class="v">uniform ±30%</td><td class="v">temperature, lubrication drift</td></tr>
+    <tr><td>F_v</td><td class="v">0.05 N·m·s/rad</td><td class="v">uniform ±30%</td><td class="v">same sources</td></tr>
+    <tr><td>τ_m (motor lag)</td><td class="v">10 ms</td><td class="v">uniform [5, 20] ms</td><td class="v">current-loop temp dependence</td></tr>
+    <tr><td>J (link inertia)</td><td class="v">0.102 kg·m²</td><td class="v">uniform ±20%</td><td class="v">payloads, assembly tolerance</td></tr>
+    <tr><td>τ_max</td><td class="v">12 N·m</td><td class="v">uniform [10, 12] N·m</td><td class="v">thermal derating</td></tr>
+    <tr><td>Observation latency</td><td class="v">0</td><td class="v">1–3 ticks uniform</td><td class="v">CAN/EtherCAT delay</td></tr>
+    <tr><td>Encoder noise</td><td class="v">0</td><td class="v">Gaussian, σ = 1 count</td><td class="v">quantization + electrical</td></tr>
+  </tbody>
+</table>
+
+<pre data-lang="python"><code><span class="tok-c"># Called at the start of each training episode</span>
+<span class="tok-k">def</span> <span class="tok-f">randomize_actuator</span>(param_client, rng):
+    params = {
+        <span class="tok-s">'Fc'</span>:      rng.uniform(<span class="tok-n">0.105</span>, <span class="tok-n">0.195</span>),   <span class="tok-c"># ±30% of 0.15</span>
+        <span class="tok-s">'Fv'</span>:      rng.uniform(<span class="tok-n">0.035</span>, <span class="tok-n">0.065</span>),
+        <span class="tok-s">'tau_m'</span>:   rng.uniform(<span class="tok-n">0.005</span>, <span class="tok-n">0.020</span>),
+        <span class="tok-s">'tau_max'</span>: rng.uniform(<span class="tok-n">10.0</span>,  <span class="tok-n">12.0</span>),
+    }
+    <span class="tok-f">set_parameters_atomically</span>(param_client, params)
+</code></pre>
+</section>
+
+<!-- ─── §14 VALIDATE ─── -->
+<section id="validate">
+<span class="section-num">§ 14 — Validating sim matches real</span>
+<h2>The <em>one</em> test before trusting the pipeline.</h2>
+
+<p class="lead">Before training any policy against the sim, verify the sim reproduces real-world behavior. Run the same trajectory on real hardware and in Gazebo with your model active. Overlay, compute RMSE. If they diverge by more than ~10%, fix the model — not the policy.</p>
+
+<ul class="steps">
+  <li><strong>Pick a test trajectory</strong>
+    Smooth quintic sweep from 0 to 0.5 rad in 1 second, return to 0 in another 1 second. Wide enough to excite friction, fast enough to excite lag.
+  </li>
+  <li><strong>Record real trace</strong>
+    Run the trajectory on the X6 with your PD + feedforward. Log <code>/joint_states</code> at 1 kHz to a ros2 bag.
+  </li>
+  <li><strong>Record sim trace</strong>
+    Same trajectory, same PD gains, same feedforward, same launch file — just <code>gz_ros2_control</code> + actuator wrapper/plugin instead of the hardware driver.
+  </li>
+  <li><strong>Overlay and compute RMSE</strong>
+    &lt; 5% — excellent. 5–10% — acceptable. &gt; 10% — debug.
+  </li>
+  <li><strong>Diagnose divergence modes</strong>
+    Sim leads real by a constant offset → you missed the motor lag.
+    Sim tracks tighter at low speed → missed Coulomb friction.
+    Sim tracks tighter at high speed → F_v wrong.
+    Sim has zero steady-state error, real has bias → gravity feedforward isn't identical between the two.
+  </li>
+</ul>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Expected overlay — sim vs real</div>
+    <div class="g-sub">illustrative · quintic sweep</div>
+  </div>
+  <div class="g-desc">With a well-identified actuator model, the two traces sit within a few hundredths of a radian. Residual error is dominated by unmodeled stiction near zero velocity and small phase offsets.</div>
+  <div class="graph-canvas"><canvas id="overlayChart"></canvas></div>
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART V — THE BIGGER PICTURE
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part V</div>
+  <h2 class="phead">The <em>bigger</em> picture.</h2>
+  <p class="pdesc">How the pieces fit into a pipeline — and what "done" looks like at each stage.</p>
+</div>
+
+<!-- ─── §15 ROADMAP ─── -->
+<section id="roadmap">
+<span class="section-num">§ 15 — End-to-end roadmap</span>
+<h2>From one motor, a <em>humanoid</em>.</h2>
+
+<p class="lead">Every piece of the pipeline at the single-joint stage maps directly onto a piece of the humanoid pipeline. Build it once, carefully, and scale up with confidence.</p>
+
+<h3>The artifacts you end up with</h3>
+
+<table class="ref">
+  <thead><tr><th>Artifact</th><th>Single joint</th><th>Humanoid (future)</th></tr></thead>
+  <tbody>
+    <tr><td>Identified params YAML</td><td class="v">one joint, measured</td><td class="v">per-joint, measured once each</td></tr>
+    <tr><td>URDF w/ ros2_control block</td><td class="v">pendulum</td><td class="v">full robot, same structure</td></tr>
+    <tr><td>Simulated actuator plugin</td><td class="v">SimulatedX6</td><td class="v">same plugin, N joints</td></tr>
+    <tr><td>Real hardware plugin</td><td class="v">RealX6CAN (1 joint)</td><td class="v">RealX6CAN (N joints on same bus)</td></tr>
+    <tr><td>Training env (Isaac)</td><td class="v">pendulum env</td><td class="v">humanoid env, same actuator model</td></tr>
+    <tr><td>Gazebo validation env</td><td class="v">pendulum launch file</td><td class="v">humanoid launch file, same stack</td></tr>
+    <tr><td>ONNX inference node</td><td class="v">generic, 1 joint out</td><td class="v">same node, N joints out</td></tr>
+    <tr><td>Validation protocol</td><td class="v">quintic sweep + RMSE</td><td class="v">same protocol per joint + whole-body</td></tr>
+  </tbody>
+</table>
+
+<h3>What "pipeline proven" means</h3>
+
+<ul class="bullets">
+  <li>You can train a policy in Isaac with identified parameters.</li>
+  <li>You can validate it in Gazebo via <code>gz_ros2_control</code> with the actuator model active.</li>
+  <li>You can deploy the same ONNX to real hardware by changing one URDF parameter.</li>
+  <li>You can reproduce real-hardware behavior in sim to within 10% RMSE on a test trajectory.</li>
+  <li>You can re-identify a joint's parameters in under an hour and have them flow into training.</li>
+</ul>
+
+<p>When all five of those are true on the pendulum, you're ready to scale. The humanoid adds joints, contacts, balance — real technical complexity — but it doesn't add <em>pipeline</em> complexity. That's already solved.</p>
+
+<div class="panel" data-label="The thesis of this document">
+  <p style="margin:0">Don't start with the humanoid. Start with the joint you already have. Identify its parameters, build the simulated actuator, get a policy transferring through all three stages, measure the sim-vs-real gap empirically. Every hour spent on the pendulum is an hour you don't spend debugging the humanoid.</p>
+</div>
+
+<div class="callout">
+  Once a single joint survives the full Isaac → Gazebo → real loop with measured transfer quality, multiplying it by 25 joints is engineering — not research.
+</div>
+</section>
+
+<footer>
+  <span>field notes · sim-to-real strategy for humanoid bring-up</span>
+  <span>consolidates: ONNX critique · Isaac plan · three-sim pipeline · Gazebo actuator</span>
+</footer>
+
+</div>
+
+<script>
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#a79a82';
+Chart.defaults.borderColor = '#2a2419';
+const C = { amber:'#e8a33d', cyan:'#5fb3b3', rose:'#d97757', moss:'#8fa968', dim:'#6b6354', grid:'#1e1a13', ink:'#ece2cf' };
+const grid = { grid:{color:C.grid, drawBorder:false}, ticks:{color:C.dim, font:{size:10, family:"'JetBrains Mono',monospace"}}, title:{color:C.dim, font:{size:11, family:"'JetBrains Mono',monospace"}} };
+
+// ── CHART: sim-to-real gap hierarchy (horizontal bar) ──
+(function(){
+  const data = [
+    { label:'Actuator dynamics (lag, saturation)', value: 95, col: C.rose },
+    { label:'Friction (Coulomb + viscous)',        value: 85, col: C.rose },
+    { label:'PD gain mismatch sim ↔ real',         value: 80, col: C.amber },
+    { label:'Observation / action latency',        value: 65, col: C.amber },
+    { label:'Observation normalization drift',     value: 55, col: C.amber },
+    { label:'Sensor noise / quantization',         value: 35, col: C.cyan },
+    { label:'Backlash, mechanical slop',           value: 25, col: C.cyan },
+    { label:'Mass / inertia uncertainty',          value: 20, col: C.moss },
+  ];
+  new Chart(document.getElementById('gapChart').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: data.map(d=>d.label),
+      datasets: [{
+        data: data.map(d=>d.value),
+        backgroundColor: data.map(d=>d.col),
+        borderWidth: 0,
+        barPercentage: 0.75,
+        categoryPercentage: 0.9,
+      }]
+    },
+    options:{
+      indexAxis: 'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#0a0806', titleColor:C.amber, bodyColor:C.ink, borderColor:C.grid, borderWidth:1, callbacks:{ label:(ctx)=>`relative impact: ${ctx.raw}` }}
+      },
+      scales:{
+        x:{ ...grid, min:0, max:100, title:{...grid.title, display:true, text:'relative impact on transfer (illustrative)'}},
+        y:{ ...grid, ticks:{...grid.ticks, color:C.ink, font:{size:11, family:"'IBM Plex Sans',sans-serif"}} }
+      }
+    }
+  });
+})();
+
+// ── CHART: torque response (ideal vs lag vs real) ──
+(function(){
+  const tau_m = 0.010;
+  const tMax = 0.08, dt = 0.0002;
+  const cmdPts=[], idealPts=[], lagPts=[], realPts=[];
+  let tau_lag=0, tau_real=0;
+  for (let t=0; t<=tMax; t+=dt){
+    const cmd = t > 0.005 ? 5.0 : 0;
+    tau_lag += (cmd - tau_lag) * dt/tau_m;
+    tau_real += (cmd - tau_real) * dt / (tau_m * 0.9);
+    const noise = 0.04 * Math.sin(t*800 + t*100);
+    cmdPts.push({x:t*1000, y:cmd});
+    idealPts.push({x:t*1000, y:cmd});
+    lagPts.push({x:t*1000, y:tau_lag});
+    realPts.push({x:t*1000, y:tau_real + (t>0.005?noise:0)});
+  }
+  new Chart(document.getElementById('lagChart').getContext('2d'), {
+    type:'line',
+    data:{ datasets:[
+      { label:'commanded τ', data:cmdPts, borderColor:C.dim, borderWidth:1, borderDash:[4,4], pointRadius:0, tension:0, fill:false },
+      { label:'Gazebo default (ideal source)', data:idealPts, borderColor:C.rose, borderWidth:2, pointRadius:0, tension:0, fill:false },
+      { label:'first-order lag model (Opt 2/3)', data:lagPts, borderColor:C.amber, borderWidth:2.5, pointRadius:0, tension:0.1, fill:false },
+      { label:'real motor (measured)', data:realPts, borderColor:C.cyan, borderWidth:1.5, pointRadius:0, tension:0.1, fill:false },
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{color:C.ink, boxWidth:10, boxHeight:2}, position:'bottom' },
+                tooltip:{backgroundColor:'#0a0806', titleColor:C.amber, bodyColor:C.ink, borderColor:C.grid, borderWidth:1} },
+      scales:{
+        x:{type:'linear', ...grid, min:0, max:tMax*1000, title:{...grid.title, display:true, text:'time [ms]'}},
+        y:{...grid, title:{...grid.title, display:true, text:'torque [N·m]'}, min:-0.5, max:6.5}
+      }
+    }
+  });
+})();
+
+// ── CHART: overlay sim vs real ──
+(function(){
+  const tMax = 2.0, dt = 0.002;
+  function quintic(t, T){
+    if (t < 0) return 0;
+    if (t > T) return 1;
+    const s = t/T;
+    return 10*s**3 - 15*s**4 + 6*s**5;
+  }
+  const refPts=[], simPts=[], realPts=[];
+  let theta_s=0, thdot_s=0, theta_r=0, thdot_r=0;
+  const J=0.102, Kp=22.95, Kd=2.14, Fc=0.15, Fv=0.05, tau_m=0.010;
+  let tauA_s=0, tauA_r=0;
+  for (let t=0;t<=tMax;t+=dt){
+    const ref = t<1.0 ? 0.5*quintic(t,1.0) : 0.5*(1 - quintic(t-1.0,1.0));
+    const tau_s_cmd = Kp*(ref - theta_s) + Kd*(0 - thdot_s);
+    tauA_s += (tau_s_cmd - tauA_s)*dt/tau_m;
+    const tau_f_s = Fc*Math.tanh(thdot_s/0.01) + Fv*thdot_s;
+    const a_s = (tauA_s - tau_f_s)/J;
+    thdot_s += a_s*dt; theta_s += thdot_s*dt;
+    const tau_r_cmd = Kp*(ref - theta_r) + Kd*(0 - thdot_r);
+    tauA_r += (tau_r_cmd - tauA_r)*dt/(tau_m*1.1);
+    const stiction = Math.abs(thdot_r)<0.02 ? 0.08*Math.sign(tau_r_cmd) : 0;
+    const tau_f_r = Fc*Math.tanh(thdot_r/0.01) + Fv*thdot_r + stiction;
+    const a_r = (tauA_r - tau_f_r)/J;
+    thdot_r += a_r*dt; theta_r += thdot_r*dt;
+    refPts.push({x:t,y:ref});
+    simPts.push({x:t,y:theta_s});
+    realPts.push({x:t,y:theta_r});
+  }
+  new Chart(document.getElementById('overlayChart').getContext('2d'), {
+    type:'line',
+    data:{ datasets:[
+      { label:'reference trajectory', data:refPts, borderColor:C.dim, borderWidth:1, borderDash:[4,4], pointRadius:0, tension:0, fill:false },
+      { label:'simulated joint (with actuator model)', data:simPts, borderColor:C.amber, borderWidth:2.5, pointRadius:0, tension:0.1, fill:false },
+      { label:'real hardware (X6)', data:realPts, borderColor:C.cyan, borderWidth:1.5, pointRadius:0, tension:0.1, fill:false },
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{color:C.ink, boxWidth:10, boxHeight:2}, position:'bottom' },
+                tooltip:{backgroundColor:'#0a0806', titleColor:C.amber, bodyColor:C.ink, borderColor:C.grid, borderWidth:1} },
+      scales:{
+        x:{type:'linear', ...grid, min:0, max:tMax, title:{...grid.title, display:true, text:'time [s]'}},
+        y:{...grid, title:{...grid.title, display:true, text:'angle [rad]'}}
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

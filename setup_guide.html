@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wiring the docs into the work — setup guide</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0e0c09; --bg-panel:#15120d; --bg-inset:#0a0806;
+  --ink:#ece2cf; --ink-dim:#a79a82; --ink-faint:#6b6354;
+  --rule:#2a2419; --rule-soft:#1e1a13;
+  --amber:#e8a33d; --amber-deep:#b87a1e;
+  --cyan:#5fb3b3; --rose:#d97757; --moss:#8fa968;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"SETUP/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"vscode · claude code · two repos";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+nav.toc .toc-col{display:flex;flex-direction:column}
+nav.toc .toc-head{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--amber-deep)}
+
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+/* part dividers */
+.part{margin:144px 0 48px;padding:48px 0 8px;border-top:1px solid var(--amber-deep);position:relative}
+.part::before{content:"";position:absolute;top:-1px;left:0;width:80px;height:3px;background:var(--amber)}
+.part .pnum{font-family:var(--mono);font-size:11px;letter-spacing:.35em;color:var(--amber);text-transform:uppercase;margin-bottom:12px}
+.part h2.phead{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(36px,5vw,58px);line-height:1.05;letter-spacing:-.015em;margin:0 0 14px;color:var(--ink);max-width:860px}
+.part h2.phead em{color:var(--amber);font-style:italic;font-weight:500}
+.part .pdesc{font-family:var(--serif);font-weight:300;font-size:20px;color:var(--ink-dim);line-height:1.4;max-width:60ch;margin:0}
+
+/* directory tree */
+.tree{font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);background:var(--bg-inset);border:1px solid var(--rule);padding:22px 26px;margin:20px 0;overflow-x:auto}
+.tree .dim{color:var(--ink-faint)}
+.tree .amber{color:var(--amber)}
+
+/* flow diagram container */
+.flow{background:var(--bg-panel);border:1px solid var(--rule);padding:40px 32px;margin:24px 0;position:relative;overflow-x:auto}
+.flow::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.flow svg{width:100%;height:auto;min-width:680px;display:block}
+.flow-caption{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-faint);margin-top:16px;padding-top:14px;border-top:1px dashed var(--rule)}
+
+.file-label{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--amber);text-transform:uppercase;margin:32px 0 6px;display:block}
+.file-label .path{color:var(--ink-dim);text-transform:none;letter-spacing:.05em;margin-left:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="eyebrow">VS Code · Claude Code · additionalDirectories · evolving docs</div>
+  <h1 class="title">Wire the <em>docs</em><br>into the work.</h1>
+  <p class="subtitle">A complete setup guide. Two git repos (robot code + docs), one Claude Code session, a system that keeps documentation alive as the project evolves. No submodules, no context switching, no ceremony.</p>
+
+  <div class="meta">
+    <div><span class="k">Setup time</span><span class="v">~<em>30 minutes</em></span></div>
+    <div><span class="k">Files created</span><span class="v">~<em>12 files</em></span></div>
+    <div><span class="k">Repos</span><span class="v">2 · <em>independent</em></span></div>
+    <div><span class="k">Once done</span><span class="v">Zero <em>maintenance</em></span></div>
+  </div>
+
+  <nav class="toc">
+    <div class="toc-col">
+      <div class="toc-head">Part I — Architecture</div>
+      <a href="#architecture"><span class="n">01</span>The setup at a glance</a>
+      <a href="#layout"><span class="n">02</span>Directory layout</a>
+      <a href="#prereq"><span class="n">03</span>Prerequisites</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part II — Docs repo</div>
+      <a href="#docs-init"><span class="n">04</span>Initialize the docs repo</a>
+      <a href="#docs-claudemd"><span class="n">05</span>Docs CLAUDE.md</a>
+      <a href="#docs-settings"><span class="n">06</span>Docs settings.json</a>
+      <a href="#docs-skill"><span class="n">07</span>The write-field-note skill</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part III — Robot repo</div>
+      <a href="#robot-claudemd"><span class="n">08</span>Robot CLAUDE.md</a>
+      <a href="#robot-settings"><span class="n">09</span>Robot settings.json</a>
+      <a href="#robot-cmd"><span class="n">10</span>The /sync-docs command</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part IV — Workspace</div>
+      <a href="#workspace"><span class="n">11</span>VS Code workspace file</a>
+      <a href="#extensions"><span class="n">12</span>VS Code extensions</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part V — Use & evolve</div>
+      <a href="#day"><span class="n">13</span>A day in the life</a>
+      <a href="#evolve"><span class="n">14</span>Evolving the system</a>
+      <a href="#reference"><span class="n">15</span>Complete file reference</a>
+      <a href="#troubleshoot"><span class="n">16</span>Troubleshooting</a>
+    </div>
+  </nav>
+</header>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART I — ARCHITECTURE
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part I</div>
+  <h2 class="phead">The <em>architecture</em>.</h2>
+  <p class="pdesc">What we're building, how the pieces connect, and why it stays this simple.</p>
+</div>
+
+<!-- ─── §01 ARCHITECTURE ─── -->
+<section id="architecture">
+<span class="section-num">§ 01 — The setup at a glance</span>
+<h2>Two repos, one session, <em>zero</em> coupling.</h2>
+
+<p class="lead">The whole system rests on one Claude Code feature: <code>additionalDirectories</code>. One session operates across multiple folders without merging them into a monorepo. The robot repo remains the primary workspace; the docs repo is a loaded sibling that Claude can read and edit freely.</p>
+
+<div class="flow" data-label="system architecture">
+<svg viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e8a33d"/>
+    </marker>
+    <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5fb3b3"/>
+    </marker>
+  </defs>
+
+  <!-- top: filesystem -->
+  <text x="20" y="22" fill="#6b6354" font-size="10" letter-spacing="2">~/humanoid/  (filesystem)</text>
+
+  <!-- robot repo box -->
+  <rect x="20" y="38" width="280" height="130" fill="#15120d" stroke="#2a2419"/>
+  <text x="40" y="62" fill="#e8a33d" font-size="12" font-weight="500">robot/</text>
+  <text x="40" y="78" fill="#6b6354" font-size="10">[git repo · independent]</text>
+  <text x="40" y="100" fill="#ece2cf" font-size="11">• URDFs, ROS 2 code, configs</text>
+  <text x="40" y="116" fill="#ece2cf" font-size="11">• training scripts, ONNX</text>
+  <text x="40" y="132" fill="#ece2cf" font-size="11">• CLAUDE.md (robot-specific)</text>
+  <text x="40" y="148" fill="#ece2cf" font-size="11">• .claude/settings.json</text>
+  <text x="40" y="160" fill="#8fa968" font-size="10">↳ includes additionalDirectories</text>
+
+  <!-- docs repo box -->
+  <rect x="340" y="38" width="280" height="130" fill="#15120d" stroke="#2a2419"/>
+  <text x="360" y="62" fill="#e8a33d" font-size="12" font-weight="500">docs/</text>
+  <text x="360" y="78" fill="#6b6354" font-size="10">[git repo · independent]</text>
+  <text x="360" y="100" fill="#ece2cf" font-size="11">• design_guide.md (style system)</text>
+  <text x="360" y="116" fill="#ece2cf" font-size="11">• tuning/*.html, strategy/*.html</text>
+  <text x="360" y="132" fill="#ece2cf" font-size="11">• CLAUDE.md (docs conventions)</text>
+  <text x="360" y="148" fill="#ece2cf" font-size="11">• .claude/skills/write-field-note.md</text>
+
+  <!-- workspace file -->
+  <rect x="660" y="60" width="210" height="86" fill="#0a0806" stroke="#e8a33d" stroke-dasharray="4,3"/>
+  <text x="765" y="92" text-anchor="middle" fill="#e8a33d" font-size="12" font-weight="500">humanoid.code-workspace</text>
+  <text x="765" y="112" text-anchor="middle" fill="#ece2cf" font-size="10">VS Code opens this file</text>
+  <text x="765" y="128" text-anchor="middle" fill="#6b6354" font-size="10">both repos in sidebar</text>
+
+  <!-- bottom: vs code + claude code -->
+  <rect x="20" y="220" width="860" height="80" fill="#15120d" stroke="#e8a33d"/>
+  <text x="40" y="244" fill="#e8a33d" font-size="13" font-weight="500">VS Code + Claude Code terminal</text>
+  <text x="40" y="264" fill="#ece2cf" font-size="11">Primary workspace: robot/ · Additional directory: docs/ · sees & edits both</text>
+  <text x="40" y="284" fill="#6b6354" font-size="10">claude runs here → reads robot code + writes doc updates in one session</text>
+
+  <!-- arrows -->
+  <line x1="160" y1="170" x2="160" y2="218" stroke="#e8a33d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="480" y1="170" x2="480" y2="218" stroke="#5fb3b3" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <line x1="765" y1="148" x2="765" y2="218" stroke="#e8a33d" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arr)"/>
+
+  <text x="165" y="200" fill="#e8a33d" font-size="10">primary</text>
+  <text x="485" y="200" fill="#5fb3b3" font-size="10">via additionalDirectories</text>
+  <text x="635" y="200" fill="#6b6354" font-size="10">opens the workspace</text>
+</svg>
+<div class="flow-caption">The workspace file is optional VS Code sugar; the actual Claude-Code wiring is <code>additionalDirectories</code> in <code>robot/.claude/settings.json</code>. That single setting makes docs/ visible in every session.</div>
+</div>
+
+<h3>What this gives you</h3>
+
+<div class="three-col">
+  <div class="card">
+    <h5>No context switching</h5>
+    <div class="big">1 window</div>
+    <p>Open VS Code on the workspace file, work across both repos without alt-tabbing.</p>
+  </div>
+  <div class="card">
+    <h5>No git coupling</h5>
+    <div class="big">0 submodules</div>
+    <p>Each repo has its own history. Commit docs when docs change, commit code when code changes.</p>
+  </div>
+  <div class="card">
+    <h5>Docs stay alive</h5>
+    <div class="big">Auto-sync</div>
+    <p>CLAUDE.md rules + one slash command keep docs in sync with real project state.</p>
+  </div>
+</div>
+</section>
+
+<!-- ─── §02 LAYOUT ─── -->
+<section id="layout">
+<span class="section-num">§ 02 — Directory layout</span>
+<h2>Sibling repos, <em>one</em> parent folder.</h2>
+
+<p>The layout is deliberately shallow. A non-git parent directory holds both repos as siblings. The parent exists only to own the VS Code workspace file — nothing else lives there.</p>
+
+<div class="tree">
+<span class="dim">~/</span>humanoid/                          <span class="dim">← not a git repo, just a folder</span>
+├── <span class="amber">robot/</span>                          <span class="dim">← git repo (your existing robot code)</span>
+│   ├── .claude/
+│   │   ├── settings.json             <span class="dim">← shared, committed</span>
+│   │   └── settings.local.json       <span class="dim">← personal, gitignored</span>
+│   ├── .claude/commands/
+│   │   └── sync-docs.md              <span class="dim">← /sync-docs slash command</span>
+│   ├── CLAUDE.md                     <span class="dim">← robot-repo context</span>
+│   ├── urdf/
+│   ├── ros2_ws/
+│   └── ... <span class="dim">(your existing robot files)</span>
+│
+├── <span class="amber">docs/</span>                           <span class="dim">← git repo (documentation)</span>
+│   ├── .claude/
+│   │   ├── settings.json
+│   │   └── skills/
+│   │       └── write-field-note.md   <span class="dim">← the core skill</span>
+│   ├── CLAUDE.md                     <span class="dim">← docs-repo context</span>
+│   ├── design_guide.md               <span class="dim">← Field Notes design system</span>
+│   ├── README.md                     <span class="dim">← index of all docs</span>
+│   ├── tuning/
+│   │   ├── pd_tuning_guide.html
+│   │   └── motor_id_report.html
+│   ├── strategy/
+│   │   └── sim_to_real_guide.html
+│   └── hardware/
+│       └── ...
+│
+└── humanoid.code-workspace           <span class="dim">← open this in VS Code</span>
+</div>
+
+<div class="warn">
+  <strong>On absolute paths.</strong> Throughout this guide I use <code>~/humanoid/</code> as the example root. Replace with your actual path (e.g., <code>~/code/humanoid/</code> or <code>~/projects/robotics/humanoid/</code>) everywhere. Claude Code needs absolute paths in <code>additionalDirectories</code> — relative paths don't work reliably across session restarts.
+</div>
+</section>
+
+<!-- ─── §03 PREREQUISITES ─── -->
+<section id="prereq">
+<span class="section-num">§ 03 — Prerequisites</span>
+<h2>What you need installed.</h2>
+
+<ul class="steps">
+  <li>
+    <strong>Claude Code CLI</strong>
+    Installed globally via npm: <code>npm install -g @anthropic-ai/claude-code</code>. Verify with <code>claude --version</code>. You need an active Anthropic API key or a Claude Pro/Max subscription — set <code>ANTHROPIC_API_KEY</code> in your shell profile if using API auth.
+  </li>
+  <li>
+    <strong>VS Code</strong>
+    Any recent version. The stable channel is fine.
+  </li>
+  <li>
+    <strong>Git</strong>
+    Already required for your robot repo. Nothing new.
+  </li>
+  <li>
+    <strong>A shell that supports absolute path expansion</strong>
+    Bash, Zsh, Fish — all work. On Ubuntu: nothing to install.
+  </li>
+</ul>
+
+<p>VS Code extensions are covered in §12 — install them after the file setup is done, so everything works correctly on first open.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART II — DOCS REPO
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part II</div>
+  <h2 class="phead">The <em>docs</em> repo.</h2>
+  <p class="pdesc">Set up the documentation side first — it's the destination most work will flow toward.</p>
+</div>
+
+<!-- ─── §04 DOCS INIT ─── -->
+<section id="docs-init">
+<span class="section-num">§ 04 — Initialize the docs repo</span>
+<h2>Create it, structure it, first commit.</h2>
+
+<p>From scratch, in the terminal. If you already have existing documentation, copy it in after step 2 and skip ahead.</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># 1. create parent + docs directory</span>
+mkdir -p ~/humanoid/docs
+<span class="tok-f">cd</span> ~/humanoid/docs
+
+<span class="tok-c"># 2. initialize git</span>
+git init
+git branch -M main
+
+<span class="tok-c"># 3. create the directory structure</span>
+mkdir -p tuning strategy hardware
+mkdir -p .claude/skills .claude/commands
+
+<span class="tok-c"># 4. placeholder index + gitignore</span>
+<span class="tok-f">echo</span> <span class="tok-s">"# Humanoid project — documentation"</span> &gt; README.md
+<span class="tok-f">cat</span> &gt; .gitignore &lt;&lt; <span class="tok-s">'EOF'</span>
+.claude/settings.local.json
+.DS_Store
+*.swp
+EOF
+</code></pre>
+
+<p>At this point you have an empty, structured docs repo. The next steps add the four files that make it a <em>Claude-Code-aware</em> docs repo: <code>CLAUDE.md</code>, <code>.claude/settings.json</code>, <code>design_guide.md</code>, and the <code>write-field-note</code> skill.</p>
+
+<div class="callout">
+  If you already generated <code>design_guide.md</code> from a previous session, copy it into the docs repo now — it's the style system that everything else references.
+</div>
+</section>
+
+<!-- ─── §05 DOCS CLAUDE.MD ─── -->
+<section id="docs-claudemd">
+<span class="section-num">§ 05 — Docs repo CLAUDE.md</span>
+<h2>The docs repo's <em>memory</em>.</h2>
+
+<p class="lead">Every Claude Code session loads this file automatically when the repo is in scope. Keep it under ~150 lines — every low-value line weakens the high-value ones. Focus on conventions that matter to <em>every</em> documentation session.</p>
+
+<span class="file-label">FILE <span class="path">~/humanoid/docs/CLAUDE.md</span></span>
+
+<pre data-lang="markdown"><code># Humanoid project — documentation repository
+
+## Purpose
+Evolving technical documentation for the humanoid robot bring-up:
+PD tuning, motor ID, sim-to-real strategy, Gazebo/Isaac integration,
+hardware notes. Docs are living — they grow and mutate with the project.
+
+## Design system
+All HTML docs use the "Field Notes" design system defined in
+`design_guide.md` at the repo root. Before creating or editing any HTML:
+
+1. Read `design_guide.md` to pick up the CSS tokens, component patterns,
+   and complete CSS block at the end of the file.
+2. Use the components defined there — panels, callouts, cards, steps,
+   bullets, math-block, tables — don't invent parallel ones.
+3. When in doubt, match the tone and structure of an existing doc in
+   the same subdirectory.
+
+## Directory conventions
+- `tuning/`    — identification procedures, per-joint tuning reports
+- `strategy/`  — pipeline/architecture docs, decision records
+- `hardware/`  — motor specs, wiring, mechanical notes
+- Filenames follow `topic_verb_guide.html` (e.g., `pd_tuning_guide.html`)
+  or `topic_report.html` for one-off reports.
+
+## Writing voice
+- Direct. Acknowledge what's already been done.
+- Honest assessment over flattery.
+- Concrete over abstract — use real measured numbers when available.
+- No preamble, no "great question" openings.
+- Prefer prose and short paragraphs over deep bullet nesting.
+
+## Project state (update when this changes)
+- Stage: single-joint bench (X6 motor, 70 cm bar, 1 kg @ 30 cm)
+- Identified params: J ≈ 0.102 kg·m², mgl = 2.943 N·m,
+  F_c ≈ 0.15 N·m, F_v ≈ 0.05 N·m·s/rad, τ_m ≈ 10 ms
+- Stack: ROS 2 (effort control), Isaac Gym training, Gazebo validation
+- End goal: ONNX policies transferring to full humanoid
+
+## When editing existing docs
+- Preserve `§ NN` section numbers. If inserting a section, renumber all
+  following ones and update the TOC.
+- Keep chart data inline (in the same HTML file) — don't split into
+  separate JS files.
+- Update the hero's "Status" meta row when project state changes.
+- If the change is significant, add an entry to `CHANGELOG.md`.
+
+## Git discipline
+- Commit docs separately from code changes.
+- Prefix commit messages with `docs:` when committing here.
+- One logical change per commit.
+</code></pre>
+
+<h4>Why these specific sections</h4>
+<ul class="bullets">
+  <li><strong>Purpose</strong> — tells Claude what this repo is for in one paragraph. Prevents generic "I'll help you write documentation" responses.</li>
+  <li><strong>Design system</strong> — points explicitly at <code>design_guide.md</code>. This is the single highest-leverage instruction.</li>
+  <li><strong>Directory conventions</strong> — prevents docs from landing in the wrong folder.</li>
+  <li><strong>Writing voice</strong> — shapes tone without you having to re-prompt every time.</li>
+  <li><strong>Project state</strong> — gives Claude current values without a separate lookup. Update this section as the project evolves.</li>
+  <li><strong>When editing existing docs</strong> — the operational rules that prevent the two most common failure modes (mangled section numbering, silent changelog drift).</li>
+</ul>
+</section>
+
+<!-- ─── §06 DOCS SETTINGS ─── -->
+<section id="docs-settings">
+<span class="section-num">§ 06 — Docs repo settings.json</span>
+<h2>Permissions so Claude isn't constantly asking.</h2>
+
+<p>The docs repo's <code>settings.json</code> pre-approves the operations Claude Code performs all day on documentation. Commit this file — it's shared team config. Personal overrides go in <code>settings.local.json</code> (gitignored).</p>
+
+<span class="file-label">FILE <span class="path">~/humanoid/docs/.claude/settings.json</span></span>
+
+<pre data-lang="json"><code>{
+  <span class="tok-s">"permissions"</span>: {
+    <span class="tok-s">"allow"</span>: [
+      <span class="tok-s">"Read(**)"</span>,
+      <span class="tok-s">"Edit(**/*.html)"</span>,
+      <span class="tok-s">"Edit(**/*.md)"</span>,
+      <span class="tok-s">"Edit(**/*.yaml)"</span>,
+      <span class="tok-s">"Edit(**/*.yml)"</span>,
+      <span class="tok-s">"Edit(**/*.json)"</span>,
+      <span class="tok-s">"Bash(git status)"</span>,
+      <span class="tok-s">"Bash(git diff*)"</span>,
+      <span class="tok-s">"Bash(git log*)"</span>,
+      <span class="tok-s">"Bash(git add*)"</span>,
+      <span class="tok-s">"Bash(git commit*)"</span>,
+      <span class="tok-s">"Bash(ls*)"</span>,
+      <span class="tok-s">"Bash(cat*)"</span>,
+      <span class="tok-s">"Bash(mkdir*)"</span>,
+      <span class="tok-s">"Bash(firefox*)"</span>,
+      <span class="tok-s">"Bash(xdg-open*)"</span>
+    ],
+    <span class="tok-s">"deny"</span>: [
+      <span class="tok-s">"Read(./.env*)"</span>,
+      <span class="tok-s">"Read(./secrets/**)"</span>,
+      <span class="tok-s">"Edit(./.git/**)"</span>
+    ]
+  }
+}
+</code></pre>
+
+<div class="warn">
+  <strong>Why no <code>git push</code> by default.</strong> I deliberately left <code>Bash(git push*)</code> off the allowlist. Let Claude stage and commit, but confirm the push yourself. This is the last human checkpoint before something becomes public history. Add <code>Bash(git push*)</code> to your personal <code>settings.local.json</code> if you want the automation, but commit the strict version to the repo.
+</div>
+</section>
+
+<!-- ─── §07 DOCS SKILL ─── -->
+<section id="docs-skill">
+<span class="section-num">§ 07 — The write-field-note skill</span>
+<h2>One skill, infinite docs.</h2>
+
+<p class="lead">A skill is a markdown file in <code>.claude/skills/</code> with YAML frontmatter. When its trigger phrase matches (or you invoke it as <code>/write-field-note</code>), Claude loads it as a sub-prompt and follows its instructions. This one skill encapsulates the whole design system so every new doc inherits it without re-explanation.</p>
+
+<span class="file-label">FILE <span class="path">~/humanoid/docs/.claude/skills/write-field-note.md</span></span>
+
+<pre data-lang="markdown"><code>---
+name: write-field-note
+description: Create a new technical documentation HTML file in the Field
+  Notes design system. Trigger when the user asks to create a new guide,
+  doc, reference, report, or write-up on a topic.
+---
+
+# Writing a field note
+
+When creating a new technical doc, follow this procedure precisely.
+
+## 1. Read the design system first
+Before writing any HTML, read `design_guide.md` at the docs repo root.
+Use its CSS tokens, component patterns, and the complete CSS block at the
+bottom of that file verbatim. Do not invent new styling, new tokens, or
+alternative layouts.
+
+## 2. Determine the filename and location
+Based on the topic, pick the right subdirectory:
+
+- `tuning/`   — motor identification, PD tuning, per-joint reports
+- `strategy/` — pipeline, architecture, decision records, planning
+- `hardware/` — motor specs, wiring, mechanical, sensor calibration
+
+Filename: `topic_verb_guide.html` or `topic_report.html`. Examples:
+- `tuning/shoulder_pd_tuning_guide.html`
+- `strategy/deployment_pipeline_guide.html`
+- `hardware/ethercat_master_setup_guide.html`
+
+If the topic doesn't fit existing directories, ask before creating a new one.
+
+## 3. Required structure
+Every doc has:
+
+1. `&lt;header class="hero"&gt;` with:
+   - Eyebrow text (mono, tracked, amber)
+   - H1 title with italic Fraunces + one amber emphasis word
+   - Subtitle in Fraunces light
+   - 4-item meta row (Status, Target, Stack, or similar)
+   - Table of contents
+
+2. Numbered sections `&lt;section id="..."&gt;` each with:
+   - `&lt;span class="section-num"&gt;§ NN — short descriptor&lt;/span&gt;`
+   - H2 with italic amber `&lt;em&gt;` on one emphasis word
+   - Optional `&lt;p class="lead"&gt;` first paragraph
+
+3. At least one of each high-impact component:
+   - `&lt;div class="callout"&gt;` — the thesis line in Fraunces italic
+   - `&lt;div class="panel" data-label="..."&gt;` — a key insight or rules list
+   - `&lt;table class="ref"&gt;` — tabular reference if applicable
+
+4. Footer with doc identification and date.
+
+## 4. Part dividers (for docs with 10+ sections)
+If the doc has more than ~10 sections, group them into Parts using the
+`.part` structure from the design guide. Parts have big Fraunces italic
+headings and a brief pdesc descriptor.
+
+## 5. Charts (if applicable)
+- Use Chart.js loaded from jsDelivr CDN.
+- Primary series color: `#e8a33d` (amber).
+- Secondary: `#5fb3b3` (cyan).
+- Warning/wrong: `#d97757` (rose).
+- Grid: `#1e1a13`. Ticks/labels: `#a79a82`.
+- Always include units in axis titles: `time [s]`, `torque [N·m]`.
+- Legend at bottom, mono font.
+
+## 6. Math (if applicable)
+- Load KaTeX from jsDelivr CDN (see design_guide.md for exact snippet).
+- Wrap display math in `&lt;div class="math-block labeled"&gt;` with a
+  `&lt;span class="lbl"&gt;` caption above it.
+- Follow every math block with a `&lt;dl class="vars"&gt;` variable legend
+  OR prose that uses the symbols.
+
+## 7. After creating the file
+1. Add a link from `README.md` under the appropriate section.
+2. Add an entry to `CHANGELOG.md` if it exists.
+3. Show the user the final file and summarize what's inside.
+4. Offer to open it: `xdg-open &lt;path&gt;` on Linux.
+
+## Checklist before marking done
+- [ ] design_guide.md was read before writing.
+- [ ] Filename matches the pattern.
+- [ ] File is in the correct subdirectory.
+- [ ] Hero, numbered sections, at least one callout/panel/table present.
+- [ ] Chart colors and font are from the palette.
+- [ ] README.md updated with a link.
+- [ ] No invented CSS classes.
+</code></pre>
+
+<p>This skill is the workhorse. Every time you ask for a new doc — "write me a guide on EtherCAT master config" — Claude follows this procedure. Style drift becomes almost impossible.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART III — ROBOT REPO
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part III</div>
+  <h2 class="phead">The <em>robot</em> repo.</h2>
+  <p class="pdesc">Connect the docs repo into your primary workspace. This is where most sessions start.</p>
+</div>
+
+<!-- ─── §08 ROBOT CLAUDEMD ─── -->
+<section id="robot-claudemd">
+<span class="section-num">§ 08 — Robot repo CLAUDE.md</span>
+<h2>Teach it where the docs <em>live</em>.</h2>
+
+<p class="lead">The robot repo probably already has a <code>CLAUDE.md</code> — or should. If it doesn't, run <code>/init</code> inside Claude Code from the repo root and let it scaffold one. Then add (or adapt) the section below that makes the docs repo a first-class citizen of every robot-repo session.</p>
+
+<span class="file-label">FILE <span class="path">~/humanoid/robot/CLAUDE.md  <em>(add/merge these sections)</em></span></span>
+
+<pre data-lang="markdown"><code># Humanoid robot — code repository
+
+## Stack
+- ROS 2 (Jazzy), ros2_control with effort interface
+- Isaac Gym for RL training, Gazebo for validation
+- Python for training scripts, C++ for hardware interfaces
+- Policies deployed as ONNX through a minimal inference node
+
+## Commands
+- `colcon build --symlink-install` — build the workspace
+- `. install/setup.bash` — source the env
+- `ros2 launch humanoid_bringup pendulum.launch.py` — bring up pendulum
+- `pytest tests/` — run Python tests
+
+## Related documentation
+Documentation lives in `~/humanoid/docs/` and is loaded into every
+Claude Code session via `additionalDirectories` (see .claude/settings.json).
+
+The docs repo follows the Field Notes design system defined in
+`docs/design_guide.md`. When creating or editing any HTML there, use the
+patterns, components, and CSS from that file — never invent new styling.
+
+## When to update the docs
+
+Update docs when ANY of these happen:
+- Motor parameters change (mass, inertia, friction, torque limits)
+  → `docs/tuning/motor_id_report.html` or relevant per-joint doc
+- PD gains or controller config change
+  → `docs/tuning/pd_tuning_guide.html`
+- Sim-to-real pipeline architecture changes (new controller, new
+  actuator model, new validation step)
+  → `docs/strategy/sim_to_real_guide.html`
+- You identify a new motor, joint, or a bug worth capturing
+  → create a new field note via the `write-field-note` skill
+
+Do NOT update docs for:
+- Trivial refactors (renaming, formatting, comment tweaks)
+- Experimental code on a feature branch that might not land
+- WIP changes that aren't committed yet
+
+## Doc update protocol
+1. Read the existing doc first. Match its tone and structure.
+2. Preserve `§ NN` section numbering. Renumber if inserting.
+3. Keep changes surgical — modify only what changed, not the surrounding prose.
+4. Commit docs in a SEPARATE commit with prefix `docs: `.
+
+## Writing voice (applies to both code comments and doc edits)
+- Direct. No preamble.
+- Honest assessment over flattery.
+- Concrete over abstract. Use real measured numbers.
+</code></pre>
+
+<div class="callout">
+  The "When to update the docs" section is the most important part. It gives Claude an explicit trigger list, preventing both over-updating (docs churn from every trivial change) and under-updating (important facts silently drift out of sync).
+</div>
+</section>
+
+<!-- ─── §09 ROBOT SETTINGS ─── -->
+<section id="robot-settings">
+<span class="section-num">§ 09 — Robot repo settings.json</span>
+<h2>The <em>one</em> setting that wires everything together.</h2>
+
+<p class="lead">This is the centerpiece of the setup. The <code>additionalDirectories</code> array lists absolute paths that every Claude Code session in this repo should treat as part of its workspace. Add the docs repo path, and docs become accessible without any manual <code>/add-dir</code> command.</p>
+
+<span class="file-label">FILE <span class="path">~/humanoid/robot/.claude/settings.json</span></span>
+
+<pre data-lang="json"><code>{
+  <span class="tok-s">"additionalDirectories"</span>: [
+    <span class="tok-s">"/home/YOUR_USERNAME/humanoid/docs"</span>
+  ],
+  <span class="tok-s">"permissions"</span>: {
+    <span class="tok-s">"allow"</span>: [
+      <span class="tok-s">"Read(**)"</span>,
+      <span class="tok-s">"Read(/home/YOUR_USERNAME/humanoid/docs/**)"</span>,
+      <span class="tok-s">"Edit(/home/YOUR_USERNAME/humanoid/docs/**/*.md)"</span>,
+      <span class="tok-s">"Edit(/home/YOUR_USERNAME/humanoid/docs/**/*.html)"</span>,
+      <span class="tok-s">"Edit(/home/YOUR_USERNAME/humanoid/docs/**/*.yaml)"</span>,
+      <span class="tok-s">"Edit(**/*.py)"</span>,
+      <span class="tok-s">"Edit(**/*.cpp)"</span>,
+      <span class="tok-s">"Edit(**/*.hpp)"</span>,
+      <span class="tok-s">"Edit(**/*.yaml)"</span>,
+      <span class="tok-s">"Edit(**/*.xml)"</span>,
+      <span class="tok-s">"Edit(**/*.xacro)"</span>,
+      <span class="tok-s">"Edit(**/*.urdf)"</span>,
+      <span class="tok-s">"Edit(**/*.md)"</span>,
+      <span class="tok-s">"Bash(colcon build*)"</span>,
+      <span class="tok-s">"Bash(ros2 *)"</span>,
+      <span class="tok-s">"Bash(git status)"</span>,
+      <span class="tok-s">"Bash(git diff*)"</span>,
+      <span class="tok-s">"Bash(git log*)"</span>,
+      <span class="tok-s">"Bash(git add*)"</span>,
+      <span class="tok-s">"Bash(git commit*)"</span>,
+      <span class="tok-s">"Bash(git -C /home/YOUR_USERNAME/humanoid/docs *)"</span>,
+      <span class="tok-s">"Bash(ls*)"</span>,
+      <span class="tok-s">"Bash(cat*)"</span>,
+      <span class="tok-s">"Bash(pytest*)"</span>
+    ],
+    <span class="tok-s">"deny"</span>: [
+      <span class="tok-s">"Read(./.env*)"</span>,
+      <span class="tok-s">"Read(./secrets/**)"</span>,
+      <span class="tok-s">"Edit(./.git/**)"</span>
+    ]
+  }
+}
+</code></pre>
+
+<div class="warn">
+  <strong>Replace YOUR_USERNAME.</strong> Claude Code resolves <code>~</code> differently across contexts; absolute paths are safest here. Find your actual path with <code>echo $HOME</code> and substitute. On most Ubuntu systems it's <code>/home/yourname/</code>.
+</div>
+
+<h4>What the key permissions do</h4>
+<ul class="bullets">
+  <li><code>additionalDirectories</code> — makes the docs repo visible to the session. This is the core wiring.</li>
+  <li><code>Edit(...docs/**/*.md)</code> and <code>Edit(...docs/**/*.html)</code> — explicit edit permission on the docs repo files. Without these, Claude would ask for confirmation on every doc edit.</li>
+  <li><code>Bash(git -C ...docs *)</code> — lets Claude run git commands inside the docs repo using <code>-C</code> (change directory). This is how it commits doc changes from a session rooted in the robot repo.</li>
+</ul>
+
+<span class="file-label">FILE <span class="path">~/humanoid/robot/.gitignore <em>(add if not present)</em></span></span>
+
+<pre data-lang="gitignore"><code>.claude/settings.local.json
+</code></pre>
+</section>
+
+<!-- ─── §10 ROBOT COMMAND ─── -->
+<section id="robot-cmd">
+<span class="section-num">§ 10 — The /sync-docs slash command</span>
+<h2>One command, <em>end-of-session</em> sync.</h2>
+
+<p class="lead">A slash command is a markdown file in <code>.claude/commands/</code>. When you type <code>/sync-docs</code> in the Claude Code REPL, it runs this prompt as if you'd pasted it. Good for scripted workflows you run repeatedly.</p>
+
+<span class="file-label">FILE <span class="path">~/humanoid/robot/.claude/commands/sync-docs.md</span></span>
+
+<pre data-lang="markdown"><code>---
+description: Review recent robot-repo changes and propose doc updates
+  in ~/humanoid/docs/. Interactive — shows diffs before applying.
+---
+
+# Sync docs with recent work
+
+Walk through this procedure to propagate recent robot-repo changes
+into the docs repo. Show proposed changes as diffs, wait for
+approval before applying.
+
+## Step 1 — Gather context
+Run these in parallel:
+- `git log --oneline -30` in this repo (robot)
+- `git -C /home/YOUR_USERNAME/humanoid/docs log -1 --format='%ai %s'`
+  to find the last docs commit
+- `git log --since="&lt;last docs commit date&gt;" --name-only` in this repo
+  to see which files have changed since docs were last updated
+
+## Step 2 — Identify documentation-relevant changes
+For each changed file, decide if it warrants a doc update per the rules
+in CLAUDE.md ("When to update the docs" section):
+
+- Motor parameter change? → tuning/motor_id_report.html
+- PD gain change?         → tuning/pd_tuning_guide.html
+- Pipeline change?        → strategy/sim_to_real_guide.html
+- New concept/procedure?  → consider a new field note
+
+Ignore: refactors, formatting, WIP branches, test-only changes.
+
+## Step 3 — Propose specific updates
+For each doc that needs changing, show me:
+1. The doc name and section that would change
+2. A diff of the proposed edit (BEFORE and AFTER)
+3. A one-line commit message
+
+Wait for my "yes / skip / modify" on each one. Do not apply anything
+automatically.
+
+## Step 4 — Apply approved changes
+After I approve all (or a subset):
+1. Apply the edits to the docs repo.
+2. For each doc, stage and commit in the docs repo:
+   `git -C ~/humanoid/docs add &lt;file&gt;`
+   `git -C ~/humanoid/docs commit -m "docs: &lt;message&gt;"`
+3. Report the commit hashes.
+4. Do NOT push. Remind me to push manually when ready.
+
+## Step 5 — Summary
+Give me a short summary:
+- N docs updated
+- M new field notes created (if any)
+- Pending things you noticed but didn't change (e.g., stale claims
+  you spotted but aren't sure if they should update)
+</code></pre>
+
+<p>Run this at the end of a work session — or whenever you sense the docs have drifted. It compares the last docs commit timestamp with robot-repo activity since then, and proposes targeted updates without you having to list them.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART IV — WORKSPACE
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part IV</div>
+  <h2 class="phead">The <em>workspace</em>.</h2>
+  <p class="pdesc">VS Code setup — optional but convenient. Makes both repos visible in one sidebar.</p>
+</div>
+
+<!-- ─── §11 WORKSPACE FILE ─── -->
+<section id="workspace">
+<span class="section-num">§ 11 — VS Code workspace file</span>
+<h2>One file to open, <em>both</em> repos loaded.</h2>
+
+<p>VS Code supports "multi-root workspaces" via a <code>.code-workspace</code> file. Put it in the parent <code>~/humanoid/</code> directory. When you open this file in VS Code, both repos appear in the sidebar with their git status, their own searches, their own terminals.</p>
+
+<span class="file-label">FILE <span class="path">~/humanoid/humanoid.code-workspace</span></span>
+
+<pre data-lang="json"><code>{
+  <span class="tok-s">"folders"</span>: [
+    {
+      <span class="tok-s">"name"</span>: <span class="tok-s">"robot (code)"</span>,
+      <span class="tok-s">"path"</span>: <span class="tok-s">"robot"</span>
+    },
+    {
+      <span class="tok-s">"name"</span>: <span class="tok-s">"docs (field notes)"</span>,
+      <span class="tok-s">"path"</span>: <span class="tok-s">"docs"</span>
+    }
+  ],
+  <span class="tok-s">"settings"</span>: {
+    <span class="tok-s">"files.exclude"</span>: {
+      <span class="tok-s">"**/__pycache__"</span>: <span class="tok-k">true</span>,
+      <span class="tok-s">"**/build"</span>: <span class="tok-k">true</span>,
+      <span class="tok-s">"**/install"</span>: <span class="tok-k">true</span>,
+      <span class="tok-s">"**/log"</span>: <span class="tok-k">true</span>,
+      <span class="tok-s">"**/.DS_Store"</span>: <span class="tok-k">true</span>
+    },
+    <span class="tok-s">"terminal.integrated.defaultProfile.linux"</span>: <span class="tok-s">"bash"</span>,
+    <span class="tok-s">"editor.rulers"</span>: [<span class="tok-n">88</span>, <span class="tok-n">100</span>],
+    <span class="tok-s">"editor.minimap.enabled"</span>: <span class="tok-k">false</span>
+  },
+  <span class="tok-s">"extensions"</span>: {
+    <span class="tok-s">"recommendations"</span>: [
+      <span class="tok-s">"anthropic.claude-code"</span>,
+      <span class="tok-s">"ms-vscode.live-server"</span>,
+      <span class="tok-s">"yzhang.markdown-all-in-one"</span>,
+      <span class="tok-s">"ms-python.python"</span>,
+      <span class="tok-s">"ms-iot.vscode-ros"</span>
+    ]
+  }
+}
+</code></pre>
+
+<h4>Opening the workspace</h4>
+
+<pre data-lang="bash"><code><span class="tok-c"># option 1: from command line</span>
+code ~/humanoid/humanoid.code-workspace
+
+<span class="tok-c"># option 2: from within VS Code</span>
+<span class="tok-c"># File → Open Workspace from File... → select humanoid.code-workspace</span>
+</code></pre>
+
+<p>You now have one VS Code window with both repos in the sidebar, labelled clearly. Claude Code launched from the integrated terminal (starting in whichever folder has focus) will load <em>that</em> repo's CLAUDE.md and settings, with the other repo available via <code>additionalDirectories</code>.</p>
+</section>
+
+<!-- ─── §12 EXTENSIONS ─── -->
+<section id="extensions">
+<span class="section-num">§ 12 — VS Code extensions</span>
+<h2>Three extensions worth installing.</h2>
+
+<p>Marked as <code>recommendations</code> in the workspace file above — VS Code will prompt you to install them when you first open the workspace.</p>
+
+<table class="ref">
+  <thead><tr><th>Extension</th><th>ID</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>Claude Code</td><td>anthropic.claude-code</td><td class="v">Claude Code integration inside VS Code (REPL in terminal, file selection context, etc.)</td></tr>
+    <tr><td>Live Preview</td><td>ms-vscode.live-server</td><td class="v">Renders HTML in a VS Code panel with hot-reload. Open any of your docs HTML and see changes live as Claude edits.</td></tr>
+    <tr><td>Markdown All in One</td><td>yzhang.markdown-all-in-one</td><td class="v">Better markdown preview + outline + TOC generation. Useful for CLAUDE.md and skill files.</td></tr>
+  </tbody>
+</table>
+
+<h4>Recommended VS Code layout</h4>
+<p>For doc work, split the editor into three panes:</p>
+<ul class="bullets">
+  <li><strong>Left pane</strong>: HTML source (or Markdown source).</li>
+  <li><strong>Right pane</strong>: Live Preview of the same file (Ctrl+Shift+P → "Live Preview: Show Preview").</li>
+  <li><strong>Bottom terminal</strong>: Claude Code running.</li>
+</ul>
+<p>When you ask Claude to edit a doc, the preview updates automatically. No alt-tab to a browser.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART V — USE & EVOLVE
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part V</div>
+  <h2 class="phead">Use &amp; <em>evolve</em>.</h2>
+  <p class="pdesc">What the system feels like day-to-day, and how to grow it as the project grows.</p>
+</div>
+
+<!-- ─── §13 DAY ─── -->
+<section id="day">
+<span class="section-num">§ 13 — A day in the life</span>
+<h2>Three typical workflows, <em>walked through</em>.</h2>
+
+<h3>Scenario 1 — Small change, direct update</h3>
+<p>You just re-identified the shoulder motor: F_c is now 0.17 N·m instead of 0.15.</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># already in VS Code, workspace open, robot repo is the active terminal</span>
+claude
+</code></pre>
+<pre data-lang="text"><code>&gt; I just re-identified the shoulder motor. F_c is now 0.17 N·m
+  (was 0.15). Update the docs to reflect this and commit in the docs repo.
+</code></pre>
+<p>Claude reads the relevant docs (<code>motor_id_report.html</code>, <code>pd_tuning_guide.html</code>), finds every table or prose mention of <code>F_c = 0.15</code>, proposes a diff showing each change, you approve, it applies and commits in the docs repo with a clean message like <code>docs: update shoulder F_c after re-identification</code>.</p>
+
+<h3>Scenario 2 — New topic, create a field note</h3>
+<p>You got EtherCAT master config working and want to capture the procedure before you forget.</p>
+<pre data-lang="text"><code>&gt; Write a new field note on the EtherCAT master config I just set up.
+  Cover: ethercat_conf.xml location, slave enumeration, scan timing,
+  the two gotchas we hit (kernel preempt-rt, link aggregation).
+</code></pre>
+<p>The <code>write-field-note</code> skill triggers automatically. Claude reads <code>design_guide.md</code>, creates <code>docs/hardware/ethercat_master_setup_guide.html</code> in the right style, adds the link to <code>docs/README.md</code>, commits to the docs repo. Three files touched, you approve once.</p>
+
+<h3>Scenario 3 — End of day sync</h3>
+<p>Bunch of changes accumulated, not sure what's doc-worthy.</p>
+<pre data-lang="text"><code>&gt; /sync-docs
+</code></pre>
+<p>Claude compares the last docs commit to recent robot-repo activity, goes file by file through what changed, proposes specific doc updates for each one, you say yes/skip/modify. Takes ~2 minutes. At the end, docs repo has 3–5 fresh commits, each focused and well-labeled.</p>
+
+<div class="callout">
+  The key insight: you're never writing "remember to look at the docs repo" — it's always there. You describe what changed; Claude figures out where it should go.
+</div>
+</section>
+
+<!-- ─── §14 EVOLVE ─── -->
+<section id="evolve">
+<span class="section-num">§ 14 — Evolving the system</span>
+<h2>Add skills when you notice a <em>pattern</em>.</h2>
+
+<p class="lead">The initial setup is the minimum. Over weeks, you'll notice yourself re-explaining the same thing to Claude Code multiple times. That's the signal — turn it into a skill or a <code>CLAUDE.md</code> rule.</p>
+
+<h3>When to add a new skill</h3>
+<ul class="bullets">
+  <li>You've asked for the same kind of artifact three times with similar prompts (e.g., "write a per-joint tuning report" → codify as <code>joint-tuning-report</code> skill).</li>
+  <li>A workflow has multiple clear steps that Claude sometimes skips or reorders (e.g., re-identification → update params YAML → update docs → regenerate charts).</li>
+  <li>An output format is fiddly and Claude only gets it right if you remind it (e.g., "make sure the YAML keys are sorted alphabetically for diff-friendliness").</li>
+</ul>
+
+<h3>When to update CLAUDE.md</h3>
+<ul class="bullets">
+  <li>Project state changed — new stage reached, new stack piece added, new convention adopted.</li>
+  <li>You keep reminding Claude of the same preference ("I like prose over bullets"). Promote it to CLAUDE.md.</li>
+  <li>A new directory appeared and Claude is putting files in the wrong one.</li>
+</ul>
+
+<h3>When NOT to add more</h3>
+<ul class="bullets">
+  <li>You had one friction-y session and want to prevent it forever. Wait for a second occurrence — one-off issues don't earn permanent rules.</li>
+  <li>CLAUDE.md is approaching 200 lines. Instruction degradation is real — every low-value line weakens high-value ones. Promote stale rules to skills (which load on demand) or delete them.</li>
+  <li>The rule is "do what's obvious." Claude mostly gets defaults right; only codify when defaults fail.</li>
+</ul>
+
+<h3>Suggested second-wave skills (add when needed)</h3>
+
+<table class="ref">
+  <thead><tr><th>Skill</th><th>Trigger</th><th>Does what</th></tr></thead>
+  <tbody>
+    <tr><td>update-params</td><td class="v">"updated the params"</td><td class="v">Takes new identified values, updates the params YAML, propagates to every doc that references them, regenerates any derived charts.</td></tr>
+    <tr><td>add-joint</td><td class="v">"new joint added"</td><td class="v">Scaffolds per-joint doc + URDF snippet + controller YAML entry. Copies the pattern from an existing joint.</td></tr>
+    <tr><td>changelog-entry</td><td class="v">"log today's work"</td><td class="v">Appends a dated entry to CHANGELOG.md summarizing what changed in docs + robot this day.</td></tr>
+    <tr><td>release-report</td><td class="v">"tag a milestone"</td><td class="v">Generates a Field Notes HTML summarizing progress since the last tagged milestone.</td></tr>
+  </tbody>
+</table>
+
+<div class="panel" data-label="Maintenance rhythm">
+  <p style="margin:0">Review the system every ~4 weeks. Read your <code>CLAUDE.md</code> files and ask: is each line still earning its place? Delete anything stale. Run <code>/status</code> in Claude Code occasionally to see which config sources are active and where they conflict.</p>
+</div>
+</section>
+
+<!-- ─── §15 REFERENCE ─── -->
+<section id="reference">
+<span class="section-num">§ 15 — Complete file reference</span>
+<h2>Every file, <em>one table</em>.</h2>
+
+<h3>Docs repo</h3>
+<table class="ref">
+  <thead><tr><th>Path</th><th>Purpose</th><th>Commit?</th></tr></thead>
+  <tbody>
+    <tr><td>CLAUDE.md</td><td class="v">Docs-repo context and conventions</td><td class="v">yes</td></tr>
+    <tr><td>README.md</td><td class="v">Index of all docs with links</td><td class="v">yes</td></tr>
+    <tr><td>design_guide.md</td><td class="v">Field Notes design system reference</td><td class="v">yes</td></tr>
+    <tr><td>.claude/settings.json</td><td class="v">Permissions, shared config</td><td class="v">yes</td></tr>
+    <tr><td>.claude/settings.local.json</td><td class="v">Personal overrides</td><td class="v">no (gitignored)</td></tr>
+    <tr><td>.claude/skills/write-field-note.md</td><td class="v">The skill that encapsulates the design system</td><td class="v">yes</td></tr>
+    <tr><td>tuning/*.html</td><td class="v">Motor ID, PD tuning reports</td><td class="v">yes</td></tr>
+    <tr><td>strategy/*.html</td><td class="v">Pipeline and architecture docs</td><td class="v">yes</td></tr>
+    <tr><td>hardware/*.html</td><td class="v">Hardware setup, wiring, sensors</td><td class="v">yes</td></tr>
+    <tr><td>.gitignore</td><td class="v">Ignore settings.local, build artifacts</td><td class="v">yes</td></tr>
+  </tbody>
+</table>
+
+<h3>Robot repo (additions/modifications)</h3>
+<table class="ref">
+  <thead><tr><th>Path</th><th>Purpose</th><th>Commit?</th></tr></thead>
+  <tbody>
+    <tr><td>CLAUDE.md</td><td class="v">Robot-repo context + docs integration rules</td><td class="v">yes</td></tr>
+    <tr><td>.claude/settings.json</td><td class="v">additionalDirectories + permissions</td><td class="v">yes</td></tr>
+    <tr><td>.claude/settings.local.json</td><td class="v">Personal overrides (e.g., enable git push)</td><td class="v">no (gitignored)</td></tr>
+    <tr><td>.claude/commands/sync-docs.md</td><td class="v">The /sync-docs slash command</td><td class="v">yes</td></tr>
+    <tr><td>.gitignore</td><td class="v">Must include .claude/settings.local.json</td><td class="v">yes</td></tr>
+  </tbody>
+</table>
+
+<h3>Parent directory</h3>
+<table class="ref">
+  <thead><tr><th>Path</th><th>Purpose</th><th>Commit?</th></tr></thead>
+  <tbody>
+    <tr><td>humanoid.code-workspace</td><td class="v">VS Code workspace: both repos in one window</td><td class="v">not in any repo (lives outside)</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ─── §16 TROUBLESHOOT ─── -->
+<section id="troubleshoot">
+<span class="section-num">§ 16 — Troubleshooting</span>
+<h2>When something <em>doesn't</em> work.</h2>
+
+<h3>"Claude doesn't see the docs repo"</h3>
+<ul class="bullets">
+  <li>Check that <code>additionalDirectories</code> is a valid JSON array of absolute paths (no <code>~</code>, no relative paths).</li>
+  <li>Run <code>/status</code> in Claude Code — it lists all active config sources and their origins. The <code>additionalDirectories</code> should show up under the project settings.</li>
+  <li>Restart the Claude Code session. Settings reload on session start, not mid-session.</li>
+  <li>Verify the path exists: <code>ls /home/YOUR_USERNAME/humanoid/docs</code>.</li>
+</ul>
+
+<h3>"Claude keeps asking permission for doc edits"</h3>
+<ul class="bullets">
+  <li>Your <code>permissions.allow</code> patterns must match the absolute paths, not the relative paths. Use <code>Edit(/home/you/humanoid/docs/**/*.md)</code>, not <code>Edit(docs/**/*.md)</code>.</li>
+  <li>Patterns are case-sensitive.</li>
+  <li>Verify with <code>/status</code> — it shows the effective permission set.</li>
+</ul>
+
+<h3>"Docs are losing style consistency over time"</h3>
+<ul class="bullets">
+  <li>The <code>write-field-note</code> skill isn't triggering. Check that Claude is actually reading <code>design_guide.md</code> before creating docs — you can ask directly: "Did you read design_guide.md first?"</li>
+  <li>If the skill's <code>description</code> field is too narrow, Claude won't invoke it. Broaden the description to include more trigger phrases.</li>
+  <li>Invoke explicitly: <code>/write-field-note</code>.</li>
+</ul>
+
+<h3>"CLAUDE.md feels too long"</h3>
+<ul class="bullets">
+  <li>200 lines is the soft ceiling. Past that, instruction compliance degrades.</li>
+  <li>Promote detailed rules into skill files (loaded on demand) rather than CLAUDE.md (loaded always).</li>
+  <li>Delete anything that hasn't mattered in the last month.</li>
+</ul>
+
+<h3>"Git commits are ending up in the wrong repo"</h3>
+<ul class="bullets">
+  <li>Remind Claude via CLAUDE.md: use <code>git -C /absolute/path/to/docs</code> when committing docs; plain <code>git</code> only for the current repo.</li>
+  <li>Check <code>git log</code> in both repos after a session to confirm commits landed where you expected.</li>
+</ul>
+
+<h3>"VS Code multi-root workspace feels weird"</h3>
+<ul class="bullets">
+  <li>Each folder has its own settings, tasks, and launch configs. The workspace file can override these globally.</li>
+  <li>Terminal "starts in" the most-recently-active folder. Click into a specific folder before opening a new terminal to control which repo's CLAUDE.md loads.</li>
+  <li>You can close the workspace and open either repo individually if you need focus — the setup still works, you just lose the two-pane view.</li>
+</ul>
+
+<div class="callout">
+  When something breaks, <code>/status</code> inside Claude Code is your first diagnostic. It shows which CLAUDE.md files loaded, which settings files are active, and any parsing errors.
+</div>
+</section>
+
+<footer>
+  <span>field notes · setup guide · living docs with claude code</span>
+  <span>v.04.26 · humanoid project</span>
+</footer>
+
+</div>
+</body>
+</html>

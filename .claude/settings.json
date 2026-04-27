@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Edit(**/*.html)",
+      "Edit(**/*.md)",
+      "Edit(**/*.yaml)",
+      "Edit(**/*.yml)",
+      "Edit(**/*.json)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(ls*)",
+      "Bash(cat*)",
+      "Bash(mkdir*)",
+      "Bash(firefox*)",
+      "Bash(xdg-open*)"
+    ],
+    "deny": [
+      "Read(./.env*)",
+      "Read(./secrets/**)",
+      "Edit(./.git/**)"
+    ]
+  }
+}

@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PD Control, Feedforward & Motor ID — a field guide</title>
+
+<!-- KaTeX for math -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Fonts: Fraunces (display), IBM Plex Sans (body), JetBrains Mono (code) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0e0c09;
+  --bg-panel:#15120d;
+  --bg-inset:#0a0806;
+  --ink:#ece2cf;
+  --ink-dim:#a79a82;
+  --ink-faint:#6b6354;
+  --rule:#2a2419;
+  --rule-soft:#1e1a13;
+  --amber:#e8a33d;
+  --amber-deep:#b87a1e;
+  --cyan:#5fb3b3;
+  --rose:#d97757;
+  --moss:#8fa968;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);
+  font-weight:300;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+
+/* subtle grain */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+/* ───────────── header ───────────── */
+header.hero{
+  border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+  padding:56px 0 64px;
+  margin-bottom:72px;
+  position:relative;
+}
+header.hero::before{
+  content:"CTRL/01";
+  position:absolute;top:-11px;left:0;
+  background:var(--bg);padding:0 12px 0 0;
+  font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)
+}
+header.hero::after{
+  content:"v.04.26 · field notes";
+  position:absolute;top:-11px;right:0;
+  background:var(--bg);padding:0 0 0 12px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)
+}
+.eyebrow{
+  font-family:var(--mono);font-size:12px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--amber);margin-bottom:28px
+}
+h1.title{
+  font-family:var(--serif);
+  font-weight:300;
+  font-style:italic;
+  font-size:clamp(44px,7vw,88px);
+  line-height:.98;
+  letter-spacing:-.02em;
+  margin:0 0 8px;
+  color:var(--ink);
+}
+h1.title em{
+  font-style:normal;font-weight:600;color:var(--amber)
+}
+.subtitle{
+  font-family:var(--serif);
+  font-weight:300;
+  font-size:clamp(20px,2.4vw,28px);
+  line-height:1.35;
+  color:var(--ink-dim);
+  max-width:720px;
+  margin:24px 0 0;
+}
+.meta{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:24px;
+  margin-top:48px;padding-top:24px;
+  border-top:1px dashed var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+/* ───────────── sections ───────────── */
+section{margin:96px 0 0;position:relative}
+section + section{padding-top:24px}
+
+.section-num{
+  font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);
+  margin-bottom:18px;display:block
+}
+h2{
+  font-family:var(--serif);
+  font-weight:400;
+  font-size:clamp(32px,4.5vw,52px);
+  line-height:1.05;
+  letter-spacing:-.015em;
+  margin:0 0 24px;
+  color:var(--ink);
+  max-width:860px;
+}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+
+h3{
+  font-family:var(--serif);
+  font-weight:500;
+  font-size:26px;
+  line-height:1.2;
+  letter-spacing:-.01em;
+  margin:48px 0 16px;
+  color:var(--ink);
+}
+h4{
+  font-family:var(--mono);
+  font-weight:500;
+  font-size:12px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--amber);
+  margin:32px 0 12px;
+}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+hr.divider{
+  border:none;border-top:1px solid var(--rule);
+  margin:72px 0;
+}
+hr.divider-soft{border:none;border-top:1px dashed var(--rule-soft);margin:32px 0}
+
+/* ───────────── panels & callouts ───────────── */
+.panel{
+  background:var(--bg-panel);
+  border:1px solid var(--rule);
+  padding:28px 32px;
+  margin:24px 0;
+  position:relative;
+}
+.panel::before{
+  content:attr(data-label);
+  position:absolute;top:-9px;left:20px;
+  background:var(--bg);padding:0 10px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.25em;
+  color:var(--amber);text-transform:uppercase;
+}
+.panel.inset{background:var(--bg-inset)}
+
+.callout{
+  border-left:2px solid var(--amber);
+  padding:4px 0 4px 24px;
+  margin:24px 0;
+  font-family:var(--serif);
+  font-style:italic;
+  font-size:18px;
+  color:var(--ink-dim);
+  line-height:1.5;
+  max-width:60ch;
+}
+
+.warn{
+  background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));
+  border-left:2px solid var(--rose);
+  padding:18px 22px;
+  margin:28px 0;
+  font-size:15.5px;
+}
+.warn strong{color:var(--rose)}
+
+/* ───────────── math ───────────── */
+.math-block{
+  background:var(--bg-inset);
+  border:1px solid var(--rule);
+  padding:24px 28px;
+  margin:20px 0;
+  overflow-x:auto;
+  position:relative;
+}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{
+  position:absolute;top:10px;left:16px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.22em;
+  color:var(--ink-faint);text-transform:uppercase;
+}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+.math-block .katex-display{margin:.4em 0}
+
+/* variable legend */
+dl.vars{
+  font-family:var(--mono);font-size:13px;line-height:1.9;
+  margin:16px 0 24px;display:grid;
+  grid-template-columns:minmax(80px,auto) 1fr;
+  gap:4px 28px;
+}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+/* ───────────── code ───────────── */
+pre{
+  background:var(--bg-inset);
+  border:1px solid var(--rule);
+  border-left:2px solid var(--amber-deep);
+  padding:22px 26px;
+  margin:24px 0;
+  overflow-x:auto;
+  font-family:var(--mono);
+  font-size:13.5px;
+  line-height:1.7;
+  color:var(--ink);
+  position:relative;
+}
+pre::before{
+  content:attr(data-lang);
+  position:absolute;top:8px;right:16px;
+  font-size:10px;letter-spacing:.25em;color:var(--ink-faint);
+  text-transform:uppercase;
+}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+
+.tok-k{color:var(--rose)}    /* keyword */
+.tok-s{color:var(--moss)}    /* string */
+.tok-c{color:var(--ink-faint);font-style:italic} /* comment */
+.tok-n{color:var(--amber)}   /* number */
+.tok-f{color:var(--cyan)}    /* function */
+
+/* ───────────── tables ───────────── */
+table.ref{
+  width:100%;border-collapse:collapse;margin:24px 0;
+  font-family:var(--mono);font-size:13.5px;
+}
+table.ref th, table.ref td{
+  text-align:left;padding:12px 16px;
+  border-bottom:1px solid var(--rule);vertical-align:top
+}
+table.ref th{
+  color:var(--amber);font-weight:500;font-size:11px;
+  letter-spacing:.18em;text-transform:uppercase;
+  border-bottom:1px solid var(--amber-deep);
+}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+/* ───────────── graphs ───────────── */
+.graph-wrap{
+  background:var(--bg-panel);
+  border:1px solid var(--rule);
+  margin:28px 0;
+  padding:24px 28px 28px;
+  position:relative;
+}
+.graph-wrap .g-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:4px;flex-wrap:wrap;gap:12px;
+}
+.graph-wrap .g-title{
+  font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink);
+}
+.graph-wrap .g-sub{
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;
+  color:var(--ink-faint);text-transform:uppercase;
+}
+.graph-wrap .g-desc{
+  color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px
+}
+.graph-canvas{position:relative;height:340px;width:100%}
+@media (max-width:700px){ .graph-canvas{height:280px} }
+
+.controls{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:20px 32px;margin-top:22px;padding-top:20px;
+  border-top:1px dashed var(--rule);
+}
+.ctl{display:flex;flex-direction:column;gap:8px}
+.ctl label{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+  color:var(--ink-faint);text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:baseline
+}
+.ctl label .val{color:var(--amber);font-size:13px;letter-spacing:.05em}
+.ctl input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:2px;background:var(--rule);outline:none;border-radius:2px;
+}
+.ctl input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--amber);cursor:pointer;
+  border:2px solid var(--bg-panel);
+  box-shadow:0 0 0 1px var(--amber);
+}
+.ctl input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--amber);cursor:pointer;
+  border:2px solid var(--bg-panel);
+  box-shadow:0 0 0 1px var(--amber);
+}
+
+.readouts{
+  display:flex;gap:24px;flex-wrap:wrap;
+  margin-top:14px;padding-top:14px;border-top:1px dashed var(--rule);
+  font-family:var(--mono);font-size:12px;
+}
+.readouts .ro{display:flex;flex-direction:column;gap:2px}
+.readouts .ro .k{font-size:10px;letter-spacing:.2em;color:var(--ink-faint);text-transform:uppercase}
+.readouts .ro .v{color:var(--amber);font-size:14px;font-weight:500}
+
+/* ───────────── lists ───────────── */
+ul.steps{
+  list-style:none;padding:0;margin:24px 0;counter-reset:st;
+}
+ul.steps > li{
+  counter-increment:st;
+  padding:16px 0 16px 56px;
+  border-bottom:1px dashed var(--rule-soft);
+  position:relative;
+  max-width:72ch;
+}
+ul.steps > li::before{
+  content:counter(st,decimal-leading-zero);
+  position:absolute;left:0;top:18px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;
+  color:var(--amber);
+}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{
+  padding:6px 0 6px 24px;position:relative;
+}
+ul.bullets li::before{
+  content:"→";position:absolute;left:0;top:6px;
+  color:var(--amber);font-family:var(--mono)
+}
+
+/* ───────────── TOC ───────────── */
+nav.toc{
+  margin:32px 0 0;
+  padding:24px 0 0;
+  border-top:1px solid var(--rule);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:24px 48px;
+}
+nav.toc a{
+  display:block;color:var(--ink-dim);border:none;
+  padding:8px 0;border-bottom:1px dashed var(--rule-soft);
+  font-family:var(--sans);font-size:14px;font-weight:300;
+  transition:color .2s, padding-left .2s;
+}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{
+  font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  color:var(--ink-faint);margin-right:14px;
+}
+
+/* grid layouts */
+.two-col{
+  display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0;
+}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+
+.three-col{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0;
+}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+/* little cards */
+.card{
+  background:var(--bg-panel);
+  border:1px solid var(--rule);
+  padding:22px 24px;
+}
+.card h5{
+  font-family:var(--mono);font-size:10px;letter-spacing:.25em;
+  text-transform:uppercase;color:var(--amber);
+  margin:0 0 10px;
+}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{
+  font-family:var(--serif);font-size:36px;font-weight:400;
+  color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em
+}
+
+/* footer */
+footer{
+  margin-top:120px;padding-top:32px;
+  border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;
+  color:var(--ink-faint);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+
+/* reveal links inline-ish */
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="eyebrow">PD Control · Feedforward · Motor ID · Sim-to-real</div>
+  <h1 class="title">Tuning the <em>stack</em>,<br>one joint at a time.</h1>
+  <p class="subtitle">A field guide for going from a balanced bar on a test stand to an ONNX policy that actually transfers to a humanoid.</p>
+
+  <div class="meta">
+    <div><span class="k">Rig</span><span class="v">X6 · 70 cm bar · <em>1 kg @ 30 cm</em></span></div>
+    <div><span class="k">Status</span><span class="v">PD stable · <em>0.1 s traj OK</em></span></div>
+    <div><span class="k">Target</span><span class="v">Full humanoid <em>sim-to-real</em></span></div>
+    <div><span class="k">Scope</span><span class="v">Formulas · code · graphs</span></div>
+  </div>
+
+  <nav class="toc">
+    <a href="#plant"><span class="n">01</span>The plant model</a>
+    <a href="#inertia"><span class="n">02</span>Estimating inertia J</a>
+    <a href="#pd"><span class="n">03</span>PD gains from first principles</a>
+    <a href="#response"><span class="n">04</span>Step response, interactively</a>
+    <a href="#worked"><span class="n">05</span>Your rig, worked out</a>
+    <a href="#ff-gravity"><span class="n">06</span>Gravity feedforward</a>
+    <a href="#ff-inertia"><span class="n">07</span>Inertia feedforward</a>
+    <a href="#ff-friction"><span class="n">08</span>Friction feedforward</a>
+    <a href="#id"><span class="n">09</span>Motor characterization protocol</a>
+    <a href="#code"><span class="n">10</span>Example: Python controller</a>
+    <a href="#ros"><span class="n">11</span>ROS 2 effort tuning</a>
+    <a href="#sim2real"><span class="n">12</span>Sim-to-real for ONNX</a>
+    <a href="#sweep"><span class="n">13</span>Automated tuning sweep</a>
+    <a href="#ref"><span class="n">14</span>Quick reference card</a>
+  </nav>
+</header>
+
+<!-- ═══════════════ 01 · PLANT MODEL ═══════════════ -->
+<section id="plant">
+<span class="section-num">§ 01 — Plant model</span>
+<h2>The equation of motion, before anything else.</h2>
+
+<p class="lead">Every control decision you make traces back to one differential equation. For a single revolute joint driving a rigid body, Newton's second law in rotational form is:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 1 — joint dynamics</span>
+  $$ J\,\ddot\theta \;+\; b\,\dot\theta \;+\; \tau_f(\dot\theta) \;+\; mgl\sin\theta \;=\; \tau $$
+</div>
+
+<dl class="vars">
+  <dt>J</dt>   <dd>total rotational inertia reflected at the joint axis (kg·m²)</dd>
+  <dt>b</dt>   <dd>viscous friction coefficient (N·m·s/rad)</dd>
+  <dt>τ<sub>f</sub></dt><dd>non-linear friction — dry Coulomb, stiction, etc. (N·m)</dd>
+  <dt>mgl</dt> <dd>gravity torque amplitude; <span class="inline-eq">m</span> = mass, <span class="inline-eq">l</span> = distance from axis to COM (N·m)</dd>
+  <dt>θ</dt>   <dd>joint angle, measured from the position where gravity torque is zero (rad)</dd>
+  <dt>τ</dt>   <dd>applied motor torque — this is what <em>you</em> command (N·m)</dd>
+</dl>
+
+<p>Everything downstream — PD gains, feedforward terms, what your ONNX policy expects — is just a strategy for picking <span class="inline-eq">τ</span> given the right-hand side you know and the disturbances you don't.</p>
+
+<div class="callout">
+  Your setup <em>is</em> this equation. The 70 cm bar and 1 kg mass define J and mgl; the X6's internal impedance loop computes τ from Kp, Kd, and τ<sub>ff</sub>. Get the right-hand side right and the policy transfers.
+</div>
+</section>
+
+<!-- ═══════════════ 02 · INERTIA ═══════════════ -->
+<section id="inertia">
+<span class="section-num">§ 02 — Estimating J</span>
+<h2>You can't tune what you haven't <em>measured</em>.</h2>
+
+<p class="lead">Before touching gains, compute J. Every gain formula depends on it, and a wrong J by 2× will silently kill your controller.</p>
+
+<h3>Analytical estimate — your rig</h3>
+
+<p>For a thin uniform bar rotating about its center, plus a point mass offset along it:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 2 — rigid-body inertia</span>
+  $$ J \;=\; \underbrace{\tfrac{1}{12}\, m_{\text{bar}}\, L^2}_{\text{bar about center}} \;+\; \underbrace{m_w\, r^2}_{\text{point mass offset}} \;+\; J_{\text{rotor}} $$
+</div>
+
+<p>Plugging in your rig (assume a ~300 g aluminum bar, 1 kg weight at 30 cm, rotor inertia small):</p>
+
+<div class="math-block">
+  $$ J \;\approx\; \tfrac{1}{12}(0.30)(0.70)^2 \;+\; (1.0)(0.30)^2 \;=\; 0.01225 + 0.0900 \;\approx\; \mathbf{0.102\ \text{kg·m}^2} $$
+</div>
+
+<p>The offset mass dominates by a factor of ~7. That's useful intuition: when you move the 1 kg further out, inertia grows quadratically, but gravity torque only grows linearly. This is why balancing problems get harder faster than they look.</p>
+
+<h3>Experimental methods — pick one, sanity-check with another</h3>
+
+<ul class="steps">
+  <li><strong>Pendulum period</strong>
+    Let it swing freely under gravity as a physical pendulum. Measure the period T (average over 10+ cycles). Then:
+    $$ T = 2\pi\sqrt{\tfrac{J}{mgl}} \;\Longrightarrow\; J = \tfrac{mgl\,T^2}{4\pi^2} $$
+    Cheap, no torque sensor needed, gives you mgl and J together.
+  </li>
+  <li><strong>Torque-step response</strong>
+    Command a torque step τ₀ from rest at the zero-gravity angle (horizontal axis configuration if possible, or subtract gravity). Fit θ̈ ≈ τ₀/J from the first ~20 ms before friction dominates.
+  </li>
+  <li><strong>Sinusoidal excitation + fit</strong>
+    Sweep a chirp torque τ(t) = A sin(ω t) with ω ramping. Fit the transfer function θ(s)/τ(s) = 1/(Js² + bs + k). The asymptotic −40 dB/dec slope gives you J.
+  </li>
+</ul>
+
+<p>I'd recommend the pendulum method first — it's 10 minutes of work and gives you a number you can trust to ~5%. Then torque step to cross-check.</p>
+</section>
+
+<!-- ═══════════════ 03 · PD GAINS ═══════════════ -->
+<section id="pd">
+<span class="section-num">§ 03 — PD gains from first principles</span>
+<h2>Why Kp, Kd aren't random knobs.</h2>
+
+<p class="lead">When you apply a PD controller $\tau = K_p(\theta_d - \theta) + K_d(\dot\theta_d - \dot\theta)$ to a pure inertia, the closed loop becomes a linear second-order system. That's the whole game: you're shaping a mass-spring-damper where <em>you</em> get to pick the spring and the damper.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 3 — closed-loop dynamics</span>
+  $$ J\,\ddot\theta \;+\; K_d\,\dot\theta \;+\; K_p\,\theta \;=\; K_p\,\theta_d $$
+</div>
+
+<p>Compare this to the canonical second-order form:</p>
+
+<div class="math-block">
+  $$ \ddot\theta \;+\; 2\zeta\omega_n\,\dot\theta \;+\; \omega_n^2\,\theta \;=\; \omega_n^2\,\theta_d $$
+</div>
+
+<p>and two identities fall out that you will use for the rest of your career:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 4 — the PD design equations</span>
+  $$ \boxed{\; K_p = J\,\omega_n^2 \;} \qquad\qquad \boxed{\; K_d = 2\,\zeta\,\sqrt{K_p\,J} = 2\,\zeta\,\omega_n\,J \;} $$
+</div>
+
+<dl class="vars">
+  <dt>ω<sub>n</sub></dt> <dd>natural frequency = <em>how fast the loop responds</em> (rad/s). Higher = snappier, but limited by noise, sample rate, and actuator bandwidth.</dd>
+  <dt>ζ</dt>            <dd>damping ratio = <em>how much it rings</em>. 0.7 is the tracking sweet spot, 1.0 is critical (no overshoot), 0.3 is ringy, >1.5 is sluggish.</dd>
+</dl>
+
+<div class="panel" data-label="Rules of thumb">
+  <ul class="bullets">
+    <li><strong>Pick ω<sub>n</sub> first</strong> based on what the physical system can actually do. Upper bound: ω<sub>n</sub> ≤ (1/5 to 1/10) of your control loop rate in rad/s. At 1 kHz → ω<sub>n</sub> ≤ 100–200 rad/s.</li>
+    <li><strong>Start with ζ = 0.7</strong>. It's the damping ratio that minimizes settling time without overshoot problems. Move toward 1.0 if you can't tolerate <em>any</em> overshoot (e.g., against a hard stop).</li>
+    <li><strong>Then set K<sub>p</sub>, K<sub>d</sub> from the formulas</strong>. Don't eyeball. You'll be within 20% of optimal on the first try.</li>
+    <li><strong>Verify closed-loop bandwidth empirically</strong> with a chirp reference. If your measured bandwidth is much lower than ω<sub>n</sub>, you're torque-saturating or hitting an unmodeled actuator lag.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ═══════════════ 04 · INTERACTIVE STEP RESPONSE ═══════════════ -->
+<section id="response">
+<span class="section-num">§ 04 — Step response, interactively</span>
+<h2>What ζ and ω<sub>n</sub> actually <em>look</em> like.</h2>
+
+<p class="lead">Slide the parameters. The graph shows the angle response to a unit step in θ<sub>d</sub>, computed by numerical integration of your closed-loop dynamics. No gravity, no friction — just PD on a pure inertia, so you see the pure shape.</p>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Unit-step response — PD on pure inertia</div>
+    <div class="g-sub">θ<sub>d</sub>: 0 → 1 rad</div>
+  </div>
+  <div class="g-desc">Adjust ζ to see the ring-vs-sluggish trade-off. Adjust ω<sub>n</sub> to see speed. The settling time shortens roughly like 1/ω<sub>n</sub> at fixed ζ.</div>
+  <div class="graph-canvas"><canvas id="stepChart"></canvas></div>
+  <div class="controls">
+    <div class="ctl">
+      <label>Damping ratio ζ <span class="val" id="zetaVal">0.70</span></label>
+      <input type="range" id="zeta" min="0.1" max="2.0" step="0.05" value="0.7">
+    </div>
+    <div class="ctl">
+      <label>Natural freq ω<sub>n</sub> <span class="val" id="wnVal">20 rad/s</span></label>
+      <input type="range" id="wn" min="2" max="100" step="1" value="20">
+    </div>
+    <div class="ctl">
+      <label>Inertia J <span class="val" id="jVal">0.102 kg·m²</span></label>
+      <input type="range" id="jIn" min="0.01" max="0.3" step="0.005" value="0.102">
+    </div>
+  </div>
+  <div class="readouts">
+    <div class="ro"><span class="k">K<sub>p</sub></span><span class="v" id="kpOut">40.8 N·m/rad</span></div>
+    <div class="ro"><span class="k">K<sub>d</sub></span><span class="v" id="kdOut">2.85 N·m·s/rad</span></div>
+    <div class="ro"><span class="k">Overshoot</span><span class="v" id="osOut">4.3 %</span></div>
+    <div class="ro"><span class="k">Settle (2%)</span><span class="v" id="tsOut">0.286 s</span></div>
+    <div class="ro"><span class="k">Peak error</span><span class="v" id="peOut">–</span></div>
+  </div>
+</div>
+
+<h4>How to read the numbers</h4>
+<ul class="bullets">
+  <li><strong>Overshoot</strong>: percent by which the response exceeds 1 rad at its peak. At ζ ≈ 0.7 it's ~4–5%; at ζ = 0.3 it's ~37%; at ζ = 1.0 it's zero.</li>
+  <li><strong>Settling time (2%)</strong>: when the response stays within ±2% of the target. Scales as ≈ 4/(ζω<sub>n</sub>).</li>
+  <li><strong>Peak error</strong>: largest transient tracking error — this is what matters for policy tracking, not overshoot.</li>
+</ul>
+
+<hr class="divider-soft">
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Fixed K<sub>p</sub>, sweeping K<sub>d</sub></div>
+    <div class="g-sub">same stiffness, different damping</div>
+  </div>
+  <div class="g-desc">This is the view most people actually have on the bench: you pick K<sub>p</sub> for stiffness and then hunt for K<sub>d</sub>. Watch how the curve moves from ringing to sluggish as K<sub>d</sub> grows. The sweet spot is the darkest curve (ζ ≈ 0.7).</div>
+  <div class="graph-canvas"><canvas id="kdSweepChart"></canvas></div>
+</div>
+
+</section>
+
+<!-- ═══════════════ 05 · WORKED EXAMPLE ═══════════════ -->
+<section id="worked">
+<span class="section-num">§ 05 — Your rig, worked out</span>
+<h2>From J and a bandwidth goal to <em>actual</em> gain numbers.</h2>
+
+<p class="lead">Let's do the arithmetic for your stand. You measured gravity feedforward K<sub>g</sub> ≈ 3.0 N·m, which implies mgl ≈ 2.94 N·m — consistent with 1 kg × 9.81 × 0.30 = 2.943 N·m. That checks. Now the PD part.</p>
+
+<div class="three-col">
+  <div class="card">
+    <h5>Inertia J</h5>
+    <div class="big">0.102</div>
+    <p>kg·m² — dominated by the offset 1 kg weight (see §02).</p>
+  </div>
+  <div class="card">
+    <h5>Target bandwidth ω<sub>n</sub></h5>
+    <div class="big">~15</div>
+    <p>rad/s (≈ 2.4 Hz) — conservative start. You can push higher once friction & latency are characterized.</p>
+  </div>
+  <div class="card">
+    <h5>Damping ζ</h5>
+    <div class="big">0.70</div>
+    <p>Standard tracking target. No overshoot? Go 1.0.</p>
+  </div>
+</div>
+
+<div class="math-block labeled">
+  <span class="lbl">Step 1 — compute K<sub>p</sub> from ω<sub>n</sub></span>
+  $$ K_p = J\omega_n^2 = 0.102 \times 15^2 = 0.102 \times 225 = \mathbf{22.95\ \text{N·m/rad}} $$
+</div>
+
+<div class="math-block labeled">
+  <span class="lbl">Step 2 — compute K<sub>d</sub> from ζ</span>
+  $$ K_d = 2\zeta\sqrt{K_p J} = 2(0.7)\sqrt{22.95 \times 0.102} = 1.4 \times 1.531 \approx \mathbf{2.14\ \text{N·m·s/rad}} $$
+</div>
+
+<div class="warn">
+  <strong>Sanity check against what you have.</strong> Your current Kp = 3.0, Kd = 0.66 gives ω<sub>n</sub> = √(3.0/0.102) ≈ 5.4 rad/s and ζ = 0.66 / (2√(3.0 × 0.102)) ≈ 0.59. That's ~3× softer than the target above but still stable with good damping — which is exactly what you're reporting. It also explains why it tracks a 0.1 s trajectory "beautifully": gravity feedforward is doing most of the work, the PD is just cleaning up. To actually stress-test the PD, you want to remove the feedforward temporarily or introduce a disturbance step.
+</div>
+
+<p>So: your next experiment should be stepping Kp toward ~20 and Kd toward ~2, keeping ζ ≈ 0.7 as you go. If it starts ringing or chattering before you get there, the limit is motor bandwidth, sensor noise, or loop rate — not the formulas.</p>
+</section>
+
+<!-- ═══════════════ 06 · GRAVITY FF ═══════════════ -->
+<section id="ff-gravity">
+<span class="section-num">§ 06 — Feedforward I</span>
+<h2>Gravity compensation — your <em>zero-error</em> anchor.</h2>
+
+<p class="lead">A PD loop alone always has a small steady-state error under gravity, because producing a non-zero torque at zero velocity requires a non-zero position error. Feedforward eliminates that error by <em>predicting</em> the torque and handing it to the motor before the PD has to react.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 5 — gravity feedforward</span>
+  $$ \tau_{\text{grav}}(\theta) \;=\; m\,g\,l\,\sin\theta $$
+</div>
+
+<p>Your current implementation uses <span class="inline-eq">K_g = mgl</span> as a constant — which is exactly right <em>if</em> θ is measured from horizontal and the bar only moves through small angles. For the humanoid, where joints swing through 90° or more, you <em>must</em> include the sin(θ):</p>
+
+<div class="math-block">
+  $$ \tau_{\text{grav}} = K_g \sin(\theta) \qquad\text{with}\qquad K_g = mgl $$
+</div>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Gravity torque vs joint angle</div>
+    <div class="g-sub">your rig · K<sub>g</sub> = 2.943 N·m</div>
+  </div>
+  <div class="g-desc">θ = 0 is the position where the bar is horizontal (maximum gravity torque). At θ = 90° the bar points straight up or down — gravity torque is zero, but you're at an unstable or stable equilibrium depending on sign.</div>
+  <div class="graph-canvas"><canvas id="gravityChart"></canvas></div>
+</div>
+
+<h4>Multi-link case — the general form</h4>
+
+<p>For a full humanoid, gravity torque on joint <em>i</em> depends on every link distal to it. In terms of the robot's potential energy <em>U(q)</em>:</p>
+
+<div class="math-block">
+  $$ \boldsymbol{\tau}_g(\mathbf{q}) \;=\; \frac{\partial U(\mathbf{q})}{\partial \mathbf{q}} $$
+</div>
+
+<p>You won't compute this by hand; Pinocchio, RBDL, and <code>drake::multibody</code> all export this as <code>computeGeneralizedGravity(q)</code>. Run it at your controller rate and feed it directly to your effort interface. Gravity compensation is the single highest-leverage feedforward term — do it first.</p>
+</section>
+
+<!-- ═══════════════ 07 · INERTIA FF ═══════════════ -->
+<section id="ff-inertia">
+<span class="section-num">§ 07 — Feedforward II</span>
+<h2>Inertia feedforward — so PD doesn't have to push the mass around.</h2>
+
+<p class="lead">If you command a fast trajectory, the PD controller has to generate a lag-then-catch-up torque profile. You can hand the acceleration term directly to the motor and leave PD to correct disturbances, not accelerate inertia.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 6 — full inverse-dynamics feedforward, single joint</span>
+  $$ \tau_{\text{ff}} \;=\; J\,\ddot\theta_d \;+\; b\,\dot\theta_d \;+\; \tau_f(\dot\theta_d) \;+\; mgl\sin\theta_d $$
+</div>
+
+<p>For a 0.1 s trajectory moving 0.5 rad with a quintic profile, peak acceleration is roughly:</p>
+
+<div class="math-block">
+  $$ \ddot\theta_{\text{peak}} \approx \frac{10}{\sqrt{3}} \cdot \frac{\Delta\theta}{T^2} = \frac{10}{\sqrt{3}} \cdot \frac{0.5}{0.01} \approx 289\ \text{rad/s}^2 $$
+</div>
+
+<div class="math-block">
+  $$ \tau_{\text{inertia,peak}} = J \cdot \ddot\theta_{\text{peak}} = 0.102 \times 289 \approx \mathbf{29.5\ \text{N·m}} $$
+</div>
+
+<p>That's an order of magnitude larger than the gravity feedforward. Without inertia FF, the entire 29.5 N·m has to come out of the PD loop — which means either huge tracking error, or huge Kp (which amplifies noise). With inertia FF, the PD sees a disturbance rejection problem, not a motion generation problem. This is the single biggest win for fast trajectories.</p>
+
+<div class="panel" data-label="Trajectory generators that give you θ̈ for free">
+  <ul class="bullets">
+    <li><strong>Cubic splines</strong>: differentiate twice analytically. Cheap, widely supported, slight acceleration discontinuities at knots.</li>
+    <li><strong>Quintic (5th-order) polynomials</strong>: smooth acceleration, zero jerk at boundaries. Use this for test-stand trajectories.</li>
+    <li><strong>Trapezoidal velocity profile</strong>: constant θ̈ in three phases. Simple but has discontinuous jerk.</li>
+    <li><strong>Ruckig / Reflexxes / TOTG</strong>: time-optimal jerk-limited online generators. This is what your humanoid should use in production.</li>
+  </ul>
+</div>
+
+<div class="callout">
+  A good mental model: PD = disturbance rejection bandwidth. Feedforward = trajectory tracking. They solve different problems with the same motor.
+</div>
+</section>
+
+<!-- ═══════════════ 08 · FRICTION FF ═══════════════ -->
+<section id="ff-friction">
+<span class="section-num">§ 08 — Feedforward III</span>
+<h2>Friction — the sneaky term that eats your repeatability.</h2>
+
+<p class="lead">Friction is the difference between simulation and reality. Every policy trained without it will hit the real motor, lose 10–30% of its low-speed torque, and fail in ways that look like "controller noise" but are actually unmodeled Coulomb friction.</p>
+
+<h3>A practical model</h3>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 7 — Coulomb + viscous friction</span>
+  $$ \tau_f(\dot\theta) \;=\; F_c \cdot \operatorname{sign}(\dot\theta) \;+\; F_v \cdot \dot\theta $$
+</div>
+
+<dl class="vars">
+  <dt>F<sub>c</sub></dt> <dd>Coulomb (dry) friction — constant torque opposing motion regardless of speed (N·m)</dd>
+  <dt>F<sub>v</sub></dt> <dd>viscous friction coefficient — proportional to velocity (N·m·s/rad)</dd>
+</dl>
+
+<p>More elaborate models (Stribeck, LuGre) capture stiction and the velocity-weakening dip, but Coulomb + viscous covers 90% of what a humanoid policy needs.</p>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Steady-state torque vs velocity</div>
+    <div class="g-sub">friction identification plot</div>
+  </div>
+  <div class="g-desc">The y-intercept (extrapolated from small |θ̇|) is F<sub>c</sub>. The slope is F<sub>v</sub>. Near zero velocity, stiction breaks the clean line — don't fit there. Assumed F<sub>c</sub> = 0.15 N·m, F<sub>v</sub> = 0.05 N·m·s/rad for this illustration.</div>
+  <div class="graph-canvas"><canvas id="frictionChart"></canvas></div>
+</div>
+
+<h3>How to identify F<sub>c</sub> and F<sub>v</sub></h3>
+
+<ul class="steps">
+  <li><strong>Command constant velocities in both directions</strong>
+    Pick ~8 velocities between −2 and +2 rad/s, avoiding 0. Hold each long enough to reach steady state (~1 second).
+  </li>
+  <li><strong>At steady state, τ = τ<sub>grav</sub>(θ) + τ<sub>f</sub>(θ̇)</strong>
+    Subtract the gravity term analytically. What remains is pure friction.
+  </li>
+  <li><strong>Plot the residual vs velocity and fit a line</strong>
+    Separately for each direction. The two y-intercepts give you ±F<sub>c</sub>, the slopes give you F<sub>v</sub>. Asymmetry is common — geartrain friction is rarely symmetric.
+  </li>
+  <li><strong>Validate</strong>
+    Inject −τ<sub>f</sub>(θ̇<sub>d</sub>) as feedforward. Repeat a slow trajectory with and without it. Tracking error should drop dramatically at low speeds where friction dominates.
+  </li>
+</ul>
+
+<div class="warn">
+  <strong>sign(θ̇) discontinuity.</strong> Using sign() directly causes chattering at zero crossings. Replace with tanh(θ̇/ε) where ε ≈ 0.01 rad/s, or gate the Coulomb term when |θ̇| falls below a threshold.
+</div>
+</section>
+
+<!-- ═══════════════ 09 · MOTOR ID ═══════════════ -->
+<section id="id">
+<span class="section-num">§ 09 — Motor characterization protocol</span>
+<h2>A one-day procedure to know your actuator cold.</h2>
+
+<p class="lead">Do this once per joint type. The numbers you produce here are what you'll feed into your simulator's domain randomization. Everything downstream — policy training, sim-to-real — depends on these being accurate.</p>
+
+<ul class="steps">
+  <li><strong>Zero position & direction</strong>
+    Define θ = 0 and the positive direction of rotation. Write it down. Every subsequent measurement references this.
+  </li>
+
+  <li><strong>Gravity term mgl</strong>
+    Hang the arm at different angles. Command zero velocity, log the torque the motor actually outputs. Plot τ vs θ, fit a sine. Amplitude is mgl, phase tells you where horizontal is.
+  </li>
+
+  <li><strong>Inertia J</strong>
+    <em>Method A — pendulum:</em> let it swing freely, measure period, apply $J = mglT^2/(4\pi^2)$.
+    <em>Method B — torque step:</em> at horizontal (where gravity = 0), command a known torque step. Fit $\ddot\theta$ over the first 10–20 ms → $J = \tau/\ddot\theta$.
+    Numbers from both methods should agree within 10%.
+  </li>
+
+  <li><strong>Viscous friction F<sub>v</sub></strong>
+    Command constant velocities, record steady-state torque after subtracting gravity. Slope of τ<sub>residual</sub> vs θ̇ is F<sub>v</sub>.
+  </li>
+
+  <li><strong>Coulomb friction F<sub>c</sub></strong>
+    Same data, but the y-intercept (extrapolating away from zero). Often asymmetric — record both F<sub>c</sub>⁺ and F<sub>c</sub>⁻.
+  </li>
+
+  <li><strong>Stiction F<sub>s</sub></strong>
+    Slowly ramp torque at zero velocity. The torque where motion first begins is F<sub>s</sub>. Typically 1.5–2× F<sub>c</sub>.
+  </li>
+
+  <li><strong>Torque constant K<sub>t</sub></strong>
+    Command known currents (if the actuator exposes current mode) at a fixed, gravity-known angle. Balance against gravity: K<sub>t</sub> = τ<sub>grav</sub> / i. Or use the manufacturer spec as a starting point and calibrate ±10%.
+  </li>
+
+  <li><strong>Torque bandwidth / motor lag τ<sub>m</sub></strong>
+    Command a step in torque. Measure time to 63% of the commanded value. That's your first-order motor time constant τ<sub>m</sub>, typically 5–15 ms for X-series actuators. Put this in the simulator.
+  </li>
+
+  <li><strong>Sensor latency & loop jitter</strong>
+    Command a torque impulse. Log timestamps of (a) command sent, (b) first encoder movement observed. The delay is your total actuation latency. Measure jitter over 10 000 samples — if standard deviation > 0.1 × loop period, fix your scheduling before continuing.
+  </li>
+
+  <li><strong>Backlash</strong>
+    Command small oscillations around zero position, plot commanded vs measured angle. The dead zone is your backlash. For a harmonic drive or cycloidal it's tiny; for a planetary it can be degrees.
+  </li>
+</ul>
+
+<div class="callout">
+  Save every raw log. You will re-identify as actuators wear, bearings dry out, and thermal drift changes resistance. Week-to-week drift of 5–15% in F<sub>c</sub> is normal. Automate this whole procedure — ~20 minutes if scripted.
+</div>
+</section>
+
+<!-- ═══════════════ 10 · CODE ═══════════════ -->
+<section id="code">
+<span class="section-num">§ 10 — Example: Python controller</span>
+<h2>A minimal PD + full feedforward loop.</h2>
+
+<p class="lead">A reference implementation you can run at 1 kHz with a ros2 control hardware interface underneath, or inside a MuJoCo sim wrapper, or as a CAN callback. The math is the same.</p>
+
+<pre data-lang="python"><code><span class="tok-k">import</span> numpy <span class="tok-k">as</span> np
+<span class="tok-k">from</span> dataclasses <span class="tok-k">import</span> dataclass
+
+<span class="tok-k">@</span>dataclass
+<span class="tok-k">class</span> <span class="tok-f">JointModel</span>:
+    <span class="tok-c"># Identified physical parameters — from §09</span>
+    J:  float          <span class="tok-c"># inertia, kg·m²</span>
+    mgl: float         <span class="tok-c"># gravity torque amplitude, N·m</span>
+    Fc: float          <span class="tok-c"># Coulomb friction, N·m</span>
+    Fv: float          <span class="tok-c"># viscous friction, N·m·s/rad</span>
+    tau_limit: float   <span class="tok-c"># hardware torque limit, N·m</span>
+
+<span class="tok-k">@</span>dataclass
+<span class="tok-k">class</span> <span class="tok-f">PDGains</span>:
+    Kp: float
+    Kd: float
+
+    <span class="tok-k">@</span>classmethod
+    <span class="tok-k">def</span> <span class="tok-f">from_bandwidth</span>(cls, J: float, wn: float, zeta: float = <span class="tok-n">0.7</span>):
+        <span class="tok-s">"""Compute Kp, Kd from physical system + desired closed-loop shape."""</span>
+        Kp = J * wn**<span class="tok-n">2</span>
+        Kd = <span class="tok-n">2</span> * zeta * np.sqrt(Kp * J)
+        <span class="tok-k">return</span> cls(Kp=Kp, Kd=Kd)
+
+
+<span class="tok-k">def</span> <span class="tok-f">control_step</span>(
+    model: JointModel,
+    gains: PDGains,
+    theta: float, theta_dot: float,                   <span class="tok-c"># measured state</span>
+    theta_d: float, theta_d_dot: float, theta_d_ddot: float,  <span class="tok-c"># reference</span>
+    eps: float = <span class="tok-n">0.01</span>,                              <span class="tok-c"># sign() softener</span>
+) -> float:
+    <span class="tok-s">"""One control cycle. Call at a fixed rate (e.g. 1 kHz)."""</span>
+
+    <span class="tok-c"># ── Feedback: PD on error ─────────────────────────</span>
+    e     = theta_d     - theta
+    e_dot = theta_d_dot - theta_dot
+    tau_fb = gains.Kp * e + gains.Kd * e_dot
+
+    <span class="tok-c"># ── Feedforward: inverse dynamics of the joint ────</span>
+    tau_ff_inertia = model.J   * theta_d_ddot
+    tau_ff_gravity = model.mgl * np.sin(theta_d)           <span class="tok-c"># sine, not constant!</span>
+    tau_ff_viscous = model.Fv  * theta_d_dot
+    tau_ff_coulomb = model.Fc  * np.tanh(theta_d_dot / eps) <span class="tok-c"># smooth sign()</span>
+
+    tau_ff = (tau_ff_inertia + tau_ff_gravity
+              + tau_ff_viscous + tau_ff_coulomb)
+
+    <span class="tok-c"># ── Combine & saturate ────────────────────────────</span>
+    tau_cmd = tau_fb + tau_ff
+    tau_cmd = np.clip(tau_cmd, -model.tau_limit, model.tau_limit)
+
+    <span class="tok-k">return</span> tau_cmd
+
+
+<span class="tok-c"># ── Usage, your rig ──────────────────────────────────</span>
+joint = JointModel(J=<span class="tok-n">0.102</span>, mgl=<span class="tok-n">2.943</span>,
+                   Fc=<span class="tok-n">0.15</span>, Fv=<span class="tok-n">0.05</span>, tau_limit=<span class="tok-n">12.0</span>)
+
+gains = PDGains.from_bandwidth(J=joint.J, wn=<span class="tok-n">15.0</span>, zeta=<span class="tok-n">0.7</span>)
+<span class="tok-c"># → Kp ≈ 22.95  Kd ≈ 2.14</span>
+
+tau = control_step(joint, gains,
+                   theta=<span class="tok-n">0.12</span>, theta_dot=<span class="tok-n">0.3</span>,
+                   theta_d=<span class="tok-n">0.15</span>, theta_d_dot=<span class="tok-n">0.5</span>, theta_d_ddot=<span class="tok-n">2.0</span>)
+</code></pre>
+
+<p>Three habits worth enforcing in this loop:</p>
+
+<ul class="bullets">
+  <li>Keep physical parameters in a plain dataclass, never sprinkled through the code. When you switch joints or rebuild the simulator, you update one place.</li>
+  <li>Never compute gains inline — always through <code>from_bandwidth()</code> or equivalent. Makes it trivial to sweep ω<sub>n</sub> and ζ without re-deriving Kp/Kd.</li>
+  <li>Log <em>everything</em>: measured state, reference, each feedforward component, commanded torque, saturated torque, actual current. You cannot debug what you don't log.</li>
+</ul>
+</section>
+
+<!-- ═══════════════ 11 · ROS ═══════════════ -->
+<section id="ros">
+<span class="section-num">§ 11 — ROS 2 effort tuning</span>
+<h2>Bringing it into <em>ros2_control</em>.</h2>
+
+<p class="lead">Your test stand eventually runs under ros2_control with an effort interface. The control math above goes inside a controller plugin; what ros2_control gives you is scheduling, hardware abstraction, and a logging surface.</p>
+
+<h3>Controller choice</h3>
+
+<p>For single-joint bring-up and identification: <code>effort_controllers/JointGroupEffortController</code>. You command raw torques from a higher-level node — maximum flexibility, minimum magic.</p>
+
+<p>For trajectory tracking with built-in PD + feedforward: <code>joint_trajectory_controller</code> with <code>command_interfaces: [effort]</code>. You publish a JointTrajectory; the controller interpolates and applies gains per joint.</p>
+
+<h3>Gain mapping in the YAML</h3>
+
+<pre data-lang="yaml"><code>joint_trajectory_controller:
+  ros__parameters:
+    joints: [shoulder_pitch]
+    command_interfaces: [effort]
+    state_interfaces:   [position, velocity]
+    gains:
+      shoulder_pitch:
+        p: <span class="tok-n">22.95</span>      <span class="tok-c"># Kp from §05</span>
+        d: <span class="tok-n">2.14</span>       <span class="tok-c"># Kd from §05</span>
+        i: <span class="tok-n">0.0</span>        <span class="tok-c"># leave integral at 0 until drift observed</span>
+        ff_velocity_scale:     <span class="tok-n">0.05</span>  <span class="tok-c"># Fv</span>
+        ff_acceleration_scale: <span class="tok-n">0.102</span> <span class="tok-c"># J</span>
+</code></pre>
+
+<h3>What to measure once it's running</h3>
+
+<ul class="bullets">
+  <li><strong>Loop rate jitter</strong>: log <code>period</code> from <code>update()</code> callbacks. Standard deviation should be < 5% of the nominal period.</li>
+  <li><strong>Command vs measured</strong>: publish both at 1 kHz, compute tracking error in post. Plot the error spectrum — peaks tell you resonances.</li>
+  <li><strong>Closed-loop bandwidth</strong>: send a chirp reference from 0.1 to 30 Hz, record measured angle, compute <em>Bode magnitude</em>. The frequency where it drops 3 dB is your real bandwidth. That number is what you should match in simulation, <em>not</em> your ω<sub>n</sub> design target.</li>
+</ul>
+
+<div class="callout">
+  The value of ros2_control isn't the controllers — you'll write your own. It's the <em>contract</em>: a hardware interface you can replace with a sim plugin, exposing the exact same state/command surface. That's the machinery that makes sim-to-real tractable.
+</div>
+</section>
+
+<!-- ═══════════════ 12 · SIM2REAL ═══════════════ -->
+<section id="sim2real">
+<span class="section-num">§ 12 — Sim-to-real for ONNX</span>
+<h2>Where most pipelines silently <em>fail</em>.</h2>
+
+<p class="lead">An ONNX policy is just a function: observation in, action out. "Action" on a humanoid is almost always a set of joint targets or joint torques. The sim-to-real gap is the distance between what the simulator said those actions would do and what the motor actually does. Close that gap in these places:</p>
+
+<h3>1. PD gains must match exactly between sim and real</h3>
+
+<p>If your policy was trained in Isaac Gym / MuJoCo with Kp = 40, Kd = 2, you <em>must</em> deploy with Kp = 40, Kd = 2. A common failure is training with Isaac's default gains (often enormous, like Kp = 200) and deploying on real hardware that can't physically produce that stiffness. The policy learned to exploit infinite torque and falls apart immediately.</p>
+
+<p>Either lower sim gains to what your hardware supports, or pick realistic gains first and train to those.</p>
+
+<h3>2. Actuator dynamics in sim</h3>
+
+<p>Default rigid-body simulators model the motor as an ideal torque source. Real motors have:</p>
+
+<ul class="bullets">
+  <li><strong>First-order torque lag</strong>: τ<sub>actual</sub>(s) = τ<sub>cmd</sub>(s) / (1 + sτ<sub>m</sub>). Add this as a filter between policy output and applied torque. τ<sub>m</sub> ≈ 5–15 ms for X-series.</li>
+  <li><strong>Torque limits</strong>: clip to the real peak and continuous limits separately (thermal).</li>
+  <li><strong>Friction</strong>: Coulomb + viscous from §08. Huge source of sim-to-real gap when omitted.</li>
+  <li><strong>Backlash</strong>: dead-zone between commanded and actual position for bidirectional motion.</li>
+</ul>
+
+<h3>3. Domain randomization around <em>real</em> parameters</h3>
+
+<p>This is where §09 pays off. You identified F<sub>c</sub>, F<sub>v</sub>, J, τ<sub>m</sub> from your real hardware. In training:</p>
+
+<table class="ref">
+  <thead><tr><th>Parameter</th><th>Randomization</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>J</td><td class="v">±20% uniform</td><td class="v">mass estimation error, payloads, wear</td></tr>
+    <tr><td>F<sub>c</sub>, F<sub>v</sub></td><td class="v">±30% uniform</td><td class="v">high variability over temperature & lifetime</td></tr>
+    <tr><td>K<sub>p</sub>, K<sub>d</sub></td><td class="v">±10% uniform</td><td class="v">controller timing jitter, gain quantization</td></tr>
+    <tr><td>mgl</td><td class="v">±5% uniform</td><td class="v">link mass uncertainty</td></tr>
+    <tr><td>τ<sub>m</sub> (motor lag)</td><td class="v">5–20 ms uniform</td><td class="v">temperature dependence of current loop</td></tr>
+    <tr><td>Observation latency</td><td class="v">1–3 loop periods</td><td class="v">communication delays on CAN/EtherCAT</td></tr>
+    <tr><td>Encoder noise</td><td class="v">~1 count std</td><td class="v">quantization and electrical noise</td></tr>
+  </tbody>
+</table>
+
+<h3>4. Latency is not optional</h3>
+
+<p>Every real control pipeline has delay: encoder read → policy inference → torque command → motor apply. On a well-tuned humanoid this is 2–5 ms. Put it in the simulator. A policy trained with zero latency will output high-frequency corrections that destabilize the real robot.</p>
+
+<h3>5. Observation normalization must freeze at deployment</h3>
+
+<p>If you used running statistics during PPO training, <em>freeze</em> them before exporting to ONNX. Otherwise your robot sees a different observation distribution than the one the policy was trained on, and performance degrades silently.</p>
+
+<div class="warn">
+  <strong>The sim-to-real checklist.</strong> Before you ever deploy a new policy, verify: (1) identical PD gains in sim and real, (2) actuator lag model present, (3) friction from ID fed into sim, (4) latency injected, (5) domain randomization bracketing real-world values, (6) observation normalization frozen, (7) action space in the same units and scale. Skip any one and you'll spend a week debugging what looks like a learning bug but is a modeling bug.
+</div>
+</section>
+
+<!-- ═══════════════ 13 · SWEEP ═══════════════ -->
+<section id="sweep">
+<span class="section-num">§ 13 — Automated tuning sweep</span>
+<h2>A script you'll run on <em>every</em> joint of the humanoid.</h2>
+
+<p class="lead">You don't want to hand-tune 25+ joints. Scripting the sweep means you characterize a new joint in 20 minutes, not a day. Here's the skeleton — the key insight is that the cost function is <em>tracking RMSE under a step disturbance</em>, not a step reference.</p>
+
+<pre data-lang="python"><code><span class="tok-k">import</span> numpy <span class="tok-k">as</span> np, itertools, json, time
+
+<span class="tok-k">def</span> <span class="tok-f">sweep_gains</span>(hw, joint_name, J_est,
+                wn_grid=(<span class="tok-n">10</span>, <span class="tok-n">15</span>, <span class="tok-n">20</span>, <span class="tok-n">30</span>, <span class="tok-n">45</span>),
+                zeta_grid=(<span class="tok-n">0.5</span>, <span class="tok-n">0.7</span>, <span class="tok-n">1.0</span>),
+                test_duration=<span class="tok-n">2.0</span>):
+    <span class="tok-s">"""Grid-search (wn, zeta); return table of (rmse, overshoot, tau_peak)."""</span>
+    results = []
+    <span class="tok-k">for</span> wn, zeta <span class="tok-k">in</span> itertools.product(wn_grid, zeta_grid):
+        Kp = J_est * wn**<span class="tok-n">2</span>
+        Kd = <span class="tok-n">2</span> * zeta * np.sqrt(Kp * J_est)
+
+        hw.set_gains(joint_name, Kp=Kp, Kd=Kd)
+        hw.move_to(joint_name, <span class="tok-n">0.0</span>);  time.sleep(<span class="tok-n">0.5</span>)
+
+        <span class="tok-c"># Step reference: 0 → 0.3 rad</span>
+        t, theta, tau = hw.log_step(joint_name,
+                                    target=<span class="tok-n">0.3</span>, duration=test_duration)
+
+        err  = <span class="tok-n">0.3</span> - np.array(theta)
+        rmse = np.sqrt(np.mean(err**<span class="tok-n">2</span>))
+        peak = np.max(np.array(theta))
+        os_pct = <span class="tok-n">100</span> * (peak - <span class="tok-n">0.3</span>) / <span class="tok-n">0.3</span> <span class="tok-k">if</span> peak > <span class="tok-n">0.3</span> <span class="tok-k">else</span> <span class="tok-n">0.0</span>
+
+        results.append({
+            <span class="tok-s">"wn"</span>: wn, <span class="tok-s">"zeta"</span>: zeta,
+            <span class="tok-s">"Kp"</span>: Kp,  <span class="tok-s">"Kd"</span>: Kd,
+            <span class="tok-s">"rmse"</span>: rmse,
+            <span class="tok-s">"overshoot_pct"</span>: os_pct,
+            <span class="tok-s">"tau_peak"</span>: np.max(np.abs(tau)),
+        })
+        <span class="tok-f">print</span>(<span class="tok-s">f"wn={wn:5.1f}  ζ={zeta:.2f}  rmse={rmse:.4f}  os={os_pct:5.1f}%"</span>)
+
+    <span class="tok-k">return</span> results
+
+
+<span class="tok-c"># ── Post-processing: pick the best gain set ─────────</span>
+<span class="tok-k">def</span> <span class="tok-f">pick_best</span>(results, max_overshoot=<span class="tok-n">5.0</span>, max_tau=<span class="tok-n">10.0</span>):
+    feasible = [r <span class="tok-k">for</span> r <span class="tok-k">in</span> results
+                <span class="tok-k">if</span> r[<span class="tok-s">"overshoot_pct"</span>] &lt;= max_overshoot
+                   <span class="tok-k">and</span> r[<span class="tok-s">"tau_peak"</span>] &lt;= max_tau]
+    <span class="tok-k">return</span> <span class="tok-f">min</span>(feasible, key=<span class="tok-k">lambda</span> r: r[<span class="tok-s">"rmse"</span>])
+</code></pre>
+
+<p>Run this once per joint. Save the winning <code>(Kp, Kd, wn, zeta)</code> to a YAML that both the real controller and the simulator load. Now sim and real start from the same gains by construction.</p>
+
+<p>The real upgrade later is Bayesian optimization instead of a grid — fewer trials, better coverage. But a 5×3 grid gets you 90% of the way in 15 joint seconds × 15 configs = 4 minutes per joint.</p>
+</section>
+
+<!-- ═══════════════ 14 · REFERENCE ═══════════════ -->
+<section id="ref">
+<span class="section-num">§ 14 — Quick reference card</span>
+<h2>Everything on one page.</h2>
+
+<table class="ref">
+  <thead><tr><th>Quantity</th><th>Formula</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td>K<sub>p</sub></td><td>$J \omega_n^2$</td><td class="v">stiffness; pick ω<sub>n</sub> first</td></tr>
+    <tr><td>K<sub>d</sub></td><td>$2\zeta\sqrt{K_p J} = 2\zeta\omega_n J$</td><td class="v">ζ = 0.7 for tracking, 1.0 for no overshoot</td></tr>
+    <tr><td>Bandwidth limit</td><td>$\omega_n \lesssim \omega_{\text{loop}}/10$</td><td class="v">at 1 kHz → ≤ 100–200 rad/s</td></tr>
+    <tr><td>Settling time (2%)</td><td>$t_s \approx 4/(\zeta\omega_n)$</td><td class="v">underdamped to critically damped</td></tr>
+    <tr><td>Overshoot</td><td>$M_p = e^{-\pi\zeta/\sqrt{1-\zeta^2}}$</td><td class="v">only for ζ &lt; 1</td></tr>
+    <tr><td>Gravity FF</td><td>$mgl\sin\theta$</td><td class="v">per-joint; use full rigid-body for multi-link</td></tr>
+    <tr><td>Inertia FF</td><td>$J\,\ddot\theta_d$</td><td class="v">huge win for fast trajectories</td></tr>
+    <tr><td>Friction FF</td><td>$F_c\,\mathrm{sign}(\dot\theta_d) + F_v\,\dot\theta_d$</td><td class="v">replace sign() with tanh() in practice</td></tr>
+    <tr><td>Full feedforward</td><td>$J\ddot\theta_d + b\dot\theta_d + mgl\sin\theta_d + \tau_f$</td><td class="v">single-joint inverse dynamics</td></tr>
+    <tr><td>Pendulum J</td><td>$J = mglT^2/(4\pi^2)$</td><td class="v">cheap, accurate, no torque sensor</td></tr>
+    <tr><td>Peak accel, quintic move</td><td>$\ddot\theta_{\max} \approx \tfrac{10}{\sqrt 3}\tfrac{\Delta\theta}{T^2}$</td><td class="v">sizes the inertia FF term</td></tr>
+  </tbody>
+</table>
+
+<h3>Your rig, at a glance</h3>
+
+<table class="ref">
+  <thead><tr><th>Parameter</th><th>Value</th><th>Source</th></tr></thead>
+  <tbody>
+    <tr><td>J</td><td>0.102 kg·m²</td><td class="v">analytical; verify with pendulum</td></tr>
+    <tr><td>mgl</td><td>2.943 N·m</td><td class="v">1 kg × 9.81 × 0.30; matches your K<sub>g</sub> = 3.0</td></tr>
+    <tr><td>Current Kp</td><td>3.0 N·m/rad</td><td class="v">→ ω<sub>n</sub> = 5.4 rad/s (conservative)</td></tr>
+    <tr><td>Current Kd</td><td>0.66 N·m·s/rad</td><td class="v">→ ζ = 0.59 (well-damped)</td></tr>
+    <tr><td>Target Kp</td><td>~23 N·m/rad</td><td class="v">ω<sub>n</sub> = 15 rad/s</td></tr>
+    <tr><td>Target Kd</td><td>~2.1 N·m·s/rad</td><td class="v">ζ = 0.7</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  You've already got the hardest part working: a stable PD with gravity compensation on a real motor. From here it's mostly bookkeeping — measure, log, formalize, repeat. The humanoid is just this, 25 more times.
+</div>
+</section>
+
+<footer>
+  <span>field notes · PD / FF / ID / sim2real</span>
+  <span>compiled for the humanoid bring-up</span>
+</footer>
+
+</div>
+
+<!-- ═══════════════ CHARTS ═══════════════ -->
+<script>
+// ─── shared chart.js defaults ───
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#a79a82';
+Chart.defaults.borderColor = '#2a2419';
+
+const COLORS = {
+  amber: '#e8a33d',
+  amberDeep: '#b87a1e',
+  cyan: '#5fb3b3',
+  rose: '#d97757',
+  moss: '#8fa968',
+  ink: '#ece2cf',
+  dim: '#6b6354',
+  grid: '#1e1a13',
+};
+
+const gridOpts = {
+  grid: { color: COLORS.grid, tickColor: COLORS.grid, drawBorder: false },
+  ticks: { color: COLORS.dim, font: { size: 10, family: "'JetBrains Mono', monospace" } },
+  title: { color: COLORS.dim, font: { size: 11, family: "'JetBrains Mono', monospace" } },
+};
+
+// ─── simulate second-order PD step response ───
+function simulateStep(J, Kp, Kd, tFinal=1.5, dt=0.0005, theta_d=1.0){
+  const n = Math.floor(tFinal/dt);
+  const t=[], y=[];
+  let theta=0, theta_dot=0;
+  for(let i=0;i<n;i++){
+    const tt = i*dt;
+    const tau = Kp*(theta_d - theta) + Kd*(0 - theta_dot);
+    const theta_ddot = tau / J;
+    theta_dot += theta_ddot * dt;
+    theta     += theta_dot * dt;
+    if (i % 4 === 0){ t.push(tt); y.push(theta); }
+  }
+  return {t, y};
+}
+
+function metrics(t, y, theta_d=1.0){
+  const peak = Math.max(...y);
+  const os = peak > theta_d ? 100*(peak - theta_d)/theta_d : 0;
+  // settling time (2%)
+  let ts = t[t.length-1];
+  for (let i=t.length-1; i>=0; i--){
+    if (Math.abs(y[i]-theta_d) > 0.02*theta_d){ ts = t[Math.min(i+1,t.length-1)]; break; }
+  }
+  // peak error magnitude during transient
+  let pe = 0;
+  for (let i=0;i<y.length;i++){ pe = Math.max(pe, Math.abs(theta_d - y[i])); }
+  return {os, ts, pe};
+}
+
+// ─── CHART 1: interactive step response ───
+const stepCtx = document.getElementById('stepChart').getContext('2d');
+let stepChart = new Chart(stepCtx, {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'θ(t)', data: [], borderColor: COLORS.amber, backgroundColor: 'rgba(232,163,61,0.08)',
+        fill: true, borderWidth: 2, tension: 0.1, pointRadius: 0 },
+      { label: 'θ_d',  data: [], borderColor: COLORS.dim, borderWidth: 1, borderDash:[4,4],
+        pointRadius: 0, fill:false },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio:false,
+    animation: { duration: 180 },
+    plugins: {
+      legend: { labels: { color: COLORS.ink, boxWidth: 10, boxHeight: 2 } },
+      tooltip: { backgroundColor:'#0a0806', titleColor:COLORS.amber, bodyColor:COLORS.ink, borderColor:COLORS.grid, borderWidth:1 }
+    },
+    scales: {
+      x: { type: 'linear', ...gridOpts, title: { ...gridOpts.title, display:true, text:'time [s]' } },
+      y: { ...gridOpts, title: { ...gridOpts.title, display:true, text:'angle [rad]' } },
+    },
+  }
+});
+
+function updateStep(){
+  const zeta = parseFloat(document.getElementById('zeta').value);
+  const wn   = parseFloat(document.getElementById('wn').value);
+  const J    = parseFloat(document.getElementById('jIn').value);
+  const Kp   = J * wn*wn;
+  const Kd   = 2 * zeta * Math.sqrt(Kp*J);
+
+  // pick tFinal based on wn so response always shows up well
+  const tFinal = Math.max(0.4, Math.min(4.0, 8/wn));
+  const {t, y} = simulateStep(J, Kp, Kd, tFinal, 0.0005, 1.0);
+  const {os, ts, pe} = metrics(t, y, 1.0);
+
+  stepChart.data.datasets[0].data = t.map((tt,i)=>({x:tt, y:y[i]}));
+  stepChart.data.datasets[1].data = [{x:0,y:1},{x:tFinal,y:1}];
+  stepChart.update('none');
+
+  document.getElementById('zetaVal').textContent = zeta.toFixed(2);
+  document.getElementById('wnVal').textContent = wn.toFixed(0) + ' rad/s';
+  document.getElementById('jVal').textContent = J.toFixed(3) + ' kg·m²';
+  document.getElementById('kpOut').textContent = Kp.toFixed(2) + ' N·m/rad';
+  document.getElementById('kdOut').textContent = Kd.toFixed(2) + ' N·m·s/rad';
+  document.getElementById('osOut').textContent = os.toFixed(1) + ' %';
+  document.getElementById('tsOut').textContent = ts.toFixed(3) + ' s';
+  document.getElementById('peOut').textContent = pe.toFixed(3) + ' rad';
+}
+
+['zeta','wn','jIn'].forEach(id => document.getElementById(id).addEventListener('input', updateStep));
+
+// ─── CHART 2: fixed Kp, sweep Kd ───
+const kdCtx = document.getElementById('kdSweepChart').getContext('2d');
+(function(){
+  const J = 0.102;
+  const Kp = 22.95;              // from §05
+  const wn = Math.sqrt(Kp/J);    // ~15 rad/s
+  const zetas = [0.2, 0.4, 0.7, 1.0, 1.5];
+  const colors = [COLORS.rose, '#c68b5a', COLORS.amber, COLORS.moss, COLORS.cyan];
+  const datasets = zetas.map((z,i) => {
+    const Kd = 2*z*Math.sqrt(Kp*J);
+    const {t,y} = simulateStep(J, Kp, Kd, 1.0, 0.0005, 1.0);
+    return {
+      label: `ζ = ${z.toFixed(1)}  (K_d = ${Kd.toFixed(2)})`,
+      data: t.map((tt,j)=>({x:tt, y:y[j]})),
+      borderColor: colors[i],
+      borderWidth: z === 0.7 ? 2.5 : 1.5,
+      pointRadius:0, tension:0.1, fill:false,
+    };
+  });
+  // reference
+  datasets.push({
+    label:'θ_d',
+    data:[{x:0,y:1},{x:1.0,y:1}],
+    borderColor: COLORS.dim, borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false
+  });
+
+  new Chart(kdCtx, {
+    type:'line',
+    data:{ datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend: { labels: { color: COLORS.ink, boxWidth:10, boxHeight:2 }, position:'bottom' },
+        tooltip: { backgroundColor:'#0a0806', titleColor:COLORS.amber, bodyColor:COLORS.ink, borderColor:COLORS.grid, borderWidth:1 }
+      },
+      scales: {
+        x: { type:'linear', ...gridOpts, title:{ ...gridOpts.title, display:true, text:'time [s]' } },
+        y: { ...gridOpts, title:{ ...gridOpts.title, display:true, text:'angle [rad]' } },
+      },
+    }
+  });
+})();
+
+// ─── CHART 3: gravity torque vs angle ───
+const gCtx = document.getElementById('gravityChart').getContext('2d');
+(function(){
+  const Kg = 2.943;
+  const pts = [], pts_const = [];
+  for (let deg = -180; deg <= 180; deg += 2){
+    const rad = deg * Math.PI / 180;
+    pts.push({x: deg, y: Kg * Math.sin(rad)});
+    pts_const.push({x: deg, y: Kg});
+  }
+  new Chart(gCtx, {
+    type: 'line',
+    data: {
+      datasets: [
+        { label:'τ = K_g · sin(θ)   ← correct', data: pts,
+          borderColor: COLORS.amber, borderWidth: 2, pointRadius: 0, tension: 0.1,
+          fill: { target:'origin', above:'rgba(232,163,61,0.08)', below:'rgba(232,163,61,0.08)' } },
+        { label:'τ = K_g  (constant)  ← wrong for large swings', data: pts_const,
+          borderColor: COLORS.rose, borderWidth: 1, borderDash:[6,4], pointRadius:0, fill:false },
+      ],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{ color:COLORS.ink, boxWidth:10, boxHeight:2 }, position:'bottom' },
+        tooltip: { backgroundColor:'#0a0806', titleColor:COLORS.amber, bodyColor:COLORS.ink, borderColor:COLORS.grid, borderWidth:1 }
+      },
+      scales: {
+        x: { type:'linear', min:-180, max:180, ...gridOpts,
+             ticks:{...gridOpts.ticks, stepSize:45},
+             title:{ ...gridOpts.title, display:true, text:'joint angle [deg]' } },
+        y: { ...gridOpts, title:{ ...gridOpts.title, display:true, text:'gravity torque [N·m]' } },
+      },
+    }
+  });
+})();
+
+// ─── CHART 4: friction model τ vs θ̇ ───
+const fCtx = document.getElementById('frictionChart').getContext('2d');
+(function(){
+  const Fc = 0.15, Fv = 0.05;
+  const clean = [], measured = [];
+  for (let v = -2.0; v <= 2.0; v += 0.02){
+    const y = Fc * Math.sign(v) + Fv * v;
+    clean.push({x:v, y});
+  }
+  // "measured" scattered pts with stiction bump at low v
+  const rng = (s)=>{let x = Math.sin(s*12.9898)*43758.5453; return (x - Math.floor(x))*2-1;};
+  let k = 0;
+  for (let v = -2.0; v <= 2.0; v += 0.1){
+    if (Math.abs(v) < 0.08) continue;
+    const noise = 0.015 * rng(k++);
+    let y = Fc * Math.sign(v) + Fv * v + noise;
+    if (Math.abs(v) < 0.25) y += 0.05 * Math.sign(v) * (1 - Math.abs(v)/0.25); // stribeck bump
+    measured.push({x:v, y});
+  }
+  new Chart(fCtx, {
+    type:'line',
+    data:{
+      datasets: [
+        { label:'F_c·sign(θ̇) + F_v·θ̇  (model)', data: clean,
+          borderColor: COLORS.amber, borderWidth:2, pointRadius:0, tension:0, fill:false },
+        { label:'measured (with stiction near zero)',
+          data: measured, type:'scatter',
+          borderColor: COLORS.cyan, backgroundColor: COLORS.cyan,
+          pointRadius:3, showLine:false },
+      ],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{ color:COLORS.ink, boxWidth:10, boxHeight:2 }, position:'bottom' },
+        tooltip: { backgroundColor:'#0a0806', titleColor:COLORS.amber, bodyColor:COLORS.ink, borderColor:COLORS.grid, borderWidth:1 }
+      },
+      scales: {
+        x: { type:'linear', min:-2, max:2, ...gridOpts,
+             title:{ ...gridOpts.title, display:true, text:'angular velocity θ̇ [rad/s]' } },
+        y: { ...gridOpts, title:{ ...gridOpts.title, display:true, text:'friction torque [N·m]' } },
+      },
+    }
+  });
+})();
+
+// init
+updateStep();
+</script>
+</body>
+</html>

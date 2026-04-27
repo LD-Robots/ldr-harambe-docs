@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Field Notes — a design system</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   DESIGN TOKENS — this block is the whole system.
+   Copy this into any new document to inherit the look.
+   ═══════════════════════════════════════════════════ */
+:root{
+  /* Backgrounds — warm near-black, three depths */
+  --bg:        #0e0c09;
+  --bg-panel:  #15120d;
+  --bg-inset:  #0a0806;
+
+  /* Ink — three strengths of warm off-white */
+  --ink:       #ece2cf;
+  --ink-dim:   #a79a82;
+  --ink-faint: #6b6354;
+
+  /* Rules */
+  --rule:      #2a2419;
+  --rule-soft: #1e1a13;
+
+  /* Signature: amber. Used for emphasis, graphs, section markers */
+  --amber:      #e8a33d;
+  --amber-deep: #b87a1e;
+
+  /* Supporting hues — used sparingly, never as primary */
+  --cyan: #5fb3b3;   /* measurement, secondary data */
+  --rose: #d97757;   /* warnings, danger */
+  --moss: #8fa968;   /* success, positive delta */
+
+  /* Type stack */
+  --mono:  'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --sans:  'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);
+  font-weight:300;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+
+/* grain overlay — subtle texture, kills flat-digital feel */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+/* ─── header / hero ─── */
+header.hero{
+  border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+  padding:56px 0 64px; margin-bottom:72px;
+  position:relative;
+}
+header.hero::before{
+  content:"DSGN/01";
+  position:absolute;top:-11px;left:0;
+  background:var(--bg);padding:0 12px 0 0;
+  font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);
+}
+header.hero::after{
+  content:"system · reference";
+  position:absolute;top:-11px;right:0;
+  background:var(--bg);padding:0 0 0 12px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint);
+}
+.eyebrow{
+  font-family:var(--mono);font-size:12px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--amber);margin-bottom:28px;
+}
+h1.title{
+  font-family:var(--serif);font-weight:300;font-style:italic;
+  font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;
+  margin:0 0 8px;color:var(--ink);
+}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{
+  font-family:var(--serif);font-weight:300;
+  font-size:clamp(20px,2.4vw,28px);line-height:1.35;
+  color:var(--ink-dim);max-width:720px;margin:24px 0 0;
+}
+.meta{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:24px;
+  margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+/* ─── sections ─── */
+section{margin:96px 0 0;position:relative}
+.section-num{
+  font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);
+  margin-bottom:18px;display:block;
+}
+h2{
+  font-family:var(--serif);font-weight:400;
+  font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;
+  margin:0 0 24px;color:var(--ink);max-width:860px;
+}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{
+  font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;
+  margin:48px 0 16px;color:var(--ink);
+}
+h4{
+  font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--amber);margin:32px 0 12px;
+}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+hr.divider{border:none;border-top:1px solid var(--rule);margin:72px 0}
+hr.divider-soft{border:none;border-top:1px dashed var(--rule-soft);margin:32px 0}
+
+/* ─── panel (labeled box — the signature component) ─── */
+.panel{
+  background:var(--bg-panel);
+  border:1px solid var(--rule);
+  padding:28px 32px;margin:24px 0;position:relative;
+}
+.panel::before{
+  content:attr(data-label);
+  position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.25em;
+  color:var(--amber);text-transform:uppercase;
+}
+.panel.inset{background:var(--bg-inset)}
+
+/* ─── callout (big italic pull-quote) ─── */
+.callout{
+  border-left:2px solid var(--amber);
+  padding:4px 0 4px 24px;margin:24px 0;
+  font-family:var(--serif);font-style:italic;font-size:18px;
+  color:var(--ink-dim);line-height:1.5;max-width:60ch;
+}
+
+/* ─── warn (rose-tinted) ─── */
+.warn{
+  background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));
+  border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px;
+}
+.warn strong{color:var(--rose)}
+
+/* ─── math block ─── */
+.math-block{
+  background:var(--bg-inset);border:1px solid var(--rule);
+  padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative;
+}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{
+  position:absolute;top:10px;left:16px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.22em;
+  color:var(--ink-faint);text-transform:uppercase;
+}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+.math-block .katex-display{margin:.4em 0}
+
+/* ─── variable legend ─── */
+dl.vars{
+  font-family:var(--mono);font-size:13px;line-height:1.9;
+  margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;
+  gap:4px 28px;
+}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+/* ─── code ─── */
+pre{
+  background:var(--bg-inset);border:1px solid var(--rule);
+  border-left:2px solid var(--amber-deep);
+  padding:22px 26px;margin:24px 0;overflow-x:auto;
+  font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--ink);
+  position:relative;
+}
+pre::before{
+  content:attr(data-lang);
+  position:absolute;top:8px;right:16px;
+  font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase;
+}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)}
+.tok-s{color:var(--moss)}
+.tok-c{color:var(--ink-faint);font-style:italic}
+.tok-n{color:var(--amber)}
+.tok-f{color:var(--cyan)}
+
+/* ─── tables ─── */
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th, table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{
+  color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  border-bottom:1px solid var(--amber-deep);
+}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+/* ─── steps list ─── */
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{
+  counter-increment:st;padding:16px 0 16px 56px;
+  border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch;
+}
+ul.steps > li::before{
+  content:counter(st,decimal-leading-zero);
+  position:absolute;left:0;top:18px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber);
+}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+/* ─── TOC ─── */
+nav.toc{
+  margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px;
+}
+nav.toc a{
+  display:block;color:var(--ink-dim);border:none;padding:8px 0;
+  border-bottom:1px dashed var(--rule-soft);
+  font-family:var(--sans);font-size:14px;font-weight:300;
+  transition:color .2s, padding-left .2s;
+}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+/* ─── grid layouts ─── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+/* ─── card ─── */
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+/* ─── readouts (instrument-panel look) ─── */
+.readouts{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:12px}
+.readouts .ro{display:flex;flex-direction:column;gap:2px}
+.readouts .ro .k{font-size:10px;letter-spacing:.2em;color:var(--ink-faint);text-transform:uppercase}
+.readouts .ro .v{color:var(--amber);font-size:14px;font-weight:500}
+
+footer{
+  margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+
+/* ═══════════════════════════════════════════════════
+   guide-specific additions (not part of the system)
+   ═══════════════════════════════════════════════════ */
+.swatch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;margin:24px 0;border:1px solid var(--rule)}
+.swatch{padding:20px 22px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);position:relative;min-height:120px;display:flex;flex-direction:column;justify-content:flex-end}
+.swatch:last-child{border-right:none}
+.swatch .tok{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;opacity:.7;margin-bottom:4px}
+.swatch .hex{font-family:var(--mono);font-size:13px;font-weight:500}
+.swatch .name{font-family:var(--sans);font-size:13px;font-weight:300;margin-top:6px;opacity:.75}
+
+.font-spec{padding:28px 32px;background:var(--bg-panel);border:1px solid var(--rule);margin:20px 0;position:relative}
+.font-spec .fname{position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.font-spec .spec-display{font-size:48px;line-height:1.1;margin:8px 0 12px;color:var(--ink)}
+.font-spec .spec-mini{font-size:14px;color:var(--ink-dim);margin:0}
+
+.demo-block{margin:24px 0;padding:24px;border:1px dashed var(--rule);background:rgba(255,255,255,.005);position:relative}
+.demo-block::before{
+  content:"LIVE EXAMPLE";position:absolute;top:-8px;right:16px;background:var(--bg);
+  padding:0 8px;font-family:var(--mono);font-size:9px;letter-spacing:.3em;color:var(--ink-faint);
+}
+
+.principle-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0;margin:32px 0;border-top:1px solid var(--rule)}
+.principle-list .p-item{padding:28px 24px;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);position:relative}
+.principle-list .p-item:nth-child(3n){border-right:none}
+.principle-list .p-item .pn{font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);margin-bottom:10px}
+.principle-list .p-item h5{font-family:var(--serif);font-weight:500;font-size:18px;margin:0 0 8px;color:var(--ink)}
+.principle-list .p-item p{font-size:14px;color:var(--ink-dim);margin:0;max-width:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="eyebrow">Design System · Field Notes Aesthetic</div>
+  <h1 class="title">A guide for <em>technical</em><br>documents that feel designed.</h1>
+  <p class="subtitle">Dark-warm palette, three-font system, labelled panels, measurement-first typography. A reference for rebuilding the look — or extending it — without guesswork.</p>
+
+  <div class="meta">
+    <div><span class="k">Mood</span><span class="v">Restored <em>lab notebook</em></span></div>
+    <div><span class="k">Palette</span><span class="v">Dark warm · <em>amber accent</em></span></div>
+    <div><span class="k">Type</span><span class="v">Fraunces · Plex · JetBrains</span></div>
+    <div><span class="k">Use for</span><span class="v">Engineering · <em>research notes</em></span></div>
+  </div>
+
+  <nav class="toc">
+    <a href="#principles"><span class="n">01</span>Principles & direction</a>
+    <a href="#color"><span class="n">02</span>Color system</a>
+    <a href="#type"><span class="n">03</span>Typography</a>
+    <a href="#layout"><span class="n">04</span>Layout & spacing</a>
+    <a href="#structure"><span class="n">05</span>Structural patterns</a>
+    <a href="#components"><span class="n">06</span>Components</a>
+    <a href="#content"><span class="n">07</span>Content blocks</a>
+    <a href="#charts"><span class="n">08</span>Data visualization</a>
+    <a href="#details"><span class="n">09</span>Micro-details</a>
+    <a href="#donts"><span class="n">10</span>What to avoid</a>
+    <a href="#starter"><span class="n">11</span>Starter template</a>
+  </nav>
+</header>
+
+<!-- ═══════════════ 01 · PRINCIPLES ═══════════════ -->
+<section id="principles">
+<span class="section-num">§ 01 — Principles</span>
+<h2>What this system <em>is</em>, and what it <em>is not</em>.</h2>
+
+<p class="lead">This is a design language for dense, technical writing — engineering field notes, research summaries, tuning guides, RFC-adjacent documentation. It prioritizes legibility, information density, and reference-ability over decoration. The aesthetic borrows from restored technical textbooks, oscilloscope interfaces, and scientific instrument panels.</p>
+
+<div class="principle-list">
+  <div class="p-item">
+    <div class="pn">01</div>
+    <h5>Warmth over sterility</h5>
+    <p>A near-black warm background reads for hours without fatigue. Pure black + pure white is a hostile surface for reading math.</p>
+  </div>
+  <div class="p-item">
+    <div class="pn">02</div>
+    <h5>One accent, used decisively</h5>
+    <p>Amber is the only saturated color used at scale. Cyan, rose, moss are for semantic roles (data, warnings, success) and appear rarely.</p>
+  </div>
+  <div class="p-item">
+    <div class="pn">03</div>
+    <h5>Metadata is part of the design</h5>
+    <p>Labels, section numbers, units, eyebrow text, footnotes — they aren't clutter. Visible structure is the entire point.</p>
+  </div>
+  <div class="p-item">
+    <div class="pn">04</div>
+    <h5>Three fonts, distinct roles</h5>
+    <p>Fraunces for editorial voice. IBM Plex Sans for body prose. JetBrains Mono for code, numbers, labels. Never mix roles.</p>
+  </div>
+  <div class="p-item">
+    <div class="pn">05</div>
+    <h5>Density with air</h5>
+    <p>Long sections, tight line-height in panels, generous breathing room between sections. Dense blocks separated by space.</p>
+  </div>
+  <div class="p-item">
+    <div class="pn">06</div>
+    <h5>Decoration earns its place</h5>
+    <p>The grain overlay, dashed rules, and labels punching through borders all carry meaning or soften a flat digital surface. Nothing is decoration for its own sake.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 02 · COLOR ═══════════════ -->
+<section id="color">
+<span class="section-num">§ 02 — Color system</span>
+<h2>Three backgrounds, three inks, one accent.</h2>
+
+<p class="lead">The palette has nine colors. That sounds like a lot; in practice, six of them are structural (three background depths, three ink strengths) and you rarely touch them directly — they're referenced by CSS variables. The remaining three do semantic work.</p>
+
+<h3>Structural — backgrounds</h3>
+<div class="swatch-grid">
+  <div class="swatch" style="background:#0e0c09;color:#ece2cf">
+    <div class="tok">--bg</div>
+    <div class="hex">#0e0c09</div>
+    <div class="name">page background — warm near-black</div>
+  </div>
+  <div class="swatch" style="background:#15120d;color:#ece2cf">
+    <div class="tok">--bg-panel</div>
+    <div class="hex">#15120d</div>
+    <div class="name">panels, cards, charts — slightly lifted</div>
+  </div>
+  <div class="swatch" style="background:#0a0806;color:#ece2cf">
+    <div class="tok">--bg-inset</div>
+    <div class="hex">#0a0806</div>
+    <div class="name">code blocks, math blocks — pushed inward</div>
+  </div>
+</div>
+
+<h3>Structural — ink</h3>
+<div class="swatch-grid">
+  <div class="swatch" style="background:#15120d;color:#ece2cf">
+    <div class="tok">--ink</div>
+    <div class="hex">#ece2cf</div>
+    <div class="name">primary text, strong emphasis</div>
+  </div>
+  <div class="swatch" style="background:#15120d;color:#a79a82">
+    <div class="tok">--ink-dim</div>
+    <div class="hex">#a79a82</div>
+    <div class="name">secondary text, body descriptions</div>
+  </div>
+  <div class="swatch" style="background:#15120d;color:#6b6354">
+    <div class="tok">--ink-faint</div>
+    <div class="hex">#6b6354</div>
+    <div class="name">labels, metadata, captions</div>
+  </div>
+</div>
+
+<h3>Semantic — accents</h3>
+<div class="swatch-grid">
+  <div class="swatch" style="background:#15120d;color:#e8a33d">
+    <div class="tok">--amber</div>
+    <div class="hex">#e8a33d</div>
+    <div class="name">the signature — emphasis, links, data, section marks</div>
+  </div>
+  <div class="swatch" style="background:#15120d;color:#5fb3b3">
+    <div class="tok">--cyan</div>
+    <div class="hex">#5fb3b3</div>
+    <div class="name">secondary data series, measurements</div>
+  </div>
+  <div class="swatch" style="background:#15120d;color:#d97757">
+    <div class="tok">--rose</div>
+    <div class="hex">#d97757</div>
+    <div class="name">warnings, danger, dangerous comparisons</div>
+  </div>
+  <div class="swatch" style="background:#15120d;color:#8fa968">
+    <div class="tok">--moss</div>
+    <div class="hex">#8fa968</div>
+    <div class="name">success, positive delta, code strings</div>
+  </div>
+</div>
+
+<h3>Rules</h3>
+<div class="swatch-grid">
+  <div class="swatch" style="background:#15120d;color:#2a2419"><div class="tok" style="color:#a79a82">--rule</div><div class="hex" style="color:#a79a82">#2a2419</div><div class="name" style="color:#a79a82">solid dividers, borders</div></div>
+  <div class="swatch" style="background:#15120d;color:#1e1a13"><div class="tok" style="color:#a79a82">--rule-soft</div><div class="hex" style="color:#a79a82">#1e1a13</div><div class="name" style="color:#a79a82">dashed dividers, soft breaks</div></div>
+</div>
+
+<div class="warn">
+  <strong>Ratio rule.</strong> In any given section, amber should not exceed ~10% of colored pixels. It's the loudest color in the palette — overusing it flattens the hierarchy. When in doubt, downgrade an amber element to <span class="inline-eq">--ink</span> or <span class="inline-eq">--ink-dim</span>.
+</div>
+</section>
+
+<!-- ═══════════════ 03 · TYPOGRAPHY ═══════════════ -->
+<section id="type">
+<span class="section-num">§ 03 — Typography</span>
+<h2>Three fonts, three jobs, no overlap.</h2>
+
+<p class="lead">The fonts are chosen for contrast between roles. Fraunces is editorial and humanist — it signals "this is writing." Plex Sans is neutral, highly legible at small sizes, and has excellent weight range. JetBrains Mono handles code, numbers, and anywhere precision matters. Each font does <em>one</em> job.</p>
+
+<div class="font-spec">
+  <span class="fname">Fraunces · display + pull quotes</span>
+  <div class="spec-display" style="font-family:var(--serif);font-weight:300;font-style:italic">The closed loop is a second-order system.</div>
+  <p class="spec-mini">Used for: H1, H2, H3, subtitles, callouts. Italic weight 300 for headlines; roman 400–500 for subheads. Optical size axis handles large display sizes beautifully. <strong>Never</strong> use Fraunces for body text or labels.</p>
+</div>
+
+<div class="font-spec">
+  <span class="fname">IBM Plex Sans · body text</span>
+  <div class="spec-display" style="font-family:var(--sans);font-weight:300;font-size:22px;line-height:1.5">Clean, neutral, highly legible. Renders math descriptions and prose equally well. Set at weight 300 for body, 500 for emphasis.</div>
+  <p class="spec-mini">Used for: all running prose, variable descriptions, card copy. Weights: 300 body, 500 strong, 600 rare emphasis. Line-height 1.65 for paragraphs, 1.5 for compact blocks.</p>
+</div>
+
+<div class="font-spec">
+  <span class="fname">JetBrains Mono · code, numbers, labels</span>
+  <div class="spec-display" style="font-family:var(--mono);font-weight:500;font-size:20px;letter-spacing:.05em">τ = K<sub>p</sub>·(θ<sub>d</sub> − θ) + K<sub>d</sub>·(θ̇<sub>d</sub> − θ̇)</div>
+  <p class="spec-mini">Used for: code blocks, inline code, metadata labels (all-caps tracked), numeric readouts, section numbers, eyebrow text, table contents. Letter-spacing 0.15–0.3em on all caps; 0 on code.</p>
+</div>
+
+<h3>Type scale</h3>
+<table class="ref">
+  <thead><tr><th>Role</th><th>Font</th><th>Size</th><th>Weight</th><th>Treatment</th></tr></thead>
+  <tbody>
+    <tr><td>H1 display</td><td class="v">Fraunces italic</td><td class="v">clamp(44, 7vw, 88)</td><td class="v">300</td><td class="v">amber em for emphasis word</td></tr>
+    <tr><td>H2 section</td><td class="v">Fraunces</td><td class="v">clamp(32, 4.5vw, 52)</td><td class="v">400</td><td class="v">italic amber em</td></tr>
+    <tr><td>H3 subsection</td><td class="v">Fraunces</td><td class="v">26</td><td class="v">500</td><td class="v">—</td></tr>
+    <tr><td>H4 utility</td><td class="v">JetBrains Mono</td><td class="v">12</td><td class="v">500</td><td class="v">uppercase, 0.2em tracking, amber</td></tr>
+    <tr><td>Body</td><td class="v">Plex Sans</td><td class="v">16</td><td class="v">300</td><td class="v">line-height 1.65, max-width 70ch</td></tr>
+    <tr><td>Lead paragraph</td><td class="v">Plex Sans</td><td class="v">18.5</td><td class="v">300</td><td class="v">--ink, 68ch max</td></tr>
+    <tr><td>Callout / pull-quote</td><td class="v">Fraunces italic</td><td class="v">18</td><td class="v">300</td><td class="v">2px amber left border, --ink-dim</td></tr>
+    <tr><td>Eyebrow</td><td class="v">JetBrains Mono</td><td class="v">11–12</td><td class="v">400–500</td><td class="v">uppercase, 0.3em tracking, amber</td></tr>
+    <tr><td>Code block</td><td class="v">JetBrains Mono</td><td class="v">13.5</td><td class="v">400</td><td class="v">line-height 1.7</td></tr>
+    <tr><td>Label (inside panel)</td><td class="v">JetBrains Mono</td><td class="v">10</td><td class="v">500</td><td class="v">uppercase, 0.22–0.25em tracking</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ═══════════════ 04 · LAYOUT ═══════════════ -->
+<section id="layout">
+<span class="section-num">§ 04 — Layout & spacing</span>
+<h2>One column, generous margins, deliberate rhythm.</h2>
+
+<p class="lead">The layout is intentionally conservative. A single 1180px content column contains everything. Internal two- and three-column grids appear inside specific sections but never dictate the main flow. Reading should be sequential and uninterrupted.</p>
+
+<h3>Content widths</h3>
+<ul class="bullets">
+  <li><strong>Wrap</strong>: <code>max-width: 1180px</code>, 32px side padding on desktop, more on large displays only if needed.</li>
+  <li><strong>Prose paragraph</strong>: <code>max-width: 70ch</code>. Do not stretch body text across the full 1180. Measure matters.</li>
+  <li><strong>Lead paragraph</strong>: <code>max-width: 68ch</code>, slightly larger font, brighter ink.</li>
+  <li><strong>Callout</strong>: <code>max-width: 60ch</code>. Shorter lines match the italic voice.</li>
+  <li><strong>Steps list</strong>: <code>max-width: 72ch</code>. Slightly wider because the number prefix eats horizontal room.</li>
+</ul>
+
+<h3>Vertical rhythm</h3>
+<table class="ref">
+  <thead><tr><th>Between</th><th>Space</th><th>Device</th></tr></thead>
+  <tbody>
+    <tr><td>Sections</td><td class="v">96px</td><td class="v">big, breathable</td></tr>
+    <tr><td>H2 → body</td><td class="v">24px</td><td class="v">tight — body follows the claim</td></tr>
+    <tr><td>H3 → body</td><td class="v">16px</td><td class="v">tighter still</td></tr>
+    <tr><td>Paragraphs</td><td class="v">18px bottom</td><td class="v">block-level <code>margin-bottom</code></td></tr>
+    <tr><td>Section dividers</td><td class="v">72px</td><td class="v">solid <code>hr.divider</code>, rare</td></tr>
+    <tr><td>Soft dividers</td><td class="v">32px</td><td class="v">dashed, frequent</td></tr>
+    <tr><td>Hero → first section</td><td class="v">72px</td><td class="v">hero carries its own bottom-border</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  The rhythm is: <em>dense block, breath, dense block, breath.</em> Sections are long but always followed by 96px of space. Readers always know where they are.
+</div>
+</section>
+
+<!-- ═══════════════ 05 · STRUCTURAL PATTERNS ═══════════════ -->
+<section id="structure">
+<span class="section-num">§ 05 — Structural patterns</span>
+<h2>How a page <em>announces</em> itself.</h2>
+
+<p class="lead">Three recurring patterns carry most of the structural weight: the <strong>eyebrow</strong>, the <strong>section number</strong>, and the <strong>labeled panel</strong>. Together they make every block self-identifying — the reader always knows what they're looking at.</p>
+
+<h3>Pattern 1 — Eyebrow text</h3>
+<div class="demo-block">
+  <div class="eyebrow">PD Control · Feedforward · Motor ID</div>
+  <h2 style="margin-top:8px">A title appears here.</h2>
+</div>
+<p>Short, all-caps, monospace, tracked to 0.3em, amber. Sits above the page title and any major section to contextualize what follows. Think of it as the "department" of the article.</p>
+
+<h3>Pattern 2 — Section numbers (§)</h3>
+<div class="demo-block">
+  <span class="section-num">§ 04 — Step response, interactively</span>
+  <h2 style="margin-top:0">What ζ and ω<sub>n</sub> actually look like.</h2>
+</div>
+<p>Uses the section sign (§) plus zero-padded number plus em-dash plus short descriptor. Same mono + amber + tracked style as the eyebrow. Makes sections navigable and referenceable ("see §09").</p>
+
+<h3>Pattern 3 — Labeled panels</h3>
+<div class="demo-block">
+  <div class="panel" data-label="Rules of thumb">
+    <p style="margin:0">Panels have a label that sits on their top border, like a callout on a schematic. The label is set on <code>data-label</code> and rendered via <code>::before</code>. The background of the label matches the page so it appears to punch through the border.</p>
+  </div>
+</div>
+<p>This pattern is the visual signature of the system. Use it for anything you want to foreground: important callouts, math definitions, warnings (with <code>.warn</code> variant), code blocks (via <code>data-lang</code>).</p>
+
+<pre data-lang="html"><code><span class="tok-c">&lt;!-- CSS implementation --&gt;</span>
+<span class="tok-k">.panel</span> {
+  background: var(--bg-panel);
+  border: <span class="tok-n">1px</span> solid var(--rule);
+  position: relative;
+}
+<span class="tok-k">.panel::before</span> {
+  content: attr(data-label);
+  position: absolute;
+  top: -<span class="tok-n">9px</span>;       <span class="tok-c">/* pulls label up onto the border */</span>
+  left: <span class="tok-n">20px</span>;
+  background: var(--bg); <span class="tok-c">/* matches page to break border */</span>
+  padding: <span class="tok-n">0 10px</span>;
+  font-family: var(--mono);
+  font-size: <span class="tok-n">10px</span>;
+  letter-spacing: <span class="tok-n">.25em</span>;
+  color: var(--amber);
+  text-transform: uppercase;
+}
+</code></pre>
+</section>
+
+<!-- ═══════════════ 06 · COMPONENTS ═══════════════ -->
+<section id="components">
+<span class="section-num">§ 06 — Components</span>
+<h2>The building blocks.</h2>
+
+<h3>Panel — <code>.panel[data-label]</code></h3>
+<div class="demo-block">
+  <div class="panel" data-label="Example label">
+    <p style="margin:0">The default panel. Slightly lifted background, thin border, labeled through <code>data-label</code>. Use for grouping related content, call-to-attention blocks, rules-of-thumb lists.</p>
+  </div>
+</div>
+
+<h3>Callout — <code>.callout</code></h3>
+<div class="demo-block">
+  <div class="callout">Callouts are editorial. Fraunces italic, 2px amber left border, no background. Use for a single memorable sentence that summarizes a section or offers a mental model.</div>
+</div>
+
+<h3>Warning — <code>.warn</code></h3>
+<div class="demo-block">
+  <div class="warn"><strong>Warning.</strong> Used for failure modes, common mistakes, things that will silently break. Rose-tinted gradient background, 2px rose left border. The word at the start is bolded and also rose.</div>
+</div>
+
+<h3>Card — <code>.card</code></h3>
+<div class="demo-block">
+  <div class="three-col">
+    <div class="card">
+      <h5>Metric label</h5>
+      <div class="big">0.102</div>
+      <p>A short description of what this number means and where it came from.</p>
+    </div>
+    <div class="card">
+      <h5>Metric label</h5>
+      <div class="big">~15</div>
+      <p>Another card in the three-column grid. Same structure, different content.</p>
+    </div>
+    <div class="card">
+      <h5>Metric label</h5>
+      <div class="big">0.70</div>
+      <p>Third card completing the row.</p>
+    </div>
+  </div>
+</div>
+<p>Cards are for key-metric displays. Mono amber label, big Fraunces number, dim-ink description. Typically in a three-column grid, sometimes two.</p>
+
+<h3>Readouts — <code>.readouts</code></h3>
+<div class="demo-block">
+  <div class="readouts" style="border-top:none;padding-top:0">
+    <div class="ro"><span class="k">K<sub>p</sub></span><span class="v">22.95 N·m/rad</span></div>
+    <div class="ro"><span class="k">K<sub>d</sub></span><span class="v">2.14 N·m·s/rad</span></div>
+    <div class="ro"><span class="k">Overshoot</span><span class="v">4.3 %</span></div>
+    <div class="ro"><span class="k">Settle (2%)</span><span class="v">0.286 s</span></div>
+  </div>
+</div>
+<p>Readouts are instrument-panel style: small caps label above, larger amber value below. Used under interactive charts to display computed values, or anywhere you want a row of labeled numbers.</p>
+
+<h3>Steps list — <code>ul.steps</code></h3>
+<div class="demo-block">
+  <ul class="steps" style="margin:0">
+    <li><strong>Zero the encoder</strong>
+      Each step has a strong header (first line) followed by descriptive prose. The number comes from a counter, zero-padded, in mono amber. Dashed bottom border between items.
+    </li>
+    <li><strong>Measure the baseline</strong>
+      Second step. Note that numbering is automatic via <code>counter-reset</code> and <code>counter-increment</code>.
+    </li>
+  </ul>
+</div>
+
+<h3>Bullets — <code>ul.bullets</code></h3>
+<div class="demo-block">
+  <ul class="bullets" style="margin:0">
+    <li>Custom arrow bullet (→) in amber, via <code>::before</code>. Use instead of disc bullets.</li>
+    <li>Short-ish items. If items are multi-line and structural, prefer <code>ul.steps</code>.</li>
+    <li>Max-width 68ch keeps measure tight.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ═══════════════ 07 · CONTENT BLOCKS ═══════════════ -->
+<section id="content">
+<span class="section-num">§ 07 — Content blocks</span>
+<h2>Math, code, tables.</h2>
+
+<h3>Math blocks — <code>.math-block</code></h3>
+<p>Math is rendered with KaTeX (loaded via CDN). Wrap display math in <code>.math-block.labeled</code> with a caption:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 1 — canonical second-order form</span>
+  $$ \ddot\theta + 2\zeta\omega_n\,\dot\theta + \omega_n^2\,\theta = \omega_n^2\,\theta_d $$
+</div>
+
+<p>For inline equation fragments without KaTeX, use <code>.inline-eq</code> for a mono-amber treatment: <span class="inline-eq">ω_n</span>, <span class="inline-eq">K_p = Jω_n²</span>. Follow every math block with either a variable legend (<code>dl.vars</code>) or prose that uses the symbols introduced.</p>
+
+<h3>Variable legend — <code>dl.vars</code></h3>
+<dl class="vars">
+  <dt>θ</dt>  <dd>joint angle (rad)</dd>
+  <dt>ω<sub>n</sub></dt> <dd>natural frequency, how fast the loop responds (rad/s)</dd>
+  <dt>ζ</dt>  <dd>damping ratio — how much it rings</dd>
+</dl>
+
+<h3>Code blocks — <code>pre[data-lang]</code></h3>
+<p>Code blocks have an amber-deep left border (makes them instantly identifiable at skim), a mono-tracked language label in the top-right via <code>data-lang</code>, and a custom tokenization:</p>
+
+<pre data-lang="python"><code><span class="tok-c"># comments → --ink-faint italic</span>
+<span class="tok-k">def</span> <span class="tok-f">tune_gains</span>(J: float, wn: float, zeta: float = <span class="tok-n">0.7</span>):
+    <span class="tok-s">"""strings → --moss"""</span>
+    Kp = J * wn**<span class="tok-n">2</span>           <span class="tok-c"># numbers → --amber</span>
+    Kd = <span class="tok-n">2</span> * zeta * (Kp*J)**<span class="tok-n">0.5</span>
+    <span class="tok-k">return</span> Kp, Kd           <span class="tok-c"># keywords → --rose</span>
+</code></pre>
+
+<p>Tokenization is applied manually with span classes (<code>.tok-k</code>, <code>.tok-s</code>, <code>.tok-c</code>, <code>.tok-n</code>, <code>.tok-f</code>). For longer documents, swap in a library like highlight.js and map its classes to these colors.</p>
+
+<h3>Reference tables — <code>table.ref</code></h3>
+<table class="ref">
+  <thead><tr><th>Parameter</th><th>Value</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td>First column</td><td>Mono amber</td><td class="v">Last column gets <code>.v</code> class — Plex Sans, --ink-dim, more prose-like.</td></tr>
+    <tr><td>Second column</td><td>Mono default</td><td class="v">Works for any rows where you want the value column neutral.</td></tr>
+  </tbody>
+</table>
+
+<p>Tables are mono throughout except for <code>td.v</code> cells, which soften to Plex Sans for readable prose. Headers are amber on amber-deep underline. Row dividers are solid --rule.</p>
+</section>
+
+<!-- ═══════════════ 08 · DATA VIZ ═══════════════ -->
+<section id="charts">
+<span class="section-num">§ 08 — Data visualization</span>
+<h2>Charts as part of the page, not pasted on.</h2>
+
+<p class="lead">Charts use Chart.js with a small set of overrides that make them feel native to the page. Key moves: background matches panels, grid lines fade into the background, primary series uses amber, secondary series uses cyan, warning series uses rose.</p>
+
+<h4>Chart.js defaults</h4>
+<pre data-lang="javascript"><code><span class="tok-f">Chart</span>.defaults.font.family = <span class="tok-s">"'JetBrains Mono', monospace"</span>;
+<span class="tok-f">Chart</span>.defaults.font.size = <span class="tok-n">11</span>;
+<span class="tok-f">Chart</span>.defaults.color = <span class="tok-s">'#a79a82'</span>;      <span class="tok-c">// --ink-dim</span>
+<span class="tok-f">Chart</span>.defaults.borderColor = <span class="tok-s">'#2a2419'</span>; <span class="tok-c">// --rule</span>
+
+<span class="tok-k">const</span> COLORS = {
+  amber: <span class="tok-s">'#e8a33d'</span>,    <span class="tok-c">// primary series</span>
+  cyan:  <span class="tok-s">'#5fb3b3'</span>,    <span class="tok-c">// secondary / measured</span>
+  rose:  <span class="tok-s">'#d97757'</span>,    <span class="tok-c">// warning / wrong-way</span>
+  moss:  <span class="tok-s">'#8fa968'</span>,    <span class="tok-c">// success</span>
+  dim:   <span class="tok-s">'#6b6354'</span>,    <span class="tok-c">// reference lines</span>
+  grid:  <span class="tok-s">'#1e1a13'</span>,    <span class="tok-c">// --rule-soft</span>
+};
+
+<span class="tok-k">const</span> gridOpts = {
+  grid: { color: COLORS.grid, drawBorder: <span class="tok-k">false</span> },
+  ticks: { color: <span class="tok-s">'#6b6354'</span>, font: { size: <span class="tok-n">10</span> } },
+};
+</code></pre>
+
+<h4>Chart wrappers</h4>
+<p>Wrap every chart in <code>.graph-wrap</code>. It provides the panel background, a title-bar, a description line, and a fixed canvas height (340px desktop / 280px mobile). Controls (sliders) go in <code>.controls</code> underneath; computed readouts go in <code>.readouts</code> below that.</p>
+
+<ul class="bullets">
+  <li><strong>One dominant color per chart.</strong> Amber for the thing you're highlighting. Reference lines get <code>--ink-faint</code> with a 4,4 dash.</li>
+  <li><strong>Grid is almost invisible.</strong> <code>--rule-soft</code> on grid lines, no chart border.</li>
+  <li><strong>Axis labels in mono.</strong> Tiny, tracked, <code>--ink-faint</code>. Always include units in brackets: <em>time [s]</em>, <em>torque [N·m]</em>.</li>
+  <li><strong>Tooltips match the page.</strong> Background <code>--bg-inset</code>, title amber, body ink. Matches the rest of the design.</li>
+</ul>
+</section>
+
+<!-- ═══════════════ 09 · MICRO-DETAILS ═══════════════ -->
+<section id="details">
+<span class="section-num">§ 09 — Micro-details</span>
+<h2>What makes it feel <em>made</em>.</h2>
+
+<h3>Grain overlay</h3>
+<p>A fixed, pointer-events-none, SVG noise overlay at ~3.5% opacity sits on top of everything. Kills the flat-digital feel. Identical technique to film grain in video editing. Keep opacity below 5% or it reads as damaged rather than textured.</p>
+
+<h3>Dashed vs solid rules</h3>
+<ul class="bullets">
+  <li><strong>Solid rules</strong> (<code>--rule</code>): section dividers, panel borders, table bottom borders. They announce structure.</li>
+  <li><strong>Dashed rules</strong> (<code>--rule-soft</code>): soft breaks within a section, list dividers, TOC separators. They suggest relationship without demanding attention.</li>
+</ul>
+
+<h3>Labels that punch through borders</h3>
+<p>The single most recognizable motif: labels on panels, math blocks, and the hero header sit <em>on top of</em> their border, with <code>background: var(--bg)</code> matching the page so they appear to break the line. Costs 5 lines of CSS, transforms the feel.</p>
+
+<h3>Zero-padded numbers</h3>
+<p>Section numbers, list items, meta labels all use <code>counter(x, decimal-leading-zero)</code> for zero-padded display: 01, 02, 03 instead of 1, 2, 3. Monospace alignment, archival feel.</p>
+
+<h3>Clamp() for responsive type</h3>
+<p>Headlines use <code>font-size: clamp(min, preferred, max)</code> so they scale fluidly with viewport width. The big H1 clamps <code>44px</code> → <code>7vw</code> → <code>88px</code>. No media queries needed.</p>
+
+<h3>Background gradients</h3>
+<p>Two radial gradients on the body — one top-right, one upper-left — add warmth without committing to a visible color. Extremely subtle (<code>#1a1409</code> fading to transparent over 1200px). Gives a sense of an actual room with light sources, not a flat digital plane.</p>
+
+<h3>Font weights are structural</h3>
+<p>Plex Sans body is weight <strong>300</strong>, not 400. This is deliberate — the thinner body makes weight 500 emphasis feel like a real shift. On a light background 300 would be too faint; on warm dark it reads perfectly.</p>
+</section>
+
+<!-- ═══════════════ 10 · WHAT TO AVOID ═══════════════ -->
+<section id="donts">
+<span class="section-num">§ 10 — What to avoid</span>
+<h2>How this aesthetic <em>fails</em>.</h2>
+
+<ul class="bullets">
+  <li><strong>Too much amber.</strong> Every designer's first instinct is to paint everything in the accent color. One amber element per screenful of content is often enough. When everything is emphasized, nothing is.</li>
+  <li><strong>Extra colors.</strong> Adding a fifth or sixth hue dilutes the palette. If you need a new semantic role, ask whether an existing color fits before inventing.</li>
+  <li><strong>Pure black text on dark.</strong> <code>--ink</code> is <code>#ece2cf</code>, warm off-white. Never use pure white — it vibrates against the warm background.</li>
+  <li><strong>Swapping Fraunces for another serif.</strong> Fraunces' personality comes from its optical-size axis and italic quirks. Replacing it with something generic (Playfair, Lora) deletes the editorial voice.</li>
+  <li><strong>Centering body text.</strong> The layout is left-aligned throughout. Centering breaks the rhythm and hurts scannability.</li>
+  <li><strong>Icons.</strong> This system doesn't use icons except within charts. Icons would compete with the typographic emphasis system. If you need a visual break, use a panel or divider.</li>
+  <li><strong>Shadows and depth effects.</strong> No drop shadows, no glassmorphism, no glow. The layered feel comes from background-lightness differences only.</li>
+  <li><strong>Animated transitions.</strong> Buttons and links have tiny transitions (color change on hover). Beyond that, nothing animates. No scroll-linked effects, no fade-ins.</li>
+</ul>
+</section>
+
+<!-- ═══════════════ 11 · STARTER TEMPLATE ═══════════════ -->
+<section id="starter">
+<span class="section-num">§ 11 — Starter template</span>
+<h2>The skeleton, ready to paste.</h2>
+
+<p class="lead">Copy this into a new <code>.html</code> file. It imports the fonts, KaTeX, and Chart.js, and includes the CSS token block plus all component styles. Fill in the content.</p>
+
+<pre data-lang="html"><code><span class="tok-c">&lt;!doctype html&gt;</span>
+&lt;<span class="tok-k">html</span> lang=<span class="tok-s">"en"</span>&gt;
+&lt;<span class="tok-k">head</span>&gt;
+  &lt;<span class="tok-k">meta</span> charset=<span class="tok-s">"utf-8"</span>&gt;
+  &lt;<span class="tok-k">meta</span> name=<span class="tok-s">"viewport"</span> content=<span class="tok-s">"width=device-width,initial-scale=1"</span>&gt;
+  &lt;<span class="tok-k">title</span>&gt;Your document&lt;/<span class="tok-k">title</span>&gt;
+
+  <span class="tok-c">&lt;!-- KaTeX for math --&gt;</span>
+  &lt;<span class="tok-k">link</span> rel=<span class="tok-s">"stylesheet"</span>
+        href=<span class="tok-s">"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"</span>&gt;
+  &lt;<span class="tok-k">script</span> defer src=<span class="tok-s">"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"</span>&gt;&lt;/<span class="tok-k">script</span>&gt;
+  &lt;<span class="tok-k">script</span> defer src=<span class="tok-s">"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"</span>
+     onload=<span class="tok-s">"renderMathInElement(document.body,{
+       delimiters:[{left:'$$',right:'$$',display:true},
+                   {left:'$',right:'$',display:false}],
+       throwOnError:false});"</span>&gt;&lt;/<span class="tok-k">script</span>&gt;
+
+  <span class="tok-c">&lt;!-- Chart.js --&gt;</span>
+  &lt;<span class="tok-k">script</span> src=<span class="tok-s">"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"</span>&gt;&lt;/<span class="tok-k">script</span>&gt;
+
+  <span class="tok-c">&lt;!-- Fonts --&gt;</span>
+  &lt;<span class="tok-k">link</span> rel=<span class="tok-s">"preconnect"</span> href=<span class="tok-s">"https://fonts.googleapis.com"</span>&gt;
+  &lt;<span class="tok-k">link</span> rel=<span class="tok-s">"preconnect"</span> href=<span class="tok-s">"https://fonts.gstatic.com"</span> crossorigin&gt;
+  &lt;<span class="tok-k">link</span> href=<span class="tok-s">"https://fonts.googleapis.com/css2?
+        family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,400
+        &amp;family=IBM+Plex+Sans:wght@300;400;500;600
+        &amp;family=JetBrains+Mono:wght@400;500;600
+        &amp;display=swap"</span> rel=<span class="tok-s">"stylesheet"</span>&gt;
+
+  &lt;<span class="tok-k">style</span>&gt;
+    <span class="tok-c">/* ...paste the CSS token block + component styles here... */</span>
+  &lt;/<span class="tok-k">style</span>&gt;
+&lt;/<span class="tok-k">head</span>&gt;
+&lt;<span class="tok-k">body</span>&gt;
+&lt;<span class="tok-k">div</span> class=<span class="tok-s">"wrap"</span>&gt;
+
+  &lt;<span class="tok-k">header</span> class=<span class="tok-s">"hero"</span>&gt;
+    &lt;<span class="tok-k">div</span> class=<span class="tok-s">"eyebrow"</span>&gt;Your eyebrow text&lt;/<span class="tok-k">div</span>&gt;
+    &lt;<span class="tok-k">h1</span> class=<span class="tok-s">"title"</span>&gt;Your &lt;<span class="tok-k">em</span>&gt;headline&lt;/<span class="tok-k">em</span>&gt; goes here.&lt;/<span class="tok-k">h1</span>&gt;
+    &lt;<span class="tok-k">p</span> class=<span class="tok-s">"subtitle"</span>&gt;A brief description of what this doc is about.&lt;/<span class="tok-k">p</span>&gt;
+  &lt;/<span class="tok-k">header</span>&gt;
+
+  &lt;<span class="tok-k">section</span> id=<span class="tok-s">"first"</span>&gt;
+    &lt;<span class="tok-k">span</span> class=<span class="tok-s">"section-num"</span>&gt;§ 01 — First section&lt;/<span class="tok-k">span</span>&gt;
+    &lt;<span class="tok-k">h2</span>&gt;Section &lt;<span class="tok-k">em</span>&gt;headline&lt;/<span class="tok-k">em</span>&gt;.&lt;/<span class="tok-k">h2</span>&gt;
+    &lt;<span class="tok-k">p</span> class=<span class="tok-s">"lead"</span>&gt;The lead paragraph.&lt;/<span class="tok-k">p</span>&gt;
+
+    &lt;<span class="tok-k">div</span> class=<span class="tok-s">"panel"</span> data-label=<span class="tok-s">"Your label"</span>&gt;
+      &lt;<span class="tok-k">p</span>&gt;Panel contents.&lt;/<span class="tok-k">p</span>&gt;
+    &lt;/<span class="tok-k">div</span>&gt;
+  &lt;/<span class="tok-k">section</span>&gt;
+
+&lt;/<span class="tok-k">div</span>&gt;
+&lt;/<span class="tok-k">body</span>&gt;
+&lt;/<span class="tok-k">html</span>&gt;
+</code></pre>
+
+<h3>Quick-reference: class cheatsheet</h3>
+<table class="ref">
+  <thead><tr><th>Class / selector</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td>.wrap</td><td class="v">page container (max-width 1180, centered)</td></tr>
+    <tr><td>.hero</td><td class="v">top-of-page header block</td></tr>
+    <tr><td>.eyebrow</td><td class="v">mono tracked text above a title</td></tr>
+    <tr><td>h1.title</td><td class="v">Fraunces italic display headline</td></tr>
+    <tr><td>.subtitle</td><td class="v">Fraunces light subtitle under title</td></tr>
+    <tr><td>.meta</td><td class="v">4-column metadata grid at end of hero</td></tr>
+    <tr><td>.section-num</td><td class="v">"§ 01 — ..." section marker</td></tr>
+    <tr><td>p.lead</td><td class="v">first paragraph of a section, larger</td></tr>
+    <tr><td>.panel[data-label]</td><td class="v">labeled content panel</td></tr>
+    <tr><td>.callout</td><td class="v">italic serif pull-quote</td></tr>
+    <tr><td>.warn</td><td class="v">rose-tinted warning/failure-mode block</td></tr>
+    <tr><td>.math-block.labeled</td><td class="v">display math with <code>.lbl</code> caption</td></tr>
+    <tr><td>dl.vars</td><td class="v">variable-definition list after math</td></tr>
+    <tr><td>pre[data-lang]</td><td class="v">code block with language tag</td></tr>
+    <tr><td>table.ref</td><td class="v">reference table with <code>td.v</code> for prose cells</td></tr>
+    <tr><td>ul.steps</td><td class="v">numbered step list with 01, 02, 03</td></tr>
+    <tr><td>ul.bullets</td><td class="v">arrow-bulleted list</td></tr>
+    <tr><td>.card</td><td class="v">metric card (label / big number / desc)</td></tr>
+    <tr><td>.graph-wrap</td><td class="v">chart container with title + canvas</td></tr>
+    <tr><td>.readouts .ro</td><td class="v">instrument-panel value display</td></tr>
+    <tr><td>.two-col / .three-col</td><td class="v">inline responsive grids</td></tr>
+    <tr><td>.inline-eq</td><td class="v">inline mono-amber equation fragment</td></tr>
+    <tr><td>hr.divider / hr.divider-soft</td><td class="v">solid / dashed section rule</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  One aesthetic, reused across the humanoid project: tuning guides, ID reports, sim-to-real playbooks, changelogs. Every doc you write gets the same grammar, and readers learn to navigate it in minutes.
+</div>
+</section>
+
+<footer>
+  <span>Field notes · design system reference</span>
+  <span>v.04.26 · compiled from in-use documents</span>
+</footer>
+
+</div>
+</body>
+</html>

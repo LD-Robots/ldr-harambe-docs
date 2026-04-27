@@ -1,0 +1,1434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Training the pendulum in Isaac Lab — a field protocol</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0e0c09; --bg-panel:#15120d; --bg-inset:#0a0806;
+  --ink:#ece2cf; --ink-dim:#a79a82; --ink-faint:#6b6354;
+  --rule:#2a2419; --rule-soft:#1e1a13;
+  --amber:#e8a33d; --amber-deep:#b87a1e;
+  --cyan:#5fb3b3; --rose:#d97757; --moss:#8fa968;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"ISAAC/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"pendulum · single joint · sim-to-real";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+nav.toc .toc-col{display:flex;flex-direction:column}
+nav.toc .toc-head{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--amber-deep)}
+
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+.graph-wrap{background:var(--bg-panel);border:1px solid var(--rule);margin:28px 0;padding:24px 28px 28px;position:relative}
+.graph-wrap .g-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:12px}
+.graph-wrap .g-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink)}
+.graph-wrap .g-sub{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase}
+.graph-wrap .g-desc{color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px}
+.graph-canvas{position:relative;height:340px;width:100%}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+
+.part{margin:144px 0 48px;padding:48px 0 8px;border-top:1px solid var(--amber-deep);position:relative}
+.part::before{content:"";position:absolute;top:-1px;left:0;width:80px;height:3px;background:var(--amber)}
+.part .pnum{font-family:var(--mono);font-size:11px;letter-spacing:.35em;color:var(--amber);text-transform:uppercase;margin-bottom:12px}
+.part h2.phead{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(36px,5vw,58px);line-height:1.05;letter-spacing:-.015em;margin:0 0 14px;color:var(--ink);max-width:860px}
+.part h2.phead em{color:var(--amber);font-style:italic;font-weight:500}
+.part .pdesc{font-family:var(--serif);font-weight:300;font-size:20px;color:var(--ink-dim);line-height:1.4;max-width:60ch;margin:0}
+
+/* directory tree */
+.tree{font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);background:var(--bg-inset);border:1px solid var(--rule);padding:22px 26px;margin:20px 0;overflow-x:auto}
+.tree .dim{color:var(--ink-faint)}
+.tree .amber{color:var(--amber)}
+
+/* actuator comparison */
+.act-compare{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:32px 0;border:1px solid var(--rule)}
+@media (max-width:900px){.act-compare{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:540px){.act-compare{grid-template-columns:1fr}}
+.act-item{padding:22px 20px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);background:var(--bg-panel)}
+.act-item:last-child{border-right:none}
+.act-item .an{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--amber);margin-bottom:8px}
+.act-item h5{font-family:var(--serif);font-weight:500;font-size:17px;margin:0 0 10px;color:var(--ink);line-height:1.2}
+.act-item .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:3px 8px;border:1px solid var(--rule);color:var(--ink-dim);margin:0 4px 10px 0;border-radius:2px;text-transform:uppercase}
+.act-item .tag.good{border-color:var(--moss);color:var(--moss)}
+.act-item .tag.warn{border-color:var(--rose);color:var(--rose)}
+.act-item .tag.fair{border-color:var(--amber-deep);color:var(--amber)}
+.act-item p{font-size:13px;color:var(--ink-dim);margin:0;line-height:1.55}
+
+/* roadmap timeline */
+.roadmap{margin:32px 0;border-left:1px solid var(--rule);padding-left:32px;position:relative}
+.roadmap::before{content:"";position:absolute;left:-1px;top:0;width:2px;height:60px;background:var(--amber)}
+.rm-item{position:relative;padding:0 0 36px 0;max-width:72ch}
+.rm-item::before{content:"";position:absolute;left:-41px;top:8px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:2px solid var(--amber)}
+.rm-item .rm-when{font-family:var(--mono);font-size:11px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase;margin-bottom:6px}
+.rm-item .rm-what{font-family:var(--serif);font-weight:500;font-size:22px;color:var(--ink);margin:0 0 10px;line-height:1.25}
+.rm-item .rm-body{font-size:15px;color:var(--ink-dim);margin:0;line-height:1.6}
+.rm-item .rm-body strong{color:var(--ink)}
+
+/* file label */
+.file-label{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--amber);text-transform:uppercase;margin:32px 0 6px;display:block}
+.file-label .path{color:var(--ink-dim);text-transform:none;letter-spacing:.05em;margin-left:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="eyebrow">Isaac Lab · Isaac Sim · RSL-RL · single-joint RL</div>
+  <h1 class="title">Training the <em>pendulum</em><br>in Isaac Lab.</h1>
+  <p class="subtitle">A complete field protocol for turning your identified X6 motor parameters into a policy that transfers back to hardware. URDF to ONNX, with every decision grounded in what you measured on the bench.</p>
+
+  <div class="meta">
+    <div><span class="k">Framework</span><span class="v">Isaac Lab · <em>Direct workflow</em></span></div>
+    <div><span class="k">RL library</span><span class="v">RSL-RL · <em>PPO</em></span></div>
+    <div><span class="k">Envs parallel</span><span class="v">4096 · <em>headless</em></span></div>
+    <div><span class="k">Target</span><span class="v">ONNX → <em>ros2_control</em></span></div>
+  </div>
+
+  <nav class="toc">
+    <div class="toc-col">
+      <div class="toc-head">Part I — Setup</div>
+      <a href="#install"><span class="n">01</span>Install Isaac Lab</a>
+      <a href="#template"><span class="n">02</span>Generate the task template</a>
+      <a href="#structure"><span class="n">03</span>Project structure</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part II — The robot</div>
+      <a href="#urdf"><span class="n">04</span>URDF with real parameters</a>
+      <a href="#usd"><span class="n">05</span>Convert URDF to USD</a>
+      <a href="#actuator"><span class="n">06</span>Choose the actuator model</a>
+      <a href="#articulation"><span class="n">07</span>ArticulationCfg</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part III — The environment</div>
+      <a href="#direct-env"><span class="n">08</span>DirectRLEnv class</a>
+      <a href="#observations"><span class="n">09</span>Observations</a>
+      <a href="#actions"><span class="n">10</span>Actions</a>
+      <a href="#rewards"><span class="n">11</span>Reward shaping</a>
+      <a href="#terminations"><span class="n">12</span>Terminations & resets</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part IV — Sim-to-real</div>
+      <a href="#dr"><span class="n">13</span>Domain randomization</a>
+      <a href="#latency"><span class="n">14</span>Latency injection</a>
+      <a href="#obs-norm"><span class="n">15</span>Observation normalization</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part V — Train & deploy</div>
+      <a href="#ppo"><span class="n">16</span>PPO hyperparameters</a>
+      <a href="#launch"><span class="n">17</span>Launch & monitor training</a>
+      <a href="#validate"><span class="n">18</span>Validate before ONNX</a>
+      <a href="#onnx"><span class="n">19</span>Export to ONNX</a>
+      <a href="#deploy"><span class="n">20</span>Deploy through ros2_control</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part VI — Operations</div>
+      <a href="#debug"><span class="n">21</span>Debugging failure modes</a>
+      <a href="#roadmap"><span class="n">22</span>Three-task roadmap</a>
+    </div>
+  </nav>
+</header>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART I — SETUP
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part I</div>
+  <h2 class="phead">The <em>setup</em>.</h2>
+  <p class="pdesc">Install, generate, structure. Thirty minutes of boilerplate, then everything that follows is pendulum-specific.</p>
+</div>
+
+<!-- ─── §01 INSTALL ─── -->
+<section id="install">
+<span class="section-num">§ 01 — Install Isaac Lab</span>
+<h2>One virtual env, <em>one</em> binary path.</h2>
+
+<p class="lead">Isaac Lab sits on top of Isaac Sim, which is heavy (GB-scale download, CUDA-specific). Follow the official pip-install route inside a virtual environment so the whole system can be nuked and recreated without touching the rest of your setup.</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># create a dedicated env (conda shown; uv and venv also work)</span>
+conda create -n isaaclab python=<span class="tok-n">3.11</span>
+conda activate isaaclab
+
+<span class="tok-c"># CUDA-enabled PyTorch matching your GPU</span>
+pip install torch==<span class="tok-n">2.7.0</span> --index-url https://download.pytorch.org/whl/cu121
+
+<span class="tok-c"># Isaac Sim + Isaac Lab</span>
+pip install <span class="tok-s">'isaacsim[all,extscache]==4.5.0'</span>
+pip install isaaclab
+
+<span class="tok-c"># verify — should print version and exit cleanly</span>
+python -c <span class="tok-s">"import isaaclab; print(isaaclab.__version__)"</span>
+</code></pre>
+
+<p>If the verify step fails, the most common cause is a CUDA/PyTorch mismatch. Check <code>nvidia-smi</code> for your driver's max CUDA version and pick a matching PyTorch wheel.</p>
+
+<h3>Clone the reference repo (optional but recommended)</h3>
+
+<pre data-lang="bash"><code>git clone https://github.com/isaac-sim/IsaacLab.git ~/code/IsaacLab
+<span class="tok-f">cd</span> ~/code/IsaacLab
+./isaaclab.sh -h                        <span class="tok-c"># confirms the launcher works</span>
+
+<span class="tok-c"># smoke test: cartpole zero-agent</span>
+./isaaclab.sh -p scripts/environments/zero_agent.py \
+    --task Isaac-Cartpole-Direct-v0 --num_envs <span class="tok-n">32</span>
+</code></pre>
+
+<p>If a viewer window opens with 32 cartpoles rendering at a reasonable frame rate, you're ready to proceed. If it errors on missing nucleus assets, the first run will download ~2 GB of USD files — let it finish.</p>
+
+<div class="warn">
+  <strong>GPU memory budget.</strong> 4096 parallel pendulums is roughly 3–4 GB of VRAM. On a 12 GB card you'll fit easily. On a 6 GB card, drop to 2048 envs. Out-of-memory errors during training are almost always solved by halving <code>num_envs</code>.
+</div>
+</section>
+
+<!-- ─── §02 TEMPLATE ─── -->
+<section id="template">
+<span class="section-num">§ 02 — Generate the task template</span>
+<h2>Don't write from scratch — <em>scaffold</em>.</h2>
+
+<p class="lead">Isaac Lab ships a template generator that produces a working task skeleton. Run it once, get a directory that already has the registration, the env config, and the training script wired together. Saves hours.</p>
+
+<pre data-lang="bash"><code><span class="tok-f">cd</span> ~/code
+python -m isaaclab.app.tool.generate_task_template
+</code></pre>
+
+<p>Answer the prompts:</p>
+
+<table class="ref">
+  <thead><tr><th>Prompt</th><th>Answer</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Project name</td><td>humanoid_pendulum</td><td class="v">Any valid Python identifier</td></tr>
+    <tr><td>Task name</td><td>PendulumSwingup</td><td class="v">CamelCase; becomes part of the task registry ID</td></tr>
+    <tr><td>External or internal</td><td>External</td><td class="v">Lives in its own repo, doesn't pollute IsaacLab/</td></tr>
+    <tr><td>Direct or Manager</td><td>Direct</td><td class="v">One file, full control. Manager is for multi-task projects.</td></tr>
+    <tr><td>RL framework</td><td>RSL-RL</td><td class="v">Fastest PPO implementation in the ecosystem, what most humanoid projects use</td></tr>
+  </tbody>
+</table>
+
+<pre data-lang="bash"><code><span class="tok-c"># complete the install</span>
+<span class="tok-f">cd</span> humanoid_pendulum
+python -m pip install -e source/humanoid_pendulum
+
+<span class="tok-c"># sanity — the new task should appear</span>
+./isaaclab.sh -p -c <span class="tok-s">"from gymnasium.envs.registration import registry; print([x for x in registry if 'Pendulum' in x])"</span>
+</code></pre>
+</section>
+
+<!-- ─── §03 STRUCTURE ─── -->
+<section id="structure">
+<span class="section-num">§ 03 — Project structure</span>
+<h2>What the template <em>gave</em> you.</h2>
+
+<div class="tree">
+humanoid_pendulum/
+├── source/humanoid_pendulum/
+│   └── humanoid_pendulum/
+│       ├── robots/
+│       │   └── <span class="amber">x6_pendulum.py</span>              <span class="dim">← ArticulationCfg lives here</span>
+│       ├── tasks/direct/pendulum_swingup/
+│       │   ├── __init__.py                  <span class="dim">← gym registration</span>
+│       │   ├── <span class="amber">pendulum_swingup_env.py</span>        <span class="dim">← DirectRLEnv subclass (obs, act, reward, reset)</span>
+│       │   ├── <span class="amber">pendulum_swingup_env_cfg.py</span>    <span class="dim">← scene, physics, episode params</span>
+│       │   └── agents/
+│       │       └── <span class="amber">rsl_rl_ppo_cfg.py</span>          <span class="dim">← PPO hyperparameters</span>
+│       └── assets/
+│           └── <span class="amber">x6_pendulum.usd</span>                <span class="dim">← the robot (built in §05)</span>
+└── scripts/
+    ├── train.py                             <span class="dim">← launched via ./isaaclab.sh -p</span>
+    └── play.py                              <span class="dim">← replay checkpoint</span>
+</div>
+
+<p>Five files will do most of the work: the ArticulationCfg (§04–07), the env file (§08–12), the env config, the PPO config (§16), and the USD asset. Everything else is boilerplate you touch once.</p>
+
+<div class="callout">
+  The template gives you a running but trivial task. The real work is replacing its placeholder URDF, actuator, observations, and reward with ones that reflect your measured pendulum. Every section from here on is that replacement.
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART II — THE ROBOT
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part II</div>
+  <h2 class="phead">The <em>robot</em>.</h2>
+  <p class="pdesc">URDF with your identified parameters, converted to USD, wrapped in an actuator model that matches the X6's real behavior.</p>
+</div>
+
+<!-- ─── §04 URDF ─── -->
+<section id="urdf">
+<span class="section-num">§ 04 — URDF with real parameters</span>
+<h2>The numbers from <em>your bench</em>, in a file.</h2>
+
+<p class="lead">Every number you measured in the motor-ID protocol goes into this URDF. Not defaults, not datasheet values — the real identified quantities. This is what lets the policy transfer.</p>
+
+<span class="file-label">FILE <span class="path">source/humanoid_pendulum/humanoid_pendulum/assets/x6_pendulum.urdf</span></span>
+
+<pre data-lang="xml"><code>&lt;?xml version=<span class="tok-s">"1.0"</span>?&gt;
+&lt;<span class="tok-k">robot</span> name=<span class="tok-s">"x6_pendulum"</span>&gt;
+
+  &lt;<span class="tok-c">!-- fixed base link (the test stand) --</span>&gt;
+  &lt;<span class="tok-k">link</span> name=<span class="tok-s">"base_link"</span>&gt;
+    &lt;<span class="tok-k">inertial</span>&gt;
+      &lt;<span class="tok-k">mass</span> value=<span class="tok-s">"1.0"</span>/&gt;
+      &lt;<span class="tok-k">inertia</span> ixx=<span class="tok-s">"0.01"</span> iyy=<span class="tok-s">"0.01"</span> izz=<span class="tok-s">"0.01"</span> ixy=<span class="tok-s">"0"</span> ixz=<span class="tok-s">"0"</span> iyz=<span class="tok-s">"0"</span>/&gt;
+    &lt;/<span class="tok-k">inertial</span>&gt;
+  &lt;/<span class="tok-k">link</span>&gt;
+
+  &lt;<span class="tok-c">!-- the bar + offset weight as one rigid link --</span>&gt;
+  &lt;<span class="tok-k">link</span> name=<span class="tok-s">"bar_link"</span>&gt;
+    &lt;<span class="tok-k">inertial</span>&gt;
+      &lt;<span class="tok-c">!-- total effective mass (bar + 1 kg payload at 0.30 m) --</span>&gt;
+      &lt;<span class="tok-k">mass</span> value=<span class="tok-s">"1.3"</span>/&gt;
+      &lt;<span class="tok-c">!-- COM offset along the bar --</span>&gt;
+      &lt;<span class="tok-k">origin</span> xyz=<span class="tok-s">"0.23 0 0"</span> rpy=<span class="tok-s">"0 0 0"</span>/&gt;
+      &lt;<span class="tok-c">!-- J = 0.102 kg·m² about the rotation axis (z) --</span>&gt;
+      &lt;<span class="tok-c">!-- From §10.3 of motor_id_protocol.html, cross-checked via pendulum swing --</span>&gt;
+      &lt;<span class="tok-k">inertia</span> ixx=<span class="tok-s">"0.005"</span> iyy=<span class="tok-s">"0.005"</span> izz=<span class="tok-s">"0.102"</span>
+               ixy=<span class="tok-s">"0"</span> ixz=<span class="tok-s">"0"</span> iyz=<span class="tok-s">"0"</span>/&gt;
+    &lt;/<span class="tok-k">inertial</span>&gt;
+    &lt;<span class="tok-k">visual</span>&gt;
+      &lt;<span class="tok-k">origin</span> xyz=<span class="tok-s">"0.15 0 0"</span>/&gt;
+      &lt;<span class="tok-k">geometry</span>&gt;&lt;<span class="tok-k">box</span> size=<span class="tok-s">"0.70 0.02 0.02"</span>/&gt;&lt;/<span class="tok-k">geometry</span>&gt;
+    &lt;/<span class="tok-k">visual</span>&gt;
+  &lt;/<span class="tok-k">link</span>&gt;
+
+  &lt;<span class="tok-c">!-- the rotary joint driven by the X6 --</span>&gt;
+  &lt;<span class="tok-k">joint</span> name=<span class="tok-s">"pendulum_joint"</span> type=<span class="tok-s">"continuous"</span>&gt;
+    &lt;<span class="tok-k">parent</span> link=<span class="tok-s">"base_link"</span>/&gt;
+    &lt;<span class="tok-k">child</span>  link=<span class="tok-s">"bar_link"</span>/&gt;
+    &lt;<span class="tok-k">axis</span> xyz=<span class="tok-s">"0 0 1"</span>/&gt;
+
+    &lt;<span class="tok-c">!-- F_v = 0.05 N·m·s/rad (identified); F_c handled in actuator cfg, not URDF --</span>&gt;
+    &lt;<span class="tok-k">dynamics</span> damping=<span class="tok-s">"0.05"</span> friction=<span class="tok-s">"0.0"</span>/&gt;
+
+    &lt;<span class="tok-c">!-- X6 peak torque = 60 N·m, continuous = 20 N·m; use continuous for training --</span>&gt;
+    &lt;<span class="tok-k">limit</span> effort=<span class="tok-s">"20.0"</span> velocity=<span class="tok-s">"16.0"</span>/&gt;
+  &lt;/<span class="tok-k">joint</span>&gt;
+
+&lt;/<span class="tok-k">robot</span>&gt;
+</code></pre>
+
+<h4>Why these specific values</h4>
+
+<table class="ref">
+  <thead><tr><th>URDF field</th><th>Your value</th><th>Source</th></tr></thead>
+  <tbody>
+    <tr><td>bar_link mass</td><td>1.3 kg</td><td class="v">0.3 kg bar + 1 kg payload; randomized per episode (§13)</td></tr>
+    <tr><td>bar_link COM x</td><td>0.23 m</td><td class="v">mass-weighted centroid of bar+payload</td></tr>
+    <tr><td>izz (about axis)</td><td>0.102 kg·m²</td><td class="v">J measured via pendulum swing method</td></tr>
+    <tr><td>joint damping</td><td>0.05</td><td class="v">F_v identified from const-velocity sweep</td></tr>
+    <tr><td>joint friction</td><td>0.0 (URDF)</td><td class="v">Coulomb better modeled in actuator cfg for randomization</td></tr>
+    <tr><td>effort limit</td><td>20.0 N·m</td><td class="v">X6 continuous rating — train conservatively, 60 N·m peak reserved for transients</td></tr>
+    <tr><td>velocity limit</td><td>16 rad/s</td><td class="v">X6 no-load speed ≈ 153 RPM output = 16 rad/s</td></tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  <strong>Continuous joint type.</strong> Use <code>type="continuous"</code> — your pendulum can rotate past vertical freely. <code>type="revolute"</code> would require explicit position limits you don't have. This also means you need continuous-encoder handling (§09).
+</div>
+</section>
+
+<!-- ─── §05 USD ─── -->
+<section id="usd">
+<span class="section-num">§ 05 — Convert URDF to USD</span>
+<h2>Isaac Sim speaks <em>USD</em>, not URDF.</h2>
+
+<p>Isaac Lab's URDF converter preserves inertial properties, joint types, and the dynamics tag. Run it once:</p>
+
+<pre data-lang="bash"><code>./isaaclab.sh -p scripts/tools/convert_urdf.py \
+    source/humanoid_pendulum/humanoid_pendulum/assets/x6_pendulum.urdf \
+    source/humanoid_pendulum/humanoid_pendulum/assets/x6_pendulum.usd \
+    --merge-joints \
+    --fix-base \
+    --make-instanceable
+</code></pre>
+
+<dl class="vars">
+  <dt>--fix-base</dt>         <dd>Test stand is bolted down; base_link has no 6-DOF floating joint</dd>
+  <dt>--make-instanceable</dt><dd>Shared mesh/geometry across parallel envs — critical for memory efficiency at 4096 envs</dd>
+  <dt>--merge-joints</dt>     <dd>Collapses URDF fixed joints into rigid groups (no-op here, always safe)</dd>
+</dl>
+
+<p>After conversion, open the USD once in Isaac Sim to confirm:</p>
+
+<ul class="bullets">
+  <li>Articulation root is on base_link.</li>
+  <li>pendulum_joint appears as a revolute joint with correct axis.</li>
+  <li>bar_link's inertia tensor matches your URDF values (check Property panel → Physics → Mass).</li>
+  <li>Effort and velocity limits propagated.</li>
+</ul>
+
+<div class="callout">
+  Re-convert every time you change the URDF. Isaac Lab caches aggressively — if the USD on disk is stale, sim will happily run with old parameters without warning.
+</div>
+</section>
+
+<!-- ─── §06 ACTUATOR ─── -->
+<section id="actuator">
+<span class="section-num">§ 06 — Choose the actuator model</span>
+<h2>Four options, <em>one</em> right answer for sim-to-real.</h2>
+
+<p class="lead">Isaac Lab offers four actuator models. Picking the wrong one is the single most common sim-to-real failure. Here's the honest comparison.</p>
+
+<div class="act-compare">
+  <div class="act-item">
+    <div class="an">Option A</div>
+    <h5>ImplicitActuator</h5>
+    <span class="tag warn">don't start here</span>
+    <p>PhysX-native PD loop. Very stable, very efficient. But: no torque lag, no velocity-dependent torque curve, and numerical damping added by PhysX is invisible in your model. Policies trained with this rarely transfer cleanly.</p>
+  </div>
+  <div class="act-item">
+    <div class="an">Option B</div>
+    <h5>IdealPDActuator</h5>
+    <span class="tag fair">baseline</span>
+    <p>Explicit discrete PD, effort clipping. No velocity curve. Close to your bench PD, but still idealized — zero torque lag, no F_c. Useful as a sanity check, not the final choice.</p>
+  </div>
+  <div class="act-item">
+    <div class="an">Option C</div>
+    <h5>DCMotor</h5>
+    <span class="tag good">use this</span>
+    <p>IdealPD + velocity-dependent torque curve matching a DC motor. This is the right model for the X6 — it captures the reality that max torque decreases as speed rises, which matters for policies operating near speed limits.</p>
+  </div>
+  <div class="act-item">
+    <div class="an">Option D</div>
+    <h5>DelayedPDActuator</h5>
+    <span class="tag fair">if lag matters</span>
+    <p>IdealPD with a discrete-step delay buffer simulating communication lag. Use when you want to bake in the EtherCAT latency you measured. Can stack on top of DCMotor behavior manually.</p>
+  </div>
+</div>
+
+<h3>The DCMotor torque-speed curve</h3>
+
+<p>DCMotor clips effort according to a linear four-quadrant model:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">DCMotor effort clipping</span>
+  $$ \tau_{max}(\dot\theta) = \tau_{sat} \cdot \left(1 - \frac{|\dot\theta|}{\dot\theta_{max}}\right)^+ $$
+  $$ \tau_{applied} = \text{clamp}(\tau_{commanded},\; -\tau_{max}(\dot\theta),\; +\tau_{max}(\dot\theta)) $$
+</div>
+
+<dl class="vars">
+  <dt>τ_sat</dt>       <dd>saturation_effort — peak torque at zero speed (X6: 60 N·m)</dd>
+  <dt>τ_max(θ̇)</dt>  <dd>actually available torque at current speed — linear falloff</dd>
+  <dt>θ̇_max</dt>      <dd>velocity_limit — no-load speed (X6: ~16 rad/s at output)</dd>
+</dl>
+
+<p>Below <code>effort_limit</code> (the nominal/continuous rating, 20 N·m for the X6), nothing changes — the policy sees a flat torque ceiling. Above the nominal but within peak, the curve kicks in. This is faithful to real DC motor behavior and prevents policies from learning to ride the peak torque indefinitely.</p>
+</section>
+
+<!-- ─── §07 ARTICULATION ─── -->
+<section id="articulation">
+<span class="section-num">§ 07 — ArticulationCfg</span>
+<h2>Wire the <em>USD, actuator, and identified params</em> together.</h2>
+
+<span class="file-label">FILE <span class="path">source/humanoid_pendulum/humanoid_pendulum/robots/x6_pendulum.py</span></span>
+
+<pre data-lang="python"><code><span class="tok-k">from</span> __future__ <span class="tok-k">import</span> annotations
+
+<span class="tok-k">import</span> isaaclab.sim <span class="tok-k">as</span> sim_utils
+<span class="tok-k">from</span> isaaclab.actuators <span class="tok-k">import</span> DCMotorCfg
+<span class="tok-k">from</span> isaaclab.assets <span class="tok-k">import</span> ArticulationCfg
+
+<span class="tok-k">import</span> os
+
+<span class="tok-c"># Absolute path to the USD we converted in §05</span>
+_ASSET_DIR = os.path.join(os.path.dirname(__file__), <span class="tok-s">"..", "assets"</span>)
+_USD_PATH = os.path.join(_ASSET_DIR, <span class="tok-s">"x6_pendulum.usd"</span>)
+
+
+X6_PENDULUM_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=_USD_PATH,
+        activate_contact_sensors=<span class="tok-k">False</span>,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=<span class="tok-k">False</span>,
+            retain_accelerations=<span class="tok-k">False</span>,
+            max_linear_velocity=<span class="tok-n">100.0</span>,
+            max_angular_velocity=<span class="tok-n">30.0</span>,        <span class="tok-c"># well above X6 no-load</span>
+            max_depenetration_velocity=<span class="tok-n">10.0</span>,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=<span class="tok-k">False</span>,
+            solver_position_iteration_count=<span class="tok-n">4</span>,
+            solver_velocity_iteration_count=<span class="tok-n">0</span>,
+            sleep_threshold=<span class="tok-n">0.005</span>,
+            stabilization_threshold=<span class="tok-n">0.001</span>,
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        joint_pos={<span class="tok-s">"pendulum_joint"</span>: <span class="tok-n">0.0</span>},
+        joint_vel={<span class="tok-s">"pendulum_joint"</span>: <span class="tok-n">0.0</span>},
+    ),
+
+    <span class="tok-c"># This is where all your identified motor parameters land</span>
+    actuators={
+        <span class="tok-s">"x6"</span>: DCMotorCfg(
+            joint_names_expr=[<span class="tok-s">"pendulum_joint"</span>],
+
+            <span class="tok-c"># nominal (continuous) torque — train conservatively within this</span>
+            effort_limit=<span class="tok-n">20.0</span>,              <span class="tok-c"># N·m, X6 continuous rating</span>
+
+            <span class="tok-c"># peak saturation — the short-duration ceiling on the torque curve</span>
+            saturation_effort=<span class="tok-n">60.0</span>,         <span class="tok-c"># N·m, X6 peak</span>
+
+            <span class="tok-c"># no-load speed at output; bounds the torque curve</span>
+            velocity_limit=<span class="tok-n">16.0</span>,            <span class="tok-c"># rad/s</span>
+
+            <span class="tok-c"># PD gains matching your bench — THESE MUST MATCH REAL at deploy</span>
+            stiffness=<span class="tok-n">22.95</span>,                <span class="tok-c"># Kp from §05 of pd_tuning_guide</span>
+            damping=<span class="tok-n">2.14</span>,                    <span class="tok-c"># Kd from §05 of pd_tuning_guide</span>
+
+            <span class="tok-c"># identified friction</span>
+            friction=<span class="tok-n">0.15</span>,                   <span class="tok-c"># F_c, Coulomb</span>
+
+            <span class="tok-c"># armature = rotor inertia reflected through gear ratio²</span>
+            <span class="tok-c"># If you don't have this, start at 0.001 and tune for stability</span>
+            armature=<span class="tok-n">0.001</span>,
+        ),
+    },
+)
+</code></pre>
+
+<div class="panel" data-label="Critical: match sim PD to real PD">
+  <p style="margin:0">The <code>stiffness</code> and <code>damping</code> values here <em>must</em> equal what you run on the real hardware at deploy time. A policy trained at Kp=22.95 will not work at real Kp=100. This is the single biggest sim-to-real gotcha — more on it in §15 of the sim-to-real guide.</p>
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART III — THE ENVIRONMENT
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part III</div>
+  <h2 class="phead">The <em>environment</em>.</h2>
+  <p class="pdesc">Observations, actions, rewards, terminations. The four decisions that shape what your policy actually learns.</p>
+</div>
+
+<!-- ─── §08 DIRECT ENV ─── -->
+<section id="direct-env">
+<span class="section-num">§ 08 — DirectRLEnv class</span>
+<h2>One class, <em>six</em> methods.</h2>
+
+<p class="lead">Isaac Lab's Direct workflow means you inherit from <code>DirectRLEnv</code> and override six methods. The config file (env_cfg.py) declares scene, physics timestep, and episode length; the env file (env.py) implements the six methods. Clean separation, easy to debug.</p>
+
+<span class="file-label">FILE <span class="path">.../tasks/direct/pendulum_swingup/pendulum_swingup_env_cfg.py</span></span>
+
+<pre data-lang="python"><code><span class="tok-k">from</span> __future__ <span class="tok-k">import</span> annotations
+
+<span class="tok-k">from</span> isaaclab.envs <span class="tok-k">import</span> DirectRLEnvCfg
+<span class="tok-k">from</span> isaaclab.scene <span class="tok-k">import</span> InteractiveSceneCfg
+<span class="tok-k">from</span> isaaclab.sim <span class="tok-k">import</span> SimulationCfg
+<span class="tok-k">from</span> isaaclab.utils <span class="tok-k">import</span> configclass
+
+<span class="tok-k">from</span> humanoid_pendulum.robots.x6_pendulum <span class="tok-k">import</span> X6_PENDULUM_CFG
+
+
+<span class="tok-k">@</span>configclass
+<span class="tok-k">class</span> <span class="tok-f">PendulumSwingupEnvCfg</span>(DirectRLEnvCfg):
+    <span class="tok-c"># ── timing ───────────────────────────────────────</span>
+    decimation = <span class="tok-n">4</span>                          <span class="tok-c"># physics at 200 Hz, policy at 50 Hz</span>
+    episode_length_s = <span class="tok-n">8.0</span>                  <span class="tok-c"># plenty of time to swing up and hold</span>
+
+    <span class="tok-c"># ── spaces ───────────────────────────────────────</span>
+    action_space = <span class="tok-n">1</span>                        <span class="tok-c"># torque command on pendulum_joint</span>
+    observation_space = <span class="tok-n">5</span>                   <span class="tok-c"># cos θ, sin θ, θ̇, prev action, time-in-episode</span>
+    state_space = <span class="tok-n">0</span>                          <span class="tok-c"># not using asymmetric actor/critic</span>
+
+    <span class="tok-c"># ── simulation ───────────────────────────────────</span>
+    sim: SimulationCfg = SimulationCfg(
+        dt=<span class="tok-n">1.0</span>/<span class="tok-n">200.0</span>,                       <span class="tok-c"># 200 Hz physics → ~5 ms per step</span>
+        render_interval=decimation,
+    )
+
+    <span class="tok-c"># ── scene ────────────────────────────────────────</span>
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(
+        num_envs=<span class="tok-n">4096</span>,
+        env_spacing=<span class="tok-n">2.0</span>,                      <span class="tok-c"># m between envs so bars don't touch</span>
+        replicate_physics=<span class="tok-k">True</span>,                <span class="tok-c"># key for parallel speed</span>
+    )
+
+    <span class="tok-c"># ── the robot ────────────────────────────────────</span>
+    robot_cfg = X6_PENDULUM_CFG.replace(prim_path=<span class="tok-s">"/World/envs/env_.*/Robot"</span>)
+
+    <span class="tok-c"># ── reward weights (tuned in §11) ────────────────</span>
+    w_upright = <span class="tok-n">1.0</span>
+    w_velocity_penalty = <span class="tok-n">0.01</span>
+    w_action_penalty = <span class="tok-n">0.001</span>
+    w_bonus = <span class="tok-n">5.0</span>
+    bonus_cos_threshold = <span class="tok-n">0.95</span>              <span class="tok-c"># bar within ~18° of upright</span>
+</code></pre>
+
+<p>The env class is next — it's longer, so the following sections break it down method-by-method. Here's the skeleton:</p>
+
+<span class="file-label">FILE <span class="path">.../tasks/direct/pendulum_swingup/pendulum_swingup_env.py</span> (skeleton)</span>
+
+<pre data-lang="python"><code><span class="tok-k">class</span> <span class="tok-f">PendulumSwingupEnv</span>(DirectRLEnv):
+    cfg: PendulumSwingupEnvCfg
+
+    <span class="tok-k">def</span> <span class="tok-f">_setup_scene</span>(self):             <span class="tok-c"># ← build articulation, ground, lights</span>
+        ...
+
+    <span class="tok-k">def</span> <span class="tok-f">_pre_physics_step</span>(self, actions): <span class="tok-c"># ← receive action from policy (§10)</span>
+        ...
+
+    <span class="tok-k">def</span> <span class="tok-f">_apply_action</span>(self):             <span class="tok-c"># ← push torques into sim</span>
+        ...
+
+    <span class="tok-k">def</span> <span class="tok-f">_get_observations</span>(self):          <span class="tok-c"># ← assemble obs tensor (§09)</span>
+        ...
+
+    <span class="tok-k">def</span> <span class="tok-f">_get_rewards</span>(self):               <span class="tok-c"># ← compute reward per env (§11)</span>
+        ...
+
+    <span class="tok-k">def</span> <span class="tok-f">_get_dones</span>(self):                 <span class="tok-c"># ← termination/timeout flags (§12)</span>
+        ...
+
+    <span class="tok-k">def</span> <span class="tok-f">_reset_idx</span>(self, env_ids):        <span class="tok-c"># ← initial state per episode (§12)</span>
+        ...
+</code></pre>
+</section>
+
+<!-- ─── §09 OBSERVATIONS ─── -->
+<section id="observations">
+<span class="section-num">§ 09 — Observations</span>
+<h2>Five numbers, <em>chosen</em> carefully.</h2>
+
+<p class="lead">The observation is what your policy sees at every step. Five things matter for a single-joint pendulum: a continuous angle representation, velocity, previous action, and a time signal.</p>
+
+<pre data-lang="python"><code><span class="tok-k">def</span> <span class="tok-f">_get_observations</span>(self) -&gt; dict:
+    theta = self.robot.data.joint_pos[:, <span class="tok-n">0</span>]          <span class="tok-c"># shape [N_envs]</span>
+    theta_dot = self.robot.data.joint_vel[:, <span class="tok-n">0</span>]
+
+    <span class="tok-c"># Wrap θ to [-π, π] so cos/sin are always defined cleanly</span>
+    theta_wrapped = torch.atan2(torch.sin(theta), torch.cos(theta))
+
+    obs = torch.stack([
+        torch.cos(theta_wrapped),                          <span class="tok-c"># [-1, 1]</span>
+        torch.sin(theta_wrapped),                          <span class="tok-c"># [-1, 1]</span>
+        theta_dot / self.cfg.robot_cfg.actuators[<span class="tok-s">"x6"</span>].velocity_limit,  <span class="tok-c"># [-1, 1]</span>
+        self.prev_action,                                  <span class="tok-c"># [-1, 1]</span>
+        self.episode_length_buf.float() / self.max_episode_length,  <span class="tok-c"># [0, 1]</span>
+    ], dim=-<span class="tok-n">1</span>)
+
+    <span class="tok-k">return</span> {<span class="tok-s">"policy"</span>: obs}
+</code></pre>
+
+<h4>Why these specific choices</h4>
+
+<ul class="steps">
+  <li><strong>cos(θ), sin(θ) instead of θ directly</strong>
+    Your pendulum is continuous — it rotates past ±π. Feeding raw θ to a policy means the same physical pose (say, 3π and π) becomes different observations, breaking generalization. cos/sin are both continuous and periodic, so the policy sees the same thing at 3π and π.
+  </li>
+  <li><strong>Normalize θ̇ by velocity_limit</strong>
+    Neural nets train faster and more stably on inputs roughly in [-1, 1]. Dividing by the known max velocity achieves this without a separate normalization layer.
+  </li>
+  <li><strong>Include previous action</strong>
+    Helps the policy learn smooth control (penalize action jumps in the reward — §11). Without prev_action in the obs, the policy has no way to know what it just commanded.
+  </li>
+  <li><strong>Time-in-episode</strong>
+    Optional but useful for finite-horizon tasks. Lets the policy learn "end-of-episode" behaviors (e.g., don't wind up angular momentum if there's no time to use it).
+  </li>
+</ul>
+
+<div class="warn">
+  <strong>Do not include payload mass in observations.</strong> Tempting, because you randomize it — but at deploy time, you don't know the real payload. Training with it as an observable creates a silent sim-to-real gap. Either add a mass estimator (from the motor-ID guide's Method 3 RLS) as an upstream node, OR design the policy to be mass-agnostic via randomization alone.
+</div>
+</section>
+
+<!-- ─── §10 ACTIONS ─── -->
+<section id="actions">
+<span class="section-num">§ 10 — Actions</span>
+<h2>Torque out, <em>scaled</em> and clipped.</h2>
+
+<p class="lead">The policy outputs a value in roughly [-1, 1] (PPO uses a tanh-squashed Gaussian). You scale that to a physical torque and hand it to the actuator. Two critical details: the scaling factor and the feedforward-vs-replacement decision.</p>
+
+<pre data-lang="python"><code><span class="tok-k">def</span> <span class="tok-f">_pre_physics_step</span>(self, actions: torch.Tensor):
+    <span class="tok-c"># action in [-1, 1] → torque in [-τ_max, τ_max]</span>
+    self.prev_action = actions.clone()
+    tau_max = self.cfg.robot_cfg.actuators[<span class="tok-s">"x6"</span>].effort_limit
+    self.torque_cmd = actions.clamp(-<span class="tok-n">1.0</span>, <span class="tok-n">1.0</span>) * tau_max
+
+<span class="tok-k">def</span> <span class="tok-f">_apply_action</span>(self):
+    <span class="tok-c"># Option A: pure torque control (this guide)</span>
+    self.robot.set_joint_effort_target(self.torque_cmd, joint_ids=[<span class="tok-n">0</span>])
+
+    <span class="tok-c"># Option B: torque as FEEDFORWARD on top of the actuator PD (alternative)</span>
+    <span class="tok-c"># self.robot.set_joint_position_target(theta_des, joint_ids=[0])</span>
+    <span class="tok-c"># self.robot.set_joint_effort_target(self.torque_cmd, joint_ids=[0])</span>
+</code></pre>
+
+<h4>Two action-space architectures, pick one</h4>
+
+<p><strong>Pure torque (Option A above).</strong> Policy outputs a torque directly. PD gains in the actuator cfg are typically set low or zero. Gives the policy maximum control authority but places the entire control burden on learning. Matches CST mode cleanly — what you're running on hardware.</p>
+
+<p><strong>Position target + torque feedforward (Option B).</strong> Policy outputs either a position target or a residual on top of a reference. The actuator's PD loop provides baseline tracking; the policy adds corrections. More stable to train, but the deployment-time PD gains must match exactly, and CST mode doesn't match this natively — you'd need CSP.</p>
+
+<div class="callout">
+  Since your real hardware runs CST (cyclic synchronous torque), Option A is the faithful choice. Train the way you'll deploy.
+</div>
+
+<h4>Action scaling gotcha</h4>
+
+<p>Action clamping to [-1, 1] happens in the env; action <em>normalization</em> (mean-std) is handled by RSL-RL automatically. Don't apply both, and don't let policy actions exceed ±1 without clamping — unclamped actions lead to numeric-instability blowups during training.</p>
+</section>
+
+<!-- ─── §11 REWARDS ─── -->
+<section id="rewards">
+<span class="section-num">§ 11 — Reward shaping</span>
+<h2>Four terms for <em>swing-up and balance</em>.</h2>
+
+<p class="lead">The reward is where you express "what the policy should do." Four terms cover the pendulum swing-up task completely: uprightness, velocity penalty (don't just spin), action penalty (smooth control), and a sparse bonus for being close to vertical.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">total reward per timestep</span>
+  $$ R = w_u \cdot r_{upright} + w_v \cdot r_{vel} + w_a \cdot r_{action} + w_b \cdot r_{bonus} $$
+</div>
+
+<dl class="vars">
+  <dt>r_upright</dt> <dd>cos(θ), in [-1, 1]. Maximum when θ = 0 (upright), minimum at ±π (hanging).</dd>
+  <dt>r_vel</dt>     <dd>−θ̇², penalizes spinning. Small weight.</dd>
+  <dt>r_action</dt>  <dd>−(action − prev_action)², penalizes jerky control.</dd>
+  <dt>r_bonus</dt>   <dd>+1 when cos(θ) > 0.95, else 0. Sparse reward pushes the policy to find the stable inverted equilibrium.</dd>
+</dl>
+
+<pre data-lang="python"><code><span class="tok-k">def</span> <span class="tok-f">_get_rewards</span>(self) -&gt; torch.Tensor:
+    theta = self.robot.data.joint_pos[:, <span class="tok-n">0</span>]
+    theta_dot = self.robot.data.joint_vel[:, <span class="tok-n">0</span>]
+    action = self.prev_action.squeeze(-<span class="tok-n">1</span>)
+
+    <span class="tok-c"># uprightness: wrapped so θ=0 → +1, θ=±π → -1</span>
+    r_upright = torch.cos(theta)
+
+    <span class="tok-c"># penalize spinning</span>
+    r_vel = -theta_dot.pow(<span class="tok-n">2</span>)
+
+    <span class="tok-c"># penalize jerky control — difference from previous action</span>
+    <span class="tok-k">if</span> <span class="tok-k">not</span> <span class="tok-f">hasattr</span>(self, <span class="tok-s">"_prev_action_for_reward"</span>):
+        self._prev_action_for_reward = torch.zeros_like(action)
+    r_action = -(action - self._prev_action_for_reward).pow(<span class="tok-n">2</span>)
+    self._prev_action_for_reward = action.clone()
+
+    <span class="tok-c"># sparse bonus near upright</span>
+    r_bonus = (r_upright &gt; self.cfg.bonus_cos_threshold).float()
+
+    total = (
+        self.cfg.w_upright * r_upright
+        + self.cfg.w_velocity_penalty * r_vel
+        + self.cfg.w_action_penalty * r_action
+        + self.cfg.w_bonus * r_bonus
+    )
+    <span class="tok-k">return</span> total
+</code></pre>
+
+<h3>Tuning the weights</h3>
+
+<p>Start with the values in the env_cfg (w_upright=1.0, w_vel=0.01, w_action=0.001, w_bonus=5.0). Watch the training curves. Symptoms and fixes:</p>
+
+<table class="ref">
+  <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Policy spins forever at high speed</td><td>velocity penalty too small</td><td class="v">increase w_velocity_penalty to 0.02–0.05</td></tr>
+    <tr><td>Policy chatters torque at max</td><td>action penalty too small</td><td class="v">increase w_action_penalty to 0.005–0.01</td></tr>
+    <tr><td>Policy swings up but doesn't hold</td><td>bonus too small or threshold too tight</td><td class="v">increase w_bonus, loosen threshold to 0.90</td></tr>
+    <tr><td>Policy does nothing (hangs down)</td><td>reward landscape is flat near hanging</td><td class="v">add a small reward for angular momentum during startup</td></tr>
+  </tbody>
+</table>
+
+<div class="panel" data-label="A concrete test of reward design">
+  <p style="margin:0">Before worrying about sim-to-real, your policy must <em>solve the task in sim</em>. If mean episode reward doesn't rise above ~4 × w_upright within 500 iterations, your reward is the problem, not your PPO hyperparameters. Fix the reward first.</p>
+</div>
+</section>
+
+<!-- ─── §12 TERMINATIONS ─── -->
+<section id="terminations">
+<span class="section-num">§ 12 — Terminations & resets</span>
+<h2>When to stop, how to <em>restart</em>.</h2>
+
+<p class="lead">Two termination conditions: timeout (fixed episode length) and optional early termination on catastrophic state. Reset logic randomizes initial conditions per episode — a big source of sample efficiency.</p>
+
+<pre data-lang="python"><code><span class="tok-k">def</span> <span class="tok-f">_get_dones</span>(self) -&gt; <span class="tok-f">tuple</span>[torch.Tensor, torch.Tensor]:
+    <span class="tok-c"># termination: none (no catastrophic failure mode on a pendulum)</span>
+    terminated = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+
+    <span class="tok-c"># timeout: handled automatically by DirectRLEnv from episode_length_s</span>
+    time_out = self.episode_length_buf &gt;= self.max_episode_length
+    <span class="tok-k">return</span> terminated, time_out
+
+
+<span class="tok-k">def</span> <span class="tok-f">_reset_idx</span>(self, env_ids: torch.Tensor | <span class="tok-f">None</span>):
+    <span class="tok-k">if</span> env_ids <span class="tok-k">is</span> <span class="tok-k">None</span>:
+        env_ids = self.robot._ALL_INDICES
+
+    <span class="tok-f">super</span>()._reset_idx(env_ids)
+
+    <span class="tok-c"># Randomize initial θ across the full rotation — swing-up from anywhere</span>
+    theta_init = torch.empty(<span class="tok-f">len</span>(env_ids), device=self.device).uniform_(
+        -math.pi, math.pi
+    )
+    theta_dot_init = torch.empty(<span class="tok-f">len</span>(env_ids), device=self.device).uniform_(
+        -<span class="tok-n">0.5</span>, <span class="tok-n">0.5</span>
+    )
+
+    joint_pos = torch.zeros((<span class="tok-f">len</span>(env_ids), <span class="tok-n">1</span>), device=self.device)
+    joint_pos[:, <span class="tok-n">0</span>] = theta_init
+    joint_vel = torch.zeros_like(joint_pos)
+    joint_vel[:, <span class="tok-n">0</span>] = theta_dot_init
+
+    self.robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+
+    <span class="tok-c"># Domain randomization hook — params resampled here (§13)</span>
+    self._randomize_params(env_ids)
+
+    <span class="tok-c"># Reset bookkeeping</span>
+    self.prev_action[env_ids] = <span class="tok-n">0.0</span>
+    self._prev_action_for_reward[env_ids] = <span class="tok-n">0.0</span>
+</code></pre>
+
+<h4>Why random initial conditions matter</h4>
+
+<p>If every episode starts with the bar hanging straight down, the policy learns one specific swing-up trajectory. Starting from uniform random θ forces it to generalize to every starting pose. The 0.5 rad/s velocity noise does the same for initial velocities — prevents the policy from memorizing "at t=0, θ̇ is exactly zero."</p>
+
+<p>Continuous rotation (your bench's capability) means you can also randomize starting from <em>multiple</em> rotations away from upright. Not needed for swing-up but useful later for other tasks.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART IV — SIM-TO-REAL
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part IV</div>
+  <h2 class="phead">Sim-to-real <em>hardening</em>.</h2>
+  <p class="pdesc">Three techniques that make the policy actually work on your bench. Skip any one and transfer quality drops noticeably.</p>
+</div>
+
+<!-- ─── §13 DR ─── -->
+<section id="dr">
+<span class="section-num">§ 13 — Domain randomization</span>
+<h2>Randomize around <em>identified</em> values.</h2>
+
+<p class="lead">Every parameter you measured on the bench gets a ± range in simulation. The policy trains across the range, learning to tolerate variation it will actually encounter on real hardware. Ranges come from the motor-ID table, not guesses.</p>
+
+<h3>What to randomize, and how much</h3>
+
+<table class="ref">
+  <thead><tr><th>Parameter</th><th>Nominal</th><th>Range</th><th>Rationale</th></tr></thead>
+  <tbody>
+    <tr><td>Payload mass</td><td>1.0 kg</td><td>[0.3, 2.0]</td><td class="v">Humanoid manipulates unknown objects</td></tr>
+    <tr><td>Payload COM</td><td>0.30 m</td><td>±0.05 m</td><td class="v">Object attachment variability</td></tr>
+    <tr><td>Coulomb friction F_c</td><td>0.15 N·m</td><td>±30%</td><td class="v">Temperature + lubrication drift</td></tr>
+    <tr><td>Viscous friction F_v</td><td>0.05</td><td>±30%</td><td class="v">Same sources</td></tr>
+    <tr><td>τ_sat (peak torque)</td><td>60 N·m</td><td>[50, 60]</td><td class="v">Thermal derating under sustained load</td></tr>
+    <tr><td>Kp</td><td>22.95</td><td>±10%</td><td class="v">Controller timing jitter, gain quantization</td></tr>
+    <tr><td>Kd</td><td>2.14</td><td>±10%</td><td class="v">Same</td></tr>
+    <tr><td>Rotor inertia (armature)</td><td>0.001</td><td>±20%</td><td class="v">Assembly tolerances</td></tr>
+  </tbody>
+</table>
+
+<h3>Implementation — randomize on episode reset</h3>
+
+<pre data-lang="python"><code><span class="tok-k">def</span> <span class="tok-f">_randomize_params</span>(self, env_ids: torch.Tensor):
+    <span class="tok-f">n</span> = <span class="tok-f">len</span>(env_ids)
+    dev = self.device
+
+    <span class="tok-c"># sample per-env masses in kg</span>
+    payload_mass = torch.empty(n, device=dev).uniform_(<span class="tok-n">0.3</span>, <span class="tok-n">2.0</span>)
+    <span class="tok-c"># bar_link mass = fixed bar + randomized payload</span>
+    mass_tensor = <span class="tok-n">0.3</span> + payload_mass                       <span class="tok-c"># bar alone ≈ 0.3 kg</span>
+
+    <span class="tok-c"># apply to articulation (affects physics next step)</span>
+    self.robot.root_physx_view.set_masses(
+        mass_tensor.unsqueeze(-<span class="tok-n">1</span>).expand(-<span class="tok-n">1</span>, <span class="tok-n">2</span>),  <span class="tok-c"># [base, bar]</span>
+        env_ids,
+    )
+
+    <span class="tok-c"># PD gains (one per env)</span>
+    kp = torch.empty(n, device=dev).uniform_(<span class="tok-n">20.65</span>, <span class="tok-n">25.25</span>)     <span class="tok-c"># ±10%</span>
+    kd = torch.empty(n, device=dev).uniform_(<span class="tok-n">1.93</span>, <span class="tok-n">2.35</span>)
+    self.robot.write_joint_stiffness_to_sim(kp.unsqueeze(-<span class="tok-n">1</span>), env_ids=env_ids)
+    self.robot.write_joint_damping_to_sim(kd.unsqueeze(-<span class="tok-n">1</span>), env_ids=env_ids)
+
+    <span class="tok-c"># friction</span>
+    fc = torch.empty(n, device=dev).uniform_(<span class="tok-n">0.105</span>, <span class="tok-n">0.195</span>)
+    self.robot.write_joint_friction_to_sim(fc.unsqueeze(-<span class="tok-n">1</span>), env_ids=env_ids)
+</code></pre>
+
+<h3>The graph of how DR affects training</h3>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Training reward vs iteration, with and without DR</div>
+    <div class="g-sub">illustrative · 2000 iterations</div>
+  </div>
+  <div class="g-desc">Without DR, reward climbs fast — the policy is exploiting one specific environment. With DR, reward climbs slower because the task is genuinely harder, but the resulting policy transfers. The gap at convergence is the cost you pay for robustness; the gap at deployment is the cost you pay for skipping it.</div>
+  <div class="graph-canvas"><canvas id="drChart"></canvas></div>
+</div>
+
+<div class="warn">
+  <strong>Too much DR hurts.</strong> Ranges that are too wide slow training dramatically or make the task unsolvable. If reward plateaus below a sensible threshold, your ranges are too wide. Start with the ranges in the table above — they're chosen to match real X6 measurement variance — and only widen if transfer still fails.
+</div>
+</section>
+
+<!-- ─── §14 LATENCY ─── -->
+<section id="latency">
+<span class="section-num">§ 14 — Latency injection</span>
+<h2>Real systems have <em>delay</em>. Simulate it.</h2>
+
+<p class="lead">On hardware, there's ~1–3 ms between encoder reading and torque application: EtherCAT transport + current loop rise time. Isaac's default sim has zero latency. A policy trained without latency learns high-frequency corrections that destabilize real hardware.</p>
+
+<h3>Two ways to inject latency</h3>
+
+<p><strong>Option A — DelayedPDActuatorCfg.</strong> Replace DCMotorCfg with DelayedPDActuatorCfg, which buffers commanded efforts by N sim steps. Set <code>min_delay</code> and <code>max_delay</code> in steps; Isaac randomizes per env. Clean, but couples action delay to the actuator model.</p>
+
+<p><strong>Option B — buffer the action in the env.</strong> Keep a rolling queue in <code>_pre_physics_step</code>:</p>
+
+<pre data-lang="python"><code><span class="tok-k">def</span> <span class="tok-f">_pre_physics_step</span>(self, actions: torch.Tensor):
+    <span class="tok-c"># one-time init on first call</span>
+    <span class="tok-k">if</span> <span class="tok-k">not</span> <span class="tok-f">hasattr</span>(self, <span class="tok-s">"action_buffer"</span>):
+        max_delay_steps = <span class="tok-n">3</span>
+        self.action_buffer = torch.zeros(
+            (max_delay_steps + <span class="tok-n">1</span>, self.num_envs, <span class="tok-n">1</span>), device=self.device
+        )
+        <span class="tok-c"># per-env random delay, in steps</span>
+        self.delay_steps = torch.randint(
+            <span class="tok-n">1</span>, max_delay_steps + <span class="tok-n">1</span>, (self.num_envs,), device=self.device
+        )
+
+    <span class="tok-c"># roll and store</span>
+    self.action_buffer = torch.roll(self.action_buffer, shifts=<span class="tok-n">1</span>, dims=<span class="tok-n">0</span>)
+    self.action_buffer[<span class="tok-n">0</span>] = actions
+
+    <span class="tok-c"># gather per-env delayed action</span>
+    idx = self.delay_steps.unsqueeze(-<span class="tok-n">1</span>)
+    delayed_actions = self.action_buffer.gather(<span class="tok-n">0</span>, idx.unsqueeze(<span class="tok-n">0</span>).expand(<span class="tok-n">1</span>, -<span class="tok-n">1</span>, <span class="tok-n">1</span>)).squeeze(<span class="tok-n">0</span>)
+
+    <span class="tok-c"># pass delayed_actions to the rest of the action pipeline</span>
+    self.prev_action = actions.clone()                     <span class="tok-c"># policy sees its own undelayed action</span>
+    tau_max = self.cfg.robot_cfg.actuators[<span class="tok-s">"x6"</span>].effort_limit
+    self.torque_cmd = delayed_actions.clamp(-<span class="tok-n">1.0</span>, <span class="tok-n">1.0</span>) * tau_max
+</code></pre>
+
+<p>At 200 Hz physics, 1–3 sim steps = 5–15 ms — covers the X6's EtherCAT + current-loop latency range.</p>
+
+<div class="callout">
+  Match the simulated latency to your measured real latency. Step 09 of the motor-ID protocol gives you the exact number for your EtherCAT stack. Put it here.
+</div>
+</section>
+
+<!-- ─── §15 OBS NORM ─── -->
+<section id="obs-norm">
+<span class="section-num">§ 15 — Observation normalization</span>
+<h2>Freeze it before <em>ONNX export</em>.</h2>
+
+<p class="lead">RSL-RL normalizes observations using running mean and standard deviation during training. The running statistics keep updating every batch. If you export to ONNX mid-training, the deployed policy sees observations normalized against a frozen snapshot of those stats — but the <em>mean and std are themselves parameters</em> that must be exported with the policy.</p>
+
+<h3>The failure mode</h3>
+
+<p>Train for 1000 iters with running normalization. Export the policy weights alone, not the normalizer. Deploy. The policy outputs garbage, because at deploy time your observations are fed through <em>some other</em> normalization (or none). The policy has effectively never seen the input distribution it's now getting.</p>
+
+<h3>The fix</h3>
+
+<p>RSL-RL's export wrapper handles this correctly if you use the provided export script (§19). Two things must be true at export:</p>
+
+<ul class="bullets">
+  <li>Running stats are frozen — no more updates after the snapshot.</li>
+  <li>The ONNX export fuses the normalization layer into the model graph, so at deploy, raw observations go in and normalized actions come out. No separate normalizer process.</li>
+</ul>
+
+<p>RSL-RL's <code>OnnxPolicyExporter</code> does both automatically. Use it. Don't try to roll your own export path without checking the normalization first — this is the single most common ONNX-deployment silent failure in the Isaac Lab ecosystem.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART V — TRAIN & DEPLOY
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part V</div>
+  <h2 class="phead">Train and <em>deploy</em>.</h2>
+  <p class="pdesc">PPO hyperparameters, launch commands, validation, ONNX export, and the ROS 2 bring-up that closes the loop.</p>
+</div>
+
+<!-- ─── §16 PPO ─── -->
+<section id="ppo">
+<span class="section-num">§ 16 — PPO hyperparameters</span>
+<h2>Sensible defaults, <em>one joint</em>.</h2>
+
+<span class="file-label">FILE <span class="path">.../tasks/direct/pendulum_swingup/agents/rsl_rl_ppo_cfg.py</span></span>
+
+<pre data-lang="python"><code><span class="tok-k">from</span> isaaclab.utils <span class="tok-k">import</span> configclass
+<span class="tok-k">from</span> isaaclab_rl.rsl_rl <span class="tok-k">import</span> RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
+
+
+<span class="tok-k">@</span>configclass
+<span class="tok-k">class</span> <span class="tok-f">PendulumSwingupPPORunnerCfg</span>(RslRlOnPolicyRunnerCfg):
+    num_steps_per_env = <span class="tok-n">24</span>             <span class="tok-c"># rollout buffer per env before PPO update</span>
+    max_iterations = <span class="tok-n">2000</span>              <span class="tok-c"># should converge well before this</span>
+    save_interval = <span class="tok-n">100</span>
+    experiment_name = <span class="tok-s">"pendulum_swingup"</span>
+    empirical_normalization = <span class="tok-k">True</span>     <span class="tok-c"># obs normalization on, frozen at export</span>
+
+    policy = RslRlPpoActorCriticCfg(
+        init_noise_std=<span class="tok-n">1.0</span>,
+        actor_hidden_dims=[<span class="tok-n">128</span>, <span class="tok-n">128</span>],   <span class="tok-c"># small task, small net</span>
+        critic_hidden_dims=[<span class="tok-n">128</span>, <span class="tok-n">128</span>],
+        activation=<span class="tok-s">"elu"</span>,
+    )
+
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=<span class="tok-n">1.0</span>,
+        use_clipped_value_loss=<span class="tok-k">True</span>,
+        clip_param=<span class="tok-n">0.2</span>,
+        entropy_coef=<span class="tok-n">0.005</span>,            <span class="tok-c"># light exploration bonus</span>
+        num_learning_epochs=<span class="tok-n">5</span>,
+        num_mini_batches=<span class="tok-n">4</span>,
+        learning_rate=<span class="tok-n">1e-3</span>,
+        schedule=<span class="tok-s">"adaptive"</span>,              <span class="tok-c"># auto-adjust LR based on KL divergence</span>
+        gamma=<span class="tok-n">0.99</span>,
+        lam=<span class="tok-n">0.95</span>,                        <span class="tok-c"># GAE lambda</span>
+        desired_kl=<span class="tok-n">0.01</span>,
+        max_grad_norm=<span class="tok-n">1.0</span>,
+    )
+</code></pre>
+
+<h4>Sizing choices for single-joint</h4>
+
+<ul class="bullets">
+  <li><strong>128×128 hidden dims.</strong> Pendulum is a 2-DOF state problem (θ, θ̇). 128×128 is overkill but trains fine; going smaller (64×64) works too and trains faster.</li>
+  <li><strong>24 steps per env.</strong> At 4096 envs, that's ~100k samples per PPO update. Plenty of data per update; fewer means faster updates but higher variance.</li>
+  <li><strong>learning_rate=1e-3, adaptive schedule.</strong> Adaptive LR auto-lowers when KL gets too large (prevents PPO from taking destructive steps). Safe default.</li>
+  <li><strong>entropy_coef=0.005.</strong> Light; PPO's clip does most of the exploration work. Increase to 0.01 if the policy collapses too fast to deterministic behavior.</li>
+  <li><strong>max_iterations=2000.</strong> Upper bound. Swing-up typically converges in 300–800 iterations at 4096 envs.</li>
+</ul>
+</section>
+
+<!-- ─── §17 LAUNCH ─── -->
+<section id="launch">
+<span class="section-num">§ 17 — Launch & monitor training</span>
+<h2>Headless, four-thousand <em>pendulums</em>.</h2>
+
+<pre data-lang="bash"><code><span class="tok-c"># launch training — ~20-40 min wall time on a mid-range GPU</span>
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+    --task Isaac-PendulumSwingup-Direct-v0 \
+    --num_envs <span class="tok-n">4096</span> \
+    --headless
+
+<span class="tok-c"># monitor in a second terminal</span>
+tensorboard --logdir logs/rsl_rl/pendulum_swingup
+</code></pre>
+
+<h3>What to watch on TensorBoard</h3>
+
+<table class="ref">
+  <thead><tr><th>Metric</th><th>Healthy pattern</th><th>Bad signal</th></tr></thead>
+  <tbody>
+    <tr><td>Mean reward</td><td>monotone rising, plateaus ≈ episode_length × max_per_step</td><td class="v">Plateaus low → reward bug; oscillates wildly → LR too high</td></tr>
+    <tr><td>Mean episode length</td><td>rises to max = episode_length_s × policy_rate</td><td class="v">Drops mid-training → new failure mode emerging</td></tr>
+    <tr><td>Value loss</td><td>decreases steadily; may rise briefly after big reward spikes</td><td class="v">Monotone rising → value function diverging, check LR</td></tr>
+    <tr><td>Surrogate loss</td><td>small, slightly negative, stable</td><td class="v">Large positive → clip isn't protecting you, reduce LR</td></tr>
+    <tr><td>Mean action noise std</td><td>drops from 1.0 toward 0.1–0.3 as policy gets confident</td><td class="v">Drops to ~0 too fast → premature exploitation, increase entropy_coef</td></tr>
+    <tr><td>FPS total</td><td>stable at a high number (10k+ is typical for simple tasks)</td><td class="v">Drops over time → memory leak or thermal throttling</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ─── §18 VALIDATE ─── -->
+<section id="validate">
+<span class="section-num">§ 18 — Validate before ONNX</span>
+<h2>Two quick checks that <em>prevent</em> wasted deployment time.</h2>
+
+<p class="lead">Before exporting and pushing to hardware, run two validation passes in sim. They take five minutes total and catch ~80% of issues that would otherwise appear on real hardware.</p>
+
+<h3>Validation 1 — play the policy in sim</h3>
+
+<pre data-lang="bash"><code><span class="tok-c"># with a GUI so you can watch</span>
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py \
+    --task Isaac-PendulumSwingup-Direct-v0 \
+    --num_envs <span class="tok-n">32</span> \
+    --checkpoint logs/rsl_rl/pendulum_swingup/LATEST/model_500.pt \
+    --real-time
+</code></pre>
+
+<p>Watch 32 envs. What should happen:</p>
+<ul class="bullets">
+  <li>All 32 swing up within 2–3 seconds of episode start</li>
+  <li>Once upright, they stay upright with small corrections, not hunting wildly</li>
+  <li>Bar barely overshoots after reaching upright</li>
+  <li>Torque command looks smooth, not saturating constantly</li>
+</ul>
+
+<p>If any of these fails, the policy isn't ready. Retrain with a fix (wider DR, tweaked reward, more iterations).</p>
+
+<h3>Validation 2 — sweep hard conditions</h3>
+
+<p>Re-run play with pessimistic parameter settings — the edges of your DR ranges:</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># set payload_mass to 2.0 kg (upper DR range), run play again</span>
+<span class="tok-c"># set F_c to 0.195 (upper), payload to 2.0, torque limit to 50 (lower)</span>
+<span class="tok-c"># etc.</span>
+</code></pre>
+
+<p>Policy should still solve the task, though perhaps slower or with more error. If it fails completely at any DR-edge condition, the real-world boundary of your DR isn't covered — widen and retrain.</p>
+
+<div class="panel" data-label="The sim-match check">
+  <p style="margin:0">Compare a trajectory from this Isaac play run to the same trajectory recorded on your real bench (from the motor-ID protocol's quintic sweep). Tracking errors should be within 10%. If they diverge systematically, your URDF parameters or actuator model don't match reality — fix before deploying.</p>
+</div>
+</section>
+
+<!-- ─── §19 ONNX ─── -->
+<section id="onnx">
+<span class="section-num">§ 19 — Export to ONNX</span>
+<h2>One script, one <em>file</em>.</h2>
+
+<p>RSL-RL ships an ONNX exporter that handles observation normalization and actor-only export correctly.</p>
+
+<pre data-lang="bash"><code>./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py \
+    --task Isaac-PendulumSwingup-Direct-v0 \
+    --checkpoint logs/rsl_rl/pendulum_swingup/LATEST/model_500.pt \
+    --export_policy \
+    --export_path ./exports/pendulum_swingup_v1.onnx
+</code></pre>
+
+<p>The exported <code>.onnx</code> file contains the actor network plus the frozen observation normalizer, fused into one graph. At runtime: raw observations go in, normalized actions come out. No separate normalization node needed at deploy.</p>
+
+<h3>Verify the ONNX</h3>
+
+<pre data-lang="python"><code><span class="tok-k">import</span> onnxruntime <span class="tok-k">as</span> ort
+<span class="tok-k">import</span> numpy <span class="tok-k">as</span> np
+
+sess = ort.InferenceSession(<span class="tok-s">"./exports/pendulum_swingup_v1.onnx"</span>)
+<span class="tok-c"># inputs and outputs</span>
+<span class="tok-f">print</span>([i.name + <span class="tok-s">" "</span> + <span class="tok-f">str</span>(i.shape) <span class="tok-k">for</span> i <span class="tok-k">in</span> sess.get_inputs()])
+<span class="tok-f">print</span>([o.name + <span class="tok-s">" "</span> + <span class="tok-f">str</span>(o.shape) <span class="tok-k">for</span> o <span class="tok-k">in</span> sess.get_outputs()])
+
+<span class="tok-c"># sanity: feed an observation vector of right size, confirm action shape</span>
+obs = np.zeros((<span class="tok-n">1</span>, <span class="tok-n">5</span>), dtype=np.float32)
+action = sess.run(<span class="tok-k">None</span>, {sess.get_inputs()[<span class="tok-n">0</span>].name: obs})[<span class="tok-n">0</span>]
+<span class="tok-f">print</span>(<span class="tok-s">f"action shape: {action.shape}, value: {action}"</span>)
+</code></pre>
+
+<p>Action shape should be (1, 1). Value should be a reasonable torque-space scalar (e.g., around 0 for the hanging-bar observation). If shapes or values look wrong, re-export and investigate before deploying.</p>
+</section>
+
+<!-- ─── §20 DEPLOY ─── -->
+<section id="deploy">
+<span class="section-num">§ 20 — Deploy through ros2_control</span>
+<h2>The <em>last</em> mile.</h2>
+
+<p class="lead">The ONNX runs in a ROS 2 node that subscribes to <code>/joint_states</code>, assembles the observation, runs inference at 50 Hz (matching training's policy rate), and publishes the scaled torque to the effort controller. Same code for Gazebo validation and real hardware — only the hardware interface underneath changes.</p>
+
+<pre data-lang="python"><code><span class="tok-c"># ros2_ws/src/pendulum_policy/pendulum_policy/inference_node.py</span>
+<span class="tok-k">import</span> numpy <span class="tok-k">as</span> np
+<span class="tok-k">import</span> onnxruntime <span class="tok-k">as</span> ort
+<span class="tok-k">import</span> rclpy
+<span class="tok-k">from</span> rclpy.node <span class="tok-k">import</span> Node
+<span class="tok-k">from</span> sensor_msgs.msg <span class="tok-k">import</span> JointState
+<span class="tok-k">from</span> std_msgs.msg <span class="tok-k">import</span> Float64MultiArray
+
+
+<span class="tok-k">class</span> <span class="tok-f">PendulumPolicyNode</span>(Node):
+    <span class="tok-k">def</span> <span class="tok-f">__init__</span>(self):
+        <span class="tok-f">super</span>().__init__(<span class="tok-s">"pendulum_policy"</span>)
+        self.sess = ort.InferenceSession(<span class="tok-s">"exports/pendulum_swingup_v1.onnx"</span>)
+        self.input_name = self.sess.get_inputs()[<span class="tok-n">0</span>].name
+
+        self.theta = <span class="tok-n">0.0</span>
+        self.theta_dot = <span class="tok-n">0.0</span>
+        self.prev_action = <span class="tok-n">0.0</span>
+        self.t_start = <span class="tok-k">None</span>
+
+        <span class="tok-c"># must match training values</span>
+        self.tau_max = <span class="tok-n">20.0</span>
+        self.vel_max = <span class="tok-n">16.0</span>
+        self.episode_length_s = <span class="tok-n">8.0</span>
+
+        self.create_subscription(JointState, <span class="tok-s">"/joint_states"</span>, self.on_js, <span class="tok-n">10</span>)
+        self.pub = self.create_publisher(
+            Float64MultiArray, <span class="tok-s">"/effort_controllers/commands"</span>, <span class="tok-n">10</span>
+        )
+        self.create_timer(<span class="tok-n">1.0</span>/<span class="tok-n">50.0</span>, self.tick)                     <span class="tok-c"># 50 Hz = training rate</span>
+
+    <span class="tok-k">def</span> <span class="tok-f">on_js</span>(self, msg: JointState):
+        <span class="tok-k">if</span> <span class="tok-s">"pendulum_joint"</span> <span class="tok-k">in</span> msg.name:
+            i = msg.name.index(<span class="tok-s">"pendulum_joint"</span>)
+            self.theta = <span class="tok-f">float</span>(msg.position[i])
+            self.theta_dot = <span class="tok-f">float</span>(msg.velocity[i])
+
+    <span class="tok-k">def</span> <span class="tok-f">tick</span>(self):
+        <span class="tok-k">if</span> self.t_start <span class="tok-k">is</span> <span class="tok-k">None</span>:
+            self.t_start = self.get_clock().now().nanoseconds / <span class="tok-n">1e9</span>
+        t = self.get_clock().now().nanoseconds / <span class="tok-n">1e9</span> - self.t_start
+        t_frac = <span class="tok-f">min</span>(t / self.episode_length_s, <span class="tok-n">1.0</span>)
+
+        <span class="tok-c"># assemble observation IN THE SAME ORDER as training</span>
+        theta_w = np.arctan2(np.sin(self.theta), np.cos(self.theta))
+        obs = np.array([[
+            np.cos(theta_w),
+            np.sin(theta_w),
+            self.theta_dot / self.vel_max,
+            self.prev_action,
+            t_frac,
+        ]], dtype=np.float32)
+
+        action = self.sess.run(<span class="tok-k">None</span>, {self.input_name: obs})[<span class="tok-n">0</span>][<span class="tok-n">0</span>, <span class="tok-n">0</span>]
+        action = <span class="tok-f">float</span>(np.clip(action, -<span class="tok-n">1.0</span>, <span class="tok-n">1.0</span>))
+        self.prev_action = action
+
+        tau = action * self.tau_max
+        msg = Float64MultiArray(data=[tau])
+        self.pub.publish(msg)
+
+
+<span class="tok-k">def</span> <span class="tok-f">main</span>():
+    rclpy.init()
+    rclpy.spin(<span class="tok-f">PendulumPolicyNode</span>())
+</code></pre>
+
+<div class="panel" data-label="The deploy checklist">
+  <p style="margin:0">Before pushing to real hardware: (1) this node runs cleanly in Gazebo with the simulated actuator from the Gazebo-actuator guide, (2) tracking looks qualitatively like the Isaac play session, (3) the ROS 2 bag shows the observation order matches training, (4) tau_max, vel_max, and episode_length_s constants match training values. All four? Deploy. Any one missing? Fix first.</p>
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART VI — OPERATIONS
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part VI</div>
+  <h2 class="phead">Operations.</h2>
+  <p class="pdesc">Debugging failure modes and a three-task roadmap for building toward the humanoid.</p>
+</div>
+
+<!-- ─── §21 DEBUG ─── -->
+<section id="debug">
+<span class="section-num">§ 21 — Debugging failure modes</span>
+<h2>Common <em>symptoms</em>, common causes.</h2>
+
+<table class="ref">
+  <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Mean reward plateaus at low value</td><td>Reward shaping, not RL</td><td class="v">Inspect individual reward terms; verify uprightness term actually maxes at θ=0</td></tr>
+    <tr><td>Mean reward is noisy, no trend</td><td>LR too high, or DR too wide</td><td class="v">Halve learning_rate; narrow DR ranges by 30%</td></tr>
+    <tr><td>Policy collapses to single action</td><td>Entropy collapse</td><td class="v">Increase entropy_coef to 0.01 or 0.02</td></tr>
+    <tr><td>FPS drops as training progresses</td><td>Memory leak or obs-buffer growth</td><td class="v">Restart; check for unbounded lists in _get_observations</td></tr>
+    <tr><td>Works in sim, fails in real</td><td>Sim-to-real gap (many causes)</td><td class="v">Sequentially: verify PD gains match, verify obs order matches, verify action scaling matches, add latency in sim</td></tr>
+    <tr><td>Works at one payload in real, not others</td><td>DR didn't cover that payload</td><td class="v">Widen payload range and retrain</td></tr>
+    <tr><td>Policy oscillates in real, smooth in sim</td><td>Missing latency and/or filter in sim</td><td class="v">Add DelayedPDActuator or action buffer (§14)</td></tr>
+    <tr><td>Out-of-memory during training</td><td>Too many envs</td><td class="v">Halve num_envs; confirm with nvidia-smi</td></tr>
+    <tr><td>Policy looks fine, ONNX outputs garbage</td><td>Normalization not frozen at export</td><td class="v">Re-export using RSL-RL's exporter with empirical_normalization enabled</td></tr>
+    <tr><td>NaN in training logs</td><td>Physics explosion or gradient blowup</td><td class="v">Add reward clipping; lower max_grad_norm; check joint limits aren't being violated</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  When diagnosing, always reproduce in sim first at small scale (32 envs with rendering), then debug. You can't single-step 4096 parallel envs, but you can watch 32.
+</div>
+</section>
+
+<!-- ─── §22 ROADMAP ─── -->
+<section id="roadmap">
+<span class="section-num">§ 22 — Three-task roadmap</span>
+<h2>From swing-up to the <em>humanoid</em>.</h2>
+
+<p class="lead">Swing-up is the first task. Two more build the skills you'll actually need on the humanoid — all on the same pendulum. Each task reuses the previous task's infrastructure, so only the env and reward change.</p>
+
+<div class="roadmap">
+  <div class="rm-item">
+    <div class="rm-when">Task 1 · ~1 week</div>
+    <div class="rm-what">Swing-up and balance</div>
+    <p class="rm-body">What you just built. Validates the full pipeline: URDF → USD → env → PPO → ONNX → Gazebo → real. Success criterion: <strong>real hardware swings up in &lt; 3 s from random initial position, holds upright with &lt; 5° error for 10 s.</strong></p>
+  </div>
+  <div class="rm-item">
+    <div class="rm-when">Task 2 · ~1 week</div>
+    <div class="rm-what">Trajectory tracking under disturbance</div>
+    <p class="rm-body">Command a reference θ(t) trajectory (sine wave, chirp, arbitrary path). Reward is −|θ − θ_d|². Randomize payload during episode (swap between 0.5 and 1 kg at random times). Success: <strong>real hardware tracks with RMSE &lt; 0.05 rad across payload swaps without retraining.</strong> This is the humanoid-grade skill — handling changing load during motion.</p>
+  </div>
+  <div class="rm-item">
+    <div class="rm-when">Task 3 · ~1 week</div>
+    <div class="rm-what">Impact rejection</div>
+    <p class="rm-body">Hold upright; external disturbance torques applied at random times (simulated hits). Reward penalizes angular deviation + recovery time. Success: <strong>real hardware recovers to upright within 1 s after a manual push, without saturating torque.</strong> Tests the controller's disturbance rejection bandwidth — directly relevant to humanoid balance.</p>
+  </div>
+</div>
+
+<h3>What you have at the end of three weeks</h3>
+
+<ul class="bullets">
+  <li>A validated Isaac Lab → Gazebo → real pipeline, proven end-to-end.</li>
+  <li>Three trained policies demonstrating position tracking, adaptive control, and disturbance rejection — the three humanoid-critical skills.</li>
+  <li>Measured sim-to-real transfer quality: RMSE numbers, success rates, failure modes.</li>
+  <li>Tuned DR ranges, tuned reward weights, tuned PPO hyperparameters — all at a scale where iteration costs minutes, not days.</li>
+</ul>
+
+<p>When you scale up to the humanoid, the pipeline copies over unchanged. Only the URDF grows (25 joints instead of 1), the observation space expands, the action space expands, and the reward gets more terms. All the infrastructure you built on the pendulum — the actuator model, DR ranges, latency injection, normalization freezing, ONNX export path, ROS 2 inference node — transfers directly.</p>
+
+<div class="panel" data-label="The thesis">
+  <p style="margin:0">Every piece of Isaac Lab infrastructure you use on the pendulum is the same infrastructure you'll use on the humanoid. There's no "simple version for pendulum, real version for humanoid" — it's all one stack. Which means every debugging hour spent on the pendulum is an hour you don't spend debugging 25 coupled joints at once.</p>
+</div>
+
+<div class="callout">
+  Train the pipeline first, train the policy second. The pipeline is the real product.
+</div>
+</section>
+
+<footer>
+  <span>field notes · Isaac Lab pendulum training protocol</span>
+  <span>from URDF through ONNX to ros2_control deployment</span>
+</footer>
+
+</div>
+
+<script>
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#a79a82';
+Chart.defaults.borderColor = '#2a2419';
+const C = { amber:'#e8a33d', cyan:'#5fb3b3', rose:'#d97757', moss:'#8fa968', dim:'#6b6354', grid:'#1e1a13', ink:'#ece2cf' };
+const grid = { grid:{color:C.grid, drawBorder:false}, ticks:{color:C.dim, font:{size:10, family:"'JetBrains Mono',monospace"}}, title:{color:C.dim, font:{size:11, family:"'JetBrains Mono',monospace"}} };
+
+// ── CHART: training curves with/without DR ──
+(function(){
+  const maxIter = 2000;
+  const step = 20;
+  const noDR = [], withDR = [], realPerf = [];
+
+  for (let i = 0; i <= maxIter; i += step){
+    // without DR: fast rise, higher asymptote in sim
+    const asymptote_noDR = 800;
+    const noDR_val = asymptote_noDR * (1 - Math.exp(-i/200)) + 20*Math.sin(i/50);
+    noDR.push({x: i, y: noDR_val});
+
+    // with DR: slower rise, lower asymptote, noisier
+    const asymptote_withDR = 550;
+    const withDR_val = asymptote_withDR * (1 - Math.exp(-i/500)) + 30*Math.sin(i/40 + 1);
+    withDR.push({x: i, y: withDR_val});
+  }
+
+  // real-world performance of each (at end)
+  // noDR: huge drop in real; withDR: similar to sim perf
+  new Chart(document.getElementById('drChart').getContext('2d'), {
+    type:'line',
+    data:{ datasets:[
+      { label:'no DR (sim)', data:noDR, borderColor: C.rose, borderWidth: 2, pointRadius:0, tension:0.15, fill:false },
+      { label:'with DR (sim)', data:withDR, borderColor: C.amber, borderWidth: 2.5, pointRadius:0, tension:0.15, fill:false },
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{color:C.ink, boxWidth:10, boxHeight:2}, position:'bottom' },
+        tooltip:{backgroundColor:'#0a0806', titleColor:C.amber, bodyColor:C.ink, borderColor:C.grid, borderWidth:1},
+        annotation: {}
+      },
+      scales:{
+        x:{type:'linear', ...grid, min:0, max:maxIter, title:{...grid.title, display:true, text:'iteration'}},
+        y:{...grid, title:{...grid.title, display:true, text:'mean reward'}}
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

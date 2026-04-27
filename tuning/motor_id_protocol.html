@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Motor identification — the X6 on EtherCAT, a field protocol</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0e0c09; --bg-panel:#15120d; --bg-inset:#0a0806;
+  --ink:#ece2cf; --ink-dim:#a79a82; --ink-faint:#6b6354;
+  --rule:#2a2419; --rule-soft:#1e1a13;
+  --amber:#e8a33d; --amber-deep:#b87a1e;
+  --cyan:#5fb3b3; --rose:#d97757; --moss:#8fa968;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"ID/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"x6 · ethercat · cst mode";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+nav.toc .toc-col{display:flex;flex-direction:column}
+nav.toc .toc-head{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--amber-deep)}
+
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+.graph-wrap{background:var(--bg-panel);border:1px solid var(--rule);margin:28px 0;padding:24px 28px 28px;position:relative}
+.graph-wrap .g-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:12px}
+.graph-wrap .g-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink)}
+.graph-wrap .g-sub{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase}
+.graph-wrap .g-desc{color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px}
+.graph-canvas{position:relative;height:340px;width:100%}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+
+.part{margin:144px 0 48px;padding:48px 0 8px;border-top:1px solid var(--amber-deep);position:relative}
+.part::before{content:"";position:absolute;top:-1px;left:0;width:80px;height:3px;background:var(--amber)}
+.part .pnum{font-family:var(--mono);font-size:11px;letter-spacing:.35em;color:var(--amber);text-transform:uppercase;margin-bottom:12px}
+.part h2.phead{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(36px,5vw,58px);line-height:1.05;letter-spacing:-.015em;margin:0 0 14px;color:var(--ink);max-width:860px}
+.part h2.phead em{color:var(--amber);font-style:italic;font-weight:500}
+.part .pdesc{font-family:var(--serif);font-weight:300;font-size:20px;color:var(--ink-dim);line-height:1.4;max-width:60ch;margin:0}
+
+/* methods grid */
+.methods-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:32px 0;border:1px solid var(--rule)}
+@media (max-width:900px){.methods-grid{grid-template-columns:1fr}}
+.method{padding:24px 22px;border-right:1px solid var(--rule);background:var(--bg-panel)}
+.method:last-child{border-right:none}
+.method .mn{font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);margin-bottom:8px}
+.method h5{font-family:var(--serif);font-weight:500;font-size:19px;margin:0 0 10px;color:var(--ink);line-height:1.2}
+.method .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:3px 8px;border:1px solid var(--rule);color:var(--ink-dim);margin:0 4px 12px 0;border-radius:2px;text-transform:uppercase}
+.method .tag.good{border-color:var(--moss);color:var(--moss)}
+.method .tag.fair{border-color:var(--amber-deep);color:var(--amber)}
+.method p{font-size:13.5px;color:var(--ink-dim);margin:0;line-height:1.55}
+
+/* protocol timeline */
+.protocol{margin:32px 0;border-left:1px solid var(--rule);padding-left:32px;position:relative}
+.protocol::before{content:"";position:absolute;left:-1px;top:0;width:2px;height:60px;background:var(--amber)}
+.proto-item{position:relative;padding:0 0 36px 0;max-width:72ch}
+.proto-item::before{content:"";position:absolute;left:-41px;top:8px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:2px solid var(--amber)}
+.proto-item .pt-step{font-family:var(--mono);font-size:11px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase;margin-bottom:6px}
+.proto-item .pt-what{font-family:var(--serif);font-weight:500;font-size:22px;color:var(--ink);margin:0 0 10px;line-height:1.25}
+.proto-item .pt-body{font-size:15px;color:var(--ink-dim);margin:0;line-height:1.6}
+.proto-item .pt-body strong{color:var(--ink)}
+.proto-item .pt-meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:8px;letter-spacing:.05em}
+
+/* OD tables - slightly different style */
+.od-table{width:100%;border-collapse:collapse;margin:20px 0;font-family:var(--mono);font-size:12.5px}
+.od-table th,.od-table td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+.od-table th{color:var(--amber);font-weight:500;font-size:10px;letter-spacing:.15em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+.od-table td.idx{color:var(--amber);font-weight:500}
+.od-table td.v{color:var(--ink-dim);font-family:var(--sans);font-size:13.5px;font-weight:300;line-height:1.5}
+.od-table tr.missing{opacity:.55}
+.od-table tr.missing td.idx{color:var(--rose)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="eyebrow">Motor identification · payload estimation · EtherCAT reality check</div>
+  <h1 class="title">What your <em>motor</em><br>will actually tell you.</h1>
+  <p class="subtitle">A complete protocol for identifying the MyActuator V4 X6 in CST mode — the math, the experiments, and the hard constraint no datasheet mentions: the drive exposes only one current signal.</p>
+
+  <div class="meta">
+    <div><span class="k">Motor</span><span class="v">X6-P20-60 · <em>V4 EtherCAT</em></span></div>
+    <div><span class="k">Mode</span><span class="v">CST · <em>cyclic torque</em></span></div>
+    <div><span class="k">Rig</span><span class="v">70 cm bar · <em>0.5 / 1 kg</em></span></div>
+    <div><span class="k">Duration</span><span class="v">One <em>afternoon</em></span></div>
+  </div>
+
+  <nav class="toc">
+    <div class="toc-col">
+      <div class="toc-head">Part I — Context</div>
+      <a href="#experiment"><span class="n">01</span>The three-payload experiment</a>
+      <a href="#what-you-learn"><span class="n">02</span>What it actually teaches you</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part II — Payload math</div>
+      <a href="#payload-math"><span class="n">03</span>Three estimation methods</a>
+      <a href="#method1"><span class="n">04</span>Method 1 — static balance</a>
+      <a href="#method2"><span class="n">05</span>Method 2 — position error</a>
+      <a href="#method3"><span class="n">06</span>Method 3 — online RLS</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part III — Adaptive K_g</div>
+      <a href="#adaptive-kg"><span class="n">07</span>Why Kp = Kd = 0 fails</a>
+      <a href="#adaptive-solution"><span class="n">08</span>Keep PD, adapt K_g</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part IV — Full ID protocol</div>
+      <a href="#continuous"><span class="n">09</span>Continuous rotation advantage</a>
+      <a href="#tests"><span class="n">10</span>The seven identification tests</a>
+      <a href="#order"><span class="n">11</span>Running order</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part V — The X6 reality</div>
+      <a href="#x6-reality"><span class="n">12</span>What the drive exposes</a>
+      <a href="#od"><span class="n">13</span>Object dictionary</a>
+      <a href="#gotchas"><span class="n">14</span>Seven gotchas</a>
+      <a href="#workflow"><span class="n">15</span>Dual-interface workflow</a>
+      <a href="#template"><span class="n">16</span>Results template</a>
+    </div>
+  </nav>
+</header>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART I — CONTEXT
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part I</div>
+  <h2 class="phead">The <em>experiment</em>.</h2>
+  <p class="pdesc">A simple weight swap, done right, produces every number you need to characterize the actuator.</p>
+</div>
+
+<!-- ─── §01 EXPERIMENT ─── -->
+<section id="experiment">
+<span class="section-num">§ 01 — The three-payload experiment</span>
+<h2>Bar horizontal, swap weights, <em>log everything</em>.</h2>
+
+<p class="lead">You command the bar to horizontal and hold position via PD + gravity feedforward. You swap weights: nothing → 0.5 kg → 1 kg. The motor must produce three different steady-state torques to hold the same angle, and because you know the masses and the arm length, you know every torque exactly.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">steady-state condition at horizontal</span>
+  $$ \tau_{ss} = m \cdot g \cdot l $$
+</div>
+
+<p>With l = 0.30 m, the three operating points are:</p>
+
+<div class="three-col">
+  <div class="card">
+    <h5>Bar alone</h5>
+    <div class="big">τ_bar</div>
+    <p>Calibration baseline. Measure once, subtract everywhere else.</p>
+  </div>
+  <div class="card">
+    <h5>+ 0.5 kg payload</h5>
+    <div class="big">+1.47 N·m</div>
+    <p>Additional gravity torque beyond the bar's own contribution.</p>
+  </div>
+  <div class="card">
+    <h5>+ 1.0 kg payload</h5>
+    <div class="big">+2.94 N·m</div>
+    <p>Doubles cleanly from the 0.5 kg case — linearity check built in.</p>
+  </div>
+</div>
+
+<p>At steady state, velocity is zero so friction contributes nothing, acceleration is zero so inertia contributes nothing. The entire motor torque is gravity — which means every other unknown in the system drops out, and whatever the motor reports is directly interpretable.</p>
+</section>
+
+<!-- ─── §02 WHAT YOU LEARN ─── -->
+<section id="what-you-learn">
+<span class="section-num">§ 02 — What it actually teaches you</span>
+<h2>More than you'd expect, from <em>three</em> operating points.</h2>
+
+<h3>About the actuator</h3>
+<ul class="bullets">
+  <li><strong>Torque constant K_t, properly calibrated.</strong> Three known torques give you two independent K_t estimates and a linearity check. If they agree, your τ-vs-i relationship is clean. If they diverge, you've found current-loop saturation or nonlinearity before it bites you in a policy.</li>
+  <li><strong>Gravity feedforward validation.</strong> If K_g holds perfectly at 1 kg but drifts at 0.5 kg, your feedforward isn't scaling with payload — it's hardcoded. On the humanoid, payload is unknown, so this must become a function, not a constant. More in Part III.</li>
+  <li><strong>Real torque headroom.</strong> Datasheet peak/continuous ratings are generic. At your actual ambient temperature and your actual duty cycle, the safe continuous torque may be 20-30% below spec. Log thermal behavior during long holds.</li>
+  <li><strong>Stiction contribution to steady-state error.</strong> Three payloads tell you whether the residual position error is constant (pure stiction) or scales with torque (bearing/gearbox load effect).</li>
+  <li><strong>Cross-checked inertia.</strong> Small oscillations around horizontal at each payload let you measure closed-loop ω_n — and back out J_total vs payload.</li>
+</ul>
+
+<h3>About the EtherCAT path</h3>
+<ul class="bullets">
+  <li><strong>Cycle jitter under real load.</strong> If 1 kg loads cause cycle-time variance the empty bar didn't, your master's scheduling breaks under current draw. This is the most common silent failure in robotics EtherCAT stacks.</li>
+  <li><strong>Current-loop bandwidth, indirectly.</strong> Step commanded torque, watch actual torque via 6077h. Time to 63% = τ_m. Typically 2-10 ms.</li>
+  <li><strong>PDO mapping completeness.</strong> The fact that you're running this experiment forces you to audit whether your PDO includes what you need. For the X6, this audit has a specific answer — see Part V.</li>
+  <li><strong>Operation-mode latency.</strong> Total latency = EtherCAT transport + current loop. Subtract τ_m from the total and you have bus latency — the number that goes into sim as observation/action delay.</li>
+</ul>
+
+<div class="callout">
+  Every number from this experiment becomes a parameter in your sim actuator model or a sanity check on your ROS 2 stack. Nothing is academic.
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART II — PAYLOAD MATH
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part II</div>
+  <h2 class="phead">Estimating the <em>payload</em>.</h2>
+  <p class="pdesc">Three ways to infer mass from what the motor tells you — ground truth, sanity check, and the humanoid-grade online version.</p>
+</div>
+
+<!-- ─── §03 OVERVIEW ─── -->
+<section id="payload-math">
+<span class="section-num">§ 03 — Three methods, three information sources</span>
+<h2>Same physics, different sensors.</h2>
+
+<p class="lead">On your humanoid, the payload will be unknown. You need math that estimates it from available signals. Three methods, in order of complexity — each uses different information, each works when the others don't.</p>
+
+<div class="methods-grid">
+  <div class="method">
+    <div class="mn">Method 1</div>
+    <h5>Static torque balance</h5>
+    <span class="tag good">use first</span>
+    <p>Hold still at known angle. Read motor torque. Solve for payload. Simple, accurate, the ground-truth method for validating the others.</p>
+  </div>
+  <div class="method">
+    <div class="mn">Method 2</div>
+    <h5>Position-error inference</h5>
+    <span class="tag fair">cross-check</span>
+    <p>Keep K_g fixed. Measure steady-state position error. Multiply by Kp to recover torque mismatch. Useful when torque readout is unreliable.</p>
+  </div>
+  <div class="method">
+    <div class="mn">Method 3</div>
+    <h5>Online RLS estimator</h5>
+    <span class="tag good">humanoid grade</span>
+    <p>Continuous estimation while the arm moves. Recursive least squares on a linear regression. Ports directly to the humanoid.</p>
+  </div>
+</div>
+</section>
+
+<!-- ─── §04 METHOD 1 ─── -->
+<section id="method1">
+<span class="section-num">§ 04 — Method 1 — static torque balance</span>
+<h2>The <em>direct</em> approach.</h2>
+
+<p class="lead">Hold the bar horizontal. Zero velocity, zero acceleration. Friction contributes nothing, inertia contributes nothing, the entire motor torque is gravity. Rearrange for the payload:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 1 — payload from steady-state torque</span>
+  $$ \boxed{\; m_{payload} = \frac{\tau_{motor} - m_{bar} \cdot l_{bar,\text{COM}} \cdot g}{l_{payload} \cdot g} \;} $$
+</div>
+
+<dl class="vars">
+  <dt>τ_motor</dt>   <dd>steady-state motor torque (from drive's torque feedback, converted to N·m — see Part V)</dd>
+  <dt>m_bar · l_bar,COM · g</dt> <dd>bar-alone gravity torque; measured once as your baseline</dd>
+  <dt>l_payload</dt> <dd>distance from axis to the weight's center of mass (0.30 m in your rig)</dd>
+</dl>
+
+<h3>Concrete procedure</h3>
+
+<ul class="steps">
+  <li><strong>Calibrate the bar (no payload).</strong>
+    Bar horizontal, PD active with working gains. Raise K_g slowly until steady-state position error is zero. Log the motor's reported torque (6077h, converted to N·m). Average over 5 seconds. Call this <span class="inline-eq">τ_bar</span>.
+  </li>
+  <li><strong>Attach 0.5 kg.</strong>
+    Hold horizontal for 5 seconds. Log motor torque. Average. Call this <span class="inline-eq">τ_loaded</span>.
+  </li>
+  <li><strong>Solve.</strong>
+    $$ m_{est} = \frac{\tau_{loaded} - \tau_{bar}}{l_{payload} \cdot g} = \frac{\tau_{loaded} - \tau_{bar}}{0.30 \times 9.81} $$
+    Expected result: ≈ 0.5 kg ± 5%.
+  </li>
+  <li><strong>Repeat with 1 kg.</strong>
+    Expected result: ≈ 1.0 kg. If the two estimates scale linearly with the known masses, your system is well-calibrated. If they diverge, something (K_t, l_payload, encoder zero) is off.
+  </li>
+</ul>
+
+<div class="panel" data-label="Expected accuracy">
+  <p style="margin:0">±5% on mass estimate, mostly limited by K_t uncertainty. On the X6 specifically, K_t is derived from rated-torque / rated-current since it isn't published — so your K_t error bar is tied to the rated-current value you configured, not an independently measured property. Budget for this.</p>
+</div>
+</section>
+
+<!-- ─── §05 METHOD 2 ─── -->
+<section id="method2">
+<span class="section-num">§ 05 — Method 2 — position error inference</span>
+<h2>When you <em>don't trust</em> the torque readout.</h2>
+
+<p class="lead">If your drive's torque feedback is miscalibrated or unavailable, you can still infer gravity torque from position error. When K_g is wrong, the PD loop makes up the difference — and that appears as steady-state θ_error.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 2 — steady-state torque balance with wrong K_g</span>
+  $$ K_g \sin\theta + K_p(\theta_d - \theta_{actual}) = m_{total} \cdot l \cdot g \cdot \sin\theta $$
+</div>
+
+<p>Setting θ_d = horizontal (sin θ = 1) and rearranging:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 3 — position error from K_g mismatch</span>
+  $$ \boxed{\; \theta_{error} = \frac{m_{total} \cdot l \cdot g - K_g}{K_p} \;} $$
+</div>
+
+<h3>Concrete example</h3>
+
+<p>You have K_g = 3.0 (calibrated for 1 kg), swap to 0.5 kg. True gravity torque drops from 2.94 to 1.47 N·m. K_g is now 1.53 N·m too high.</p>
+
+<table class="ref">
+  <thead><tr><th>Kp value</th><th>Predicted θ_error</th><th>Physical meaning</th></tr></thead>
+  <tbody>
+    <tr><td>3.0 (soft)</td><td>−0.51 rad</td><td class="v">≈ −29° — bar rises well above horizontal before PD pulls it back</td></tr>
+    <tr><td>22.95 (target)</td><td>−0.067 rad</td><td class="v">≈ −3.8° — small visible error, still identifiable by the encoder</td></tr>
+    <tr><td>100 (stiff)</td><td>−0.015 rad</td><td class="v">≈ −0.9° — near noise floor, hard to measure cleanly</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  Soft gains amplify the signal you're trying to measure. If you want to identify K_g mismatch via position error, lower Kp, don't raise it — counter to the usual "stiff is better" intuition.
+</div>
+</section>
+
+<!-- ─── §06 METHOD 3 ─── -->
+<section id="method3">
+<span class="section-num">§ 06 — Method 3 — online RLS estimator</span>
+<h2>Estimating payload <em>while moving</em>.</h2>
+
+<p class="lead">Methods 1 and 2 require you to stop. Method 3 estimates payload continuously as the arm moves — which is what the humanoid will actually need. The trick: the full rigid-body equation is linear in m_p, so it becomes a scalar linear regression.</p>
+
+<h3>Setting up the regression</h3>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 4 — full joint dynamics, parameterized by m_p</span>
+  $$ \tau_{motor} = (J_{bar} + m_p l_p^2)\ddot\theta + b\dot\theta + \tau_f + (m_{bar,eff} + m_p l_p) g \sin\theta $$
+</div>
+
+<p>Group known quantities on the left, m_p coefficient on the right:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 5 — rearranged as y = φ · m_p</span>
+  $$ \underbrace{\tau_{motor} - J_{bar}\ddot\theta - b\dot\theta - \tau_f - m_{bar,eff} g \sin\theta}_{y} = \underbrace{(l_p^2 \ddot\theta + l_p g \sin\theta)}_{\phi} \cdot m_p $$
+</div>
+
+<p>At every control tick you get a fresh (y, φ) pair. Recursive least squares converges m_p to its true value within a few seconds of motion.</p>
+
+<h3>Recursive least squares update</h3>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 6 — RLS with forgetting factor</span>
+  $$ P[k+1] = \frac{P[k]}{\lambda + \phi^2 P[k]} $$
+  $$ \hat{m}_p[k+1] = \hat{m}_p[k] + P[k+1] \cdot \phi \cdot (y - \phi \cdot \hat{m}_p[k]) $$
+</div>
+
+<dl class="vars">
+  <dt>P</dt> <dd>estimate covariance (initialize large, ~1e3)</dd>
+  <dt>λ</dt> <dd>forgetting factor, 0.99 — lets the estimate adapt if payload changes</dd>
+  <dt>φ</dt> <dd>regressor value at this tick</dd>
+  <dt>y</dt> <dd>"known" side of the equation at this tick</dd>
+</dl>
+
+<div class="warn">
+  <strong>Persistence of excitation.</strong> If the bar sits still, φ is nearly constant and the estimate won't converge. You need motion. On the bench, command a slow sinusoid (±15° at 0.3 Hz) — the estimate will lock in within a few seconds.
+</div>
+
+<h3>Minimal Python</h3>
+
+<pre data-lang="python"><code><span class="tok-k">import</span> numpy <span class="tok-k">as</span> np
+
+<span class="tok-c"># Known quantities from your bench identification</span>
+J_bar = <span class="tok-n">0.012</span>       <span class="tok-c"># kg·m², bar alone</span>
+m_bar_eff = <span class="tok-n">0.15</span>    <span class="tok-c"># bar's effective gravity contribution coefficient</span>
+l_p = <span class="tok-n">0.30</span>          <span class="tok-c"># payload offset, m</span>
+b = <span class="tok-n">0.05</span>            <span class="tok-c"># viscous friction</span>
+Fc = <span class="tok-n">0.15</span>           <span class="tok-c"># Coulomb friction</span>
+g = <span class="tok-n">9.81</span>
+
+<span class="tok-c"># RLS state</span>
+m_hat = <span class="tok-n">0.0</span>
+P = <span class="tok-n">1e3</span>
+lam = <span class="tok-n">0.99</span>
+
+<span class="tok-k">def</span> <span class="tok-f">rls_update</span>(tau, theta, theta_dot, theta_ddot):
+    <span class="tok-k">global</span> m_hat, P
+
+    <span class="tok-c"># Torque explained by everything except the payload</span>
+    tau_known = (J_bar * theta_ddot
+                 + b * theta_dot
+                 + Fc * np.tanh(theta_dot / <span class="tok-n">0.01</span>)
+                 + m_bar_eff * g * np.sin(theta))
+    y = tau - tau_known
+
+    <span class="tok-c"># Regressor — everything that m_p multiplies</span>
+    phi = l_p**<span class="tok-n">2</span> * theta_ddot + l_p * g * np.sin(theta)
+
+    <span class="tok-c"># RLS update</span>
+    P = P / (lam + phi**<span class="tok-n">2</span> * P)
+    m_hat = m_hat + P * phi * (y - phi * m_hat)
+    <span class="tok-k">return</span> m_hat
+</code></pre>
+
+<p>Call <code>rls_update</code> at every control tick with the current state and measured torque. After a few seconds of motion, <code>m_hat</code> sits near the true payload.</p>
+
+<div class="graph-wrap">
+  <div class="g-head">
+    <div class="g-title">Expected convergence trace</div>
+    <div class="g-sub">illustrative · payload swap during run</div>
+  </div>
+  <div class="g-desc">Simulated estimator output for the three-payload experiment. Start with m_hat = 0, swap 0 kg → 0.5 kg at t=5s, swap 0.5 kg → 1 kg at t=15s. Convergence time constant ~1 s depends on trajectory excitation and RLS forgetting factor.</div>
+  <div class="graph-canvas"><canvas id="rlsChart"></canvas></div>
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART III — ADAPTIVE K_g
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part III</div>
+  <h2 class="phead">Adaptive <em>gravity</em>.</h2>
+  <p class="pdesc">The K_g term hardcoded for 1 kg breaks the moment the payload changes. Here's how to make it adapt without breaking the loop.</p>
+</div>
+
+<!-- ─── §07 WHY KP=KD=0 FAILS ─── -->
+<section id="adaptive-kg">
+<span class="section-num">§ 07 — Why Kp = Kd = 0 doesn't work</span>
+<h2>Pure feedforward is <em>unstable</em>.</h2>
+
+<p class="lead">The intuitive idea — "turn off PD, let the motor produce K_g·sin(θ), if K_g is right the bar balances anywhere" — is mathematically correct and operationally doomed. Here's why it fails.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">With Kp = Kd = 0, the motor torque is</span>
+  $$ \tau_{motor} = K_g \sin\theta $$
+</div>
+
+<p>If K_g exactly equals mgl, the motor perfectly cancels gravity and the bar hangs in neutral equilibrium. In theory.</p>
+
+<p>In practice:</p>
+
+<ul class="bullets">
+  <li><strong>Stiction hides small disturbances</strong> until they accumulate past the break-away threshold, then the bar breaks loose suddenly.</li>
+  <li><strong>Any K_g error drives acceleration.</strong> Wrong by 0.1 N·m at J = 0.1 kg·m² → 1 rad/s² — within a second the bar is already at ±0.5 rad and accelerating.</li>
+  <li><strong>Sensor noise in θ propagates through sin(θ)</strong> and becomes torque noise with no damping to attenuate it.</li>
+  <li><strong>No damping means no dissipation.</strong> Energy put into the system by disturbances has nowhere to go.</li>
+</ul>
+
+<div class="warn">
+  <strong>The general principle.</strong> Feedforward compensates for known dynamics. PD compensates for unknown disturbances and model error. Remove PD and you're betting your feedforward is perfect AND the world has no disturbances — neither is true in practice.
+</div>
+</section>
+
+<!-- ─── §08 ADAPTIVE SOLUTION ─── -->
+<section id="adaptive-solution">
+<span class="section-num">§ 08 — The right architecture: PD + adaptive K_g</span>
+<h2>PD provides the <em>signal</em>; K_g absorbs the correction.</h2>
+
+<p class="lead">Keep PD active with working gains. Add an online K_g estimator that watches the PD torque contribution — because if PD is working to hold position, it's exactly telling you how wrong K_g is.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 7 — control law with adaptive K_g</span>
+  $$ \tau_{motor} = \hat{K}_g \sin\theta + K_p(\theta_d - \theta) + K_d(\dot\theta_d - \dot\theta) $$
+</div>
+
+<p>In steady state at the commanded angle, the PD contribution should be zero — any residual is pure K_g mismatch. So the update rule is:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 8 — K_g estimator update</span>
+  $$ \boxed{\; \hat{K}_g[k+1] = \hat{K}_g[k] + \eta \cdot \sin\theta \cdot \tau_{PD}[k] \;} $$
+</div>
+
+<dl class="vars">
+  <dt>τ_PD</dt> <dd>the PD portion of the motor torque: <span class="inline-eq">K_p · e + K_d · ė</span></dd>
+  <dt>η</dt>    <dd>learning rate; start small (~0.1) and increase if convergence is sluggish</dd>
+  <dt>sin θ</dt><dd>projects the PD error into the gravity axis — matters when the bar is far from horizontal</dd>
+</dl>
+
+<h3>Why this works</h3>
+
+<p>When you swap from 1 kg to 0.5 kg, the sequence is:</p>
+
+<ol>
+  <li>Instantaneously K_g = 2.94 is too high; motor over-commands by 1.47 N·m.</li>
+  <li>Bar rises above horizontal.</li>
+  <li>PD produces negative τ_PD to pull it back.</li>
+  <li>Negative τ_PD feeds the update rule, decrementing K_g.</li>
+  <li>Over hundreds of milliseconds, K_g decays from 2.94 toward 1.47.</li>
+  <li>PD error returns to near-zero. K_g settles at the new correct value.</li>
+</ol>
+
+<div class="panel" data-label="Timescale separation">
+  <p style="margin:0">Pick η so the estimator's settling time is 5–10× the PD's settling time. The PD is the fast loop keeping the bar near target while K_g slowly updates underneath. Too fast: estimator fights the PD and oscillates. Too slow: you see large transient errors when payload changes.</p>
+</div>
+
+<h3>Humanoid relevance</h3>
+
+<p>This structure — estimator layer, control layer, policy layer — is how mature humanoid stacks work. A parameter estimator continuously updates mass/inertia properties; a control layer uses those estimates for feedforward; a policy provides high-level behavior. You're discovering the architecture from first principles on one joint. That's a good sign.</p>
+
+<div class="callout">
+  The interesting humanoid question becomes: <em>how fast does K_g need to track?</em> If the arm picks up a 2 kg object in 100 ms, does your estimator catch up in 100 ms or 2 seconds? That determines whether the robot stumbles or handles it gracefully. Your pendulum gives you a direct measurement of this number.
+</div>
+
+<h3>Continuous rotation enables clean identification</h3>
+
+<p>Your pendulum can spin past vertical — you're not limited to small-angle linearization. For the K_g estimator specifically, this means a slow full rotation excites sin(θ) across its entire range: +1, 0, −1, 0, +1. Best possible persistence of excitation. The estimate locks on within one or two rotations, vs many seconds of wiggling near horizontal.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART IV — FULL ID PROTOCOL
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part IV</div>
+  <h2 class="phead">The <em>full</em> protocol.</h2>
+  <p class="pdesc">Seven identification tests, sequenced so each sets up the next — one afternoon of work, a complete actuator profile at the end.</p>
+</div>
+
+<!-- ─── §09 CONTINUOUS ROTATION ─── -->
+<section id="continuous">
+<span class="section-num">§ 09 — The continuous-rotation advantage</span>
+<h2>A pendulum that can <em>spin</em> gives you more signal.</h2>
+
+<p class="lead">Most motor ID protocols assume limited joint travel. Yours doesn't — the bar can spin past vertical freely. Three experimental upgrades this unlocks:</p>
+
+<ul class="bullets">
+  <li><strong>Faster estimator convergence.</strong> Slow sweeps through ±180° visit every sin(θ) value. The K_g and payload estimators lock in within one or two rotations.</li>
+  <li><strong>More information per test.</strong> Instead of three static measurements, you get a full τ(θ) curve per payload. Amplitude is mgl; phase tells you where true horizontal is; asymmetry flags constant bias torques (loose mounting, cable drag).</li>
+  <li><strong>Clean separation of gravity and friction.</strong> Drive at constant θ̇ through a full rotation. Gravity averages to zero over a cycle (∫sin dθ = 0 over 2π); friction has a constant sign per half-rotation. Plot τ vs θ — mean is friction, oscillation amplitude is gravity. Two numbers from one test.</li>
+</ul>
+
+<div class="warn">
+  <strong>Encoder wrap.</strong> Multiturn encoders handle continuous rotation cleanly. Single-turn incremental encoders wrap at 2π and produce fake discontinuities that destroy θ̇ and θ̈ calculations. Most EtherCAT servos expose both "actual position" (unwrapped multiturn) and "position within revolution" — use the multiturn signal. The X6 has dual absolute encoders; verify which one 6064h is reporting before you trust θ̈ at zero crossings.
+</div>
+</section>
+
+<!-- ─── §10 TESTS ─── -->
+<section id="tests">
+<span class="section-num">§ 10 — The seven identification tests</span>
+<h2>What to measure, <em>how</em> to measure it.</h2>
+
+<h3>10.1 · EtherCAT cycle jitter</h3>
+<p>Log PDO inter-arrival timestamps for 10 seconds. Mean at 1 kHz should be 1000 μs; standard deviation under 20 μs (2%) is healthy. Past 100 μs is scheduling trouble — fix before trusting any other measurement, because jitter contaminates θ̇ and θ̈ calculations.</p>
+
+<h3>10.2 · Torque command → shaft torque (K_t verification)</h3>
+<p>This is the most important test, because if it's wrong, every other number is wrong too.</p>
+
+<p>In CST mode, the chain from command to shaft torque is:</p>
+
+<div class="math-block">
+  $$ \text{cmd (‰)} \;\to\; \text{drive} \; (\times \, I_{rated} / 1000) \;\to\; \text{current loop} \;\to\; K_t \times i \;\to\; \text{shaft torque} $$
+</div>
+
+<p>Three places reality can diverge from specification:</p>
+
+<ul class="bullets">
+  <li>The <em>rated current</em> parameter configured in the drive (firmware default 10 A on the X6; nameplate 9.5 Arms). If this is wrong, every ‰ command scales wrong.</li>
+  <li>The <em>K_t</em> itself — datasheet nominal drifts ±5-10% per unit due to magnet tolerances and temperature.</li>
+  <li>Current-loop error (usually &lt;1% but worth confirming).</li>
+</ul>
+
+<p><strong>Procedure.</strong> Static hold, horizontal, 1 kg payload. You know true gravity torque is 2.943 N·m. Log three things:</p>
+
+<ul class="bullets">
+  <li>Commanded 6071h (in ‰ of rated current).</li>
+  <li>Actual 6077h (torque/current feedback, also in ‰ of rated current on the X6).</li>
+  <li>If you have a current sensor or the CAN interface available, actual phase current in amperes.</li>
+</ul>
+
+<p>Convert commanded ‰ to expected N·m using the drive's rated-current and your K_t estimate. Compare to 2.943. Systematic offset → K_t or I_rated wrong. Verify by running the same test at 0.5 kg and 0 kg — the offset should scale linearly with load.</p>
+
+<h3>10.3 · Inertia cross-check</h3>
+
+<p>Your analytical J ≈ 0.102 kg·m² assumed a thin uniform bar. Cross-check:</p>
+
+<ul class="bullets">
+  <li><strong>Pendulum method:</strong> remove the weight, let the bar swing freely, measure the period T over 10+ cycles. $J = m_{bar} g l_{bar,COM} T^2 / (4\pi^2)$.</li>
+  <li><strong>Torque-step method:</strong> at horizontal (known gravity torque), command a torque step, measure angular acceleration over the first 10–20 ms. $J = (\tau_{cmd} - \tau_{gravity}) / \ddot\theta$.</li>
+</ul>
+
+<p>Both methods should agree within 10%. Divergence means the bar mass distribution differs from your assumption, or rotor/reducer inertia reflected at the output is larger than you modeled.</p>
+
+<h3>10.4 · Friction identification</h3>
+
+<p>Command constant velocities through continuous rotation: ±0.5, ±1.0, ±1.5, ±2.0 rad/s. At steady velocity, gravity averages to zero over a rotation and acceleration is zero, so:</p>
+
+<div class="math-block">
+  $$ \tau_{motor} = F_c \cdot \text{sign}(\dot\theta) + F_v \cdot \dot\theta $$
+</div>
+
+<p>Plot τ vs θ̇ — slope is F_v, y-intercept is ±F_c. Record F_c⁺ and F_c⁻ separately; gearbox friction is often asymmetric.</p>
+
+<p><strong>Stiction:</strong> at rest, ramp torque slowly upward, note the torque at which motion begins. Typically 1.5–2× F_c.</p>
+
+<h3>10.5 · Current-loop bandwidth (τ_m)</h3>
+
+<p>Command a torque step (0 → 3 N·m). Log actual torque feedback at 1 kHz. Time to 63% of final value is τ_m. Expected 2–10 ms for a well-tuned servo.</p>
+
+<p>If τ_m is much slower than specification, current-loop gains are conservative or a filter you didn't configure is active. If τ_m changes between payloads, current loop is saturating — a bad sign.</p>
+
+<h3>10.6 · Backlash</h3>
+
+<p>Command slow triangular position profile ±10°, 10-second period. Log commanded vs measured. Direction-reversal points show backlash as a flat region where measured position stays still while commanded changes. Measure the flat width in radians.</p>
+
+<p>On a harmonic or planetary reducer like the X6's 19.6:1, backlash should be arc-minutes. If it's degrees, something is wrong mechanically.</p>
+
+<h3>10.7 · Dynamic K_g / payload estimator validation</h3>
+
+<p>Run the full adaptive-K_g experiment from §08 with all ground truth already established: Kp and Kd known, θ_d = horizontal, swap payloads, log K_g(t). Compare measured convergence against the 5–10× PD settling time target. Log the final K_g values at each payload and verify they match the mgl prediction.</p>
+
+<p>Then run Method 3 online RLS on the same data, verify m_hat converges to the known payload within a few seconds. You've now validated both estimators against ground truth on real hardware — they can go to the humanoid with confidence.</p>
+</section>
+
+<!-- ─── §11 RUNNING ORDER ─── -->
+<section id="order">
+<span class="section-num">§ 11 — Running order</span>
+<h2>Seven tests, <em>one</em> afternoon.</h2>
+
+<p>Sequencing matters. Each test's result becomes an input to later tests. Run in this order:</p>
+
+<div class="protocol">
+  <div class="proto-item">
+    <div class="pt-step">Step 01 · ~10 min</div>
+    <div class="pt-what">EtherCAT cycle jitter</div>
+    <p class="pt-body">Before trusting any measurement, confirm the bus is healthy. Log PDO timestamps, compute jitter statistics. If unhealthy, fix scheduling before continuing — otherwise everything downstream is noisy for the wrong reasons.</p>
+    <div class="pt-meta">Output: cycle jitter σ &lt; 20 μs ideally</div>
+  </div>
+  <div class="proto-item">
+    <div class="pt-step">Step 02 · ~15 min</div>
+    <div class="pt-what">K_t / torque command check</div>
+    <p class="pt-body">Static holds at three payloads. Establishes that commanded ‰ actually produces expected N·m. Without this, every subsequent torque-based measurement is biased.</p>
+    <div class="pt-meta">Output: calibrated K_t or identified rated-current offset</div>
+  </div>
+  <div class="proto-item">
+    <div class="pt-step">Step 03 · ~15 min</div>
+    <div class="pt-what">Inertia (pendulum swing + torque step)</div>
+    <p class="pt-body">Pendulum swing for passive J estimate; torque step for active J estimate. Two independent methods → cross-check ≤ 10%.</p>
+    <div class="pt-meta">Output: J measured, ± variance</div>
+  </div>
+  <div class="proto-item">
+    <div class="pt-step">Step 04 · ~20 min</div>
+    <div class="pt-what">Friction (constant-velocity sweeps + stiction ramp)</div>
+    <p class="pt-body">Continuous-rotation sweeps at 4–8 velocities in both directions. Linear fit → F_v. Extrapolated y-intercept → F_c. Slow torque ramp at rest → F_s.</p>
+    <div class="pt-meta">Output: F_v, F_c⁺, F_c⁻, F_s</div>
+  </div>
+  <div class="proto-item">
+    <div class="pt-step">Step 05 · ~10 min</div>
+    <div class="pt-what">Current-loop τ_m (torque step)</div>
+    <p class="pt-body">Step commanded torque from zero to a moderate value while holding against a reference position. Time to 63% of actual torque final value = τ_m. Repeat at two amplitudes to detect saturation.</p>
+    <div class="pt-meta">Output: τ_m, linearity flag</div>
+  </div>
+  <div class="proto-item">
+    <div class="pt-step">Step 06 · ~10 min</div>
+    <div class="pt-what">Backlash (slow triangular profile)</div>
+    <p class="pt-body">Quick check only for a harmonic-reducer actuator. Triangular position ±10°, look at direction reversal dead zones.</p>
+    <div class="pt-meta">Output: backlash in radians (likely arc-minutes)</div>
+  </div>
+  <div class="proto-item">
+    <div class="pt-step">Step 07 · ~20 min</div>
+    <div class="pt-what">Dynamic K_g + payload estimator validation</div>
+    <p class="pt-body">All ground truth in hand — run adaptive K_g through the payload-swap sequence. Run Method 3 RLS on the same data. Both estimators should converge to known values.</p>
+    <div class="pt-meta">Output: validated estimators, convergence time, ready for humanoid</div>
+  </div>
+</div>
+
+<p>Total: about 100 minutes of experiments plus an hour of post-processing. At the end you have a complete single-joint parameter profile and two validated online estimators.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART V — THE X6 REALITY
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part V</div>
+  <h2 class="phead">The X6 <em>reality</em>.</h2>
+  <p class="pdesc">What MyActuator's V4 EtherCAT protocol actually exposes — and what it doesn't. Based on Protocol V1.0, April 2025 revision.</p>
+</div>
+
+<!-- ─── §12 X6 REALITY ─── -->
+<section id="x6-reality">
+<span class="section-num">§ 12 — What the drive exposes</span>
+<h2>One current signal, <em>per-mille scaled</em>, no temperature.</h2>
+
+<p class="lead">Your suspicion was correct. The V4 X-series EtherCAT interface does not implement CiA 402 object 6078h "Current actual value." The only current/torque feedback is 6077h "Torque actual value" — and on the X6, its unit is per-mille of rated <em>current</em>, not rated <em>torque</em>. This is a deviation from how most CiA 402 drives use the same object, and it shapes your entire identification workflow.</p>
+
+<div class="panel" data-label="The headline constraint">
+  <p style="margin:0"><strong>6077h on the X6 reports q-axis current scaled to ‰ of rated current</strong> (nameplate 9.5 Arms, firmware default 10 A). To get amperes: multiply by I_rated / 1000. To get torque: multiply amperes by K_t. And K_t is not published — you derive it from rated_torque / rated_current. So your torque reading has two stacked calibration dependencies, and the I_rated value is configured over CAN, not EtherCAT.</p>
+</div>
+
+<h3>What this means for your ID protocol</h3>
+
+<ul class="bullets">
+  <li><strong>Before any torque-based test</strong>, pin down I_rated via MyActuator's Setup Software over CAN, and log the exact value.</li>
+  <li><strong>K_t should be measured, not trusted.</strong> Your three-payload experiment is exactly the right test for this — it gives you two independent K_t estimates from gravity-torque ground truth.</li>
+  <li><strong>No temperature telemetry over EtherCAT.</strong> If thermal drift matters for your identification, add an external thermistor or monitor via CAN.</li>
+  <li><strong>No DC bus voltage.</strong> If regenerative braking during high-torque transients matters, instrument the supply separately.</li>
+  <li><strong>No error code object (603Fh).</strong> Diagnostics must come from the status word (6041h) and out-of-band CAN tool.</li>
+</ul>
+
+<div class="warn">
+  <strong>Scale convention deviation.</strong> On most CiA 402 drives (Synapticon, Kollmorgen, Inovance IS620N), 6077h reports ‰ of rated <em>torque</em> — so cmd=1000 means rated torque. On the MyActuator V4, 6077h reports ‰ of rated <em>current</em>. If you copy control code from another drive, your torque numbers will be wrong by a factor of your gearbox efficiency times K_t. Always verify scaling on a new drive family.
+</div>
+</section>
+
+<!-- ─── §13 OD ─── -->
+<section id="od">
+<span class="section-num">§ 13 — Object dictionary</span>
+<h2>Everything documented, and the <em>absences</em>.</h2>
+
+<h3>TxPDO feedback (drive → master)</h3>
+
+<table class="od-table">
+  <thead><tr><th>Index</th><th>Name</th><th>Type</th><th>Unit</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="idx">6041h</td><td>Status Word</td><td>UINT16</td><td>—</td><td class="v">CiA 402 standard; bit 12 repurposed per active mode</td></tr>
+    <tr><td class="idx">6061h</td><td>Modes of Operation Display</td><td>SINT8</td><td>—</td><td class="v">Echoes 0x08/0x09/0x0A</td></tr>
+    <tr><td class="idx">6064h</td><td>Position Actual Value</td><td>DINT32</td><td>counts</td><td class="v">17-bit encoder (131072 counts/rev at output)</td></tr>
+    <tr><td class="idx">606Ch</td><td>Velocity Actual Value</td><td>DINT32</td><td>counts/s</td><td class="v">Convert to RPM: v × 60 / 131072</td></tr>
+    <tr><td class="idx">6077h</td><td>Torque Actual Value</td><td>INT16</td><td>‰ of rated current</td><td class="v">THE ONLY current/torque feedback. Manual labels "0.1%" but means thousandths of rated current.</td></tr>
+  </tbody>
+</table>
+
+<h3>RxPDO commands (master → drive)</h3>
+
+<table class="od-table">
+  <thead><tr><th>Index</th><th>Name</th><th>Type</th><th>Unit</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="idx">6040h</td><td>Control Word</td><td>UINT16</td><td>—</td><td class="v">Enable sequence: 6 → 7 → 15 (Shutdown → SwitchOn → EnableOp)</td></tr>
+    <tr><td class="idx">6060h</td><td>Modes of Operation</td><td>SINT8</td><td>—</td><td class="v">Only 0x08 (CSP), 0x09 (CSV), 0x0A (CST) accepted</td></tr>
+    <tr><td class="idx">6071h</td><td>Target Torque</td><td>INT16</td><td>‰ rated current</td><td class="v">Your CST command. 1000 = full rated current.</td></tr>
+    <tr><td class="idx">607Ah</td><td>Target Position</td><td>DINT32</td><td>counts</td><td class="v">For CSP mode</td></tr>
+    <tr><td class="idx">60FFh</td><td>Target Velocity</td><td>DINT32</td><td>counts/s</td><td class="v">For CSV mode</td></tr>
+    <tr><td class="idx">6072h</td><td>Max Torque</td><td>UINT16</td><td>‰ rated current</td><td class="v">Phase-current clamp</td></tr>
+    <tr><td class="idx">60B0h</td><td>Position Offset</td><td>DINT32</td><td>counts</td><td class="v">Additive in CSP</td></tr>
+    <tr><td class="idx">60B1h</td><td>Velocity Offset</td><td>DINT32</td><td>counts/s</td><td class="v">Velocity feed-forward in CSP, offset in CSV</td></tr>
+    <tr><td class="idx">60B2h</td><td>Torque Offset</td><td>INT16</td><td>‰ rated current</td><td class="v">Torque feed-forward in CSP/CST</td></tr>
+  </tbody>
+</table>
+
+<h3>Conspicuously absent — probe live before ruling out</h3>
+
+<table class="od-table">
+  <thead><tr><th>Index</th><th>Name</th><th>What you lose</th></tr></thead>
+  <tbody>
+    <tr class="missing"><td class="idx">6078h</td><td>Current Actual Value</td><td class="v">No independent amperes reading</td></tr>
+    <tr class="missing"><td class="idx">603Fh</td><td>Error Code</td><td class="v">Drive errors only via status word bits + CAN tool</td></tr>
+    <tr class="missing"><td class="idx">6075h</td><td>Motor Rated Current</td><td class="v">I_rated not settable over EtherCAT — CAN only</td></tr>
+    <tr class="missing"><td class="idx">6076h</td><td>Motor Rated Torque</td><td class="v">Rated torque not readable over EtherCAT</td></tr>
+    <tr class="missing"><td class="idx">6073h</td><td>Max Current</td><td class="v">Current limit configured via CAN only</td></tr>
+    <tr class="missing"><td class="idx">6087h</td><td>Torque Slope</td><td class="v">6071h takes effect next cycle — master-side rate limit if needed</td></tr>
+    <tr class="missing"><td class="idx">60E0/1h</td><td>Pos/Neg Torque Limits</td><td class="v">No asymmetric torque limiting</td></tr>
+    <tr class="missing"><td class="idx">6080h</td><td>Max Motor Speed</td><td class="v">Speed limit configured via CAN only</td></tr>
+    <tr class="missing"><td class="idx">608Fh/6090h</td><td>Encoder Resolution / Gear Ratio</td><td class="v">Hardcoded in drive; cannot query</td></tr>
+    <tr class="missing"><td class="idx">60F4h</td><td>Following Error Actual</td><td class="v">Must compute in master</td></tr>
+    <tr class="missing"><td class="idx">2000h–5FFFh</td><td>Manufacturer-specific</td><td class="v">No documented manufacturer objects at all</td></tr>
+  </tbody>
+</table>
+
+<p>Probe for 6078h on your specific firmware before ruling it out definitively. A successful <code>ec_SDOread(slave, 0x6078, 0x00, ...)</code> confirms existence; abort code <code>0x06020000</code> confirms absence. The ESI file (MT-Device-250702.XML) is newer than the protocol PDF (2025-04-30), so newer firmware may add objects.</p>
+</section>
+
+<!-- ─── §14 GOTCHAS ─── -->
+<section id="gotchas">
+<span class="section-num">§ 14 — Seven implementation gotchas</span>
+<h2>Bugs you'll hit if you <em>don't</em> know.</h2>
+
+<ul class="steps">
+  <li><strong>6077h is per-mille of rated CURRENT, not rated torque</strong>
+    Deviation from how most CiA 402 drives behave. If you copy torque-handling code from another vendor's driver, the conversion will be wrong by gearbox_efficiency × K_t.
+  </li>
+  <li><strong>I_rated defaults to 10 A but nameplate is 9.5 Arms</strong>
+    Pin this down via MyActuator's CAN-based setup tool before any torque scaling work. Every ‰-to-ampere conversion depends on it. Default vs nameplate is a ~5% source of bias.
+  </li>
+  <li><strong>No torque slope (6087h)</strong>
+    Writes to 6071h take effect on the very next cycle. For humanoid impact/landing scenarios, implement a master-side rate limiter so you don't command 0 → 60 N·m in one tick.
+  </li>
+  <li><strong>Regen on a 48 V bus</strong>
+    During CST deceleration against inertia, regenerative current raises the bus voltage. Manual recommends a bleeder resistor or battery for sustained regen. On bench with a lab supply, watch for overvoltage protection trips.
+  </li>
+  <li><strong>PDF typos that bite</strong>
+    The CST walkthrough in the official manual says "Set the target speed 0x607" (should be 0x6071). Status-word bit 12 description is copy-pasted between CSV and CST sections with inconsistent meaning. Cross-reference with the ESI file and your own SDO probes.
+  </li>
+  <li><strong>Default PDO mapping not published in the PDF</strong>
+    The 1C12h/1C13h assignments and 1600h/1A00h listings are only in the ESI XML. Download MT-Device-250702.XML and parse it — don't assume.
+  </li>
+  <li><strong>DC-Synchron mode is required</strong>
+    The ESC is ET1100-uC16. Manual instructs configuring DC-Synchron in TwinCAT. Free-run mode will appear to work but drift under load. Always use DC-Synchron on this drive.
+  </li>
+</ul>
+</section>
+
+<!-- ─── §15 WORKFLOW ─── -->
+<section id="workflow">
+<span class="section-num">§ 15 — The dual-interface workflow</span>
+<h2>CAN for <em>setup</em>, EtherCAT for <em>runtime</em>.</h2>
+
+<p class="lead">Because the motor characterization parameters are not exposed over EtherCAT, commission the drive over CAN and use EtherCAT for your real-time control loop. Both interfaces are physically present on the X6.</p>
+
+<h3>Commissioning phase (CAN, one-time per drive)</h3>
+
+<ul class="bullets">
+  <li>Connect via MyActuator's Windows Setup Software V4.0.</li>
+  <li>Set and verify rated current (I_rated). Log the exact value.</li>
+  <li>Configure current-loop PI gains if defaults aren't adequate.</li>
+  <li>Set protection limits: max current, max speed, max temperature.</li>
+  <li>Read back and log every configured parameter — they cannot be read over EtherCAT later.</li>
+  <li>Optionally: request dyno parameters from Arics Tang (tangxc@myactuator.com) for unpublished K_t/inertia data per unit.</li>
+</ul>
+
+<h3>Runtime phase (EtherCAT, every control tick)</h3>
+
+<ul class="bullets">
+  <li>CST mode, 1 kHz cyclic. Command 6071h, read 6077h, 6064h, 6041h.</li>
+  <li>Convert 6077h ‰ → amperes (multiply by logged I_rated / 1000) → N·m (multiply by K_t, accounting for gearbox).</li>
+  <li>Monitor 6041h for drive state transitions; fail to a safe mode on unexpected state.</li>
+  <li>Log all received PDOs at 1 kHz to ros2 bag for post-hoc analysis.</li>
+</ul>
+
+<h3>Diagnostics phase (optional, CAN)</h3>
+
+<p>For motor temperature, DC bus voltage, or detailed error codes, switch the motor to CAN briefly. Or run a dedicated diagnostic loop that queries via CAN every few seconds without interrupting the EtherCAT control loop. The interfaces can coexist.</p>
+
+<div class="callout">
+  The pragmatic truth: MyActuator's V4 EtherCAT exposes the minimum CiA 402 subset needed for real-time control, nothing more. Every other useful parameter lives on the CAN side. If distinct amperes feedback is a hard requirement for your humanoid design, raise it with MyActuator before hardware-lock — it's a real capability gap they could address in firmware.
+</div>
+</section>
+
+<!-- ─── §16 TEMPLATE ─── -->
+<section id="template">
+<span class="section-num">§ 16 — Results template</span>
+<h2>A table to fill in after the afternoon.</h2>
+
+<p>Print this, run the protocol, fill in the numbers. At the end you have a reproducible identification record that flows directly into your sim actuator model and your domain-randomization ranges.</p>
+
+<table class="ref">
+  <thead><tr><th>Parameter</th><th>Symbol</th><th>Method</th><th>Your value</th></tr></thead>
+  <tbody>
+    <tr><td>EtherCAT cycle period</td><td>T_cyc</td><td class="v">Timestamp logging</td><td class="v">___ μs ± ___</td></tr>
+    <tr><td>Rated current (commissioned)</td><td>I_rated</td><td class="v">Drive config via CAN tool</td><td class="v">___ A</td></tr>
+    <tr><td>Torque constant</td><td>K_t</td><td class="v">Three-payload static holds</td><td class="v">___ N·m/A (output) or ___ (motor)</td></tr>
+    <tr><td>Payload mass estimate at 0.5 kg</td><td>m̂_0.5</td><td class="v">Method 1 static balance</td><td class="v">___ kg (true: 0.5)</td></tr>
+    <tr><td>Payload mass estimate at 1.0 kg</td><td>m̂_1.0</td><td class="v">Method 1 static balance</td><td class="v">___ kg (true: 1.0)</td></tr>
+    <tr><td>Inertia (pendulum)</td><td>J_pend</td><td class="v">Free-swing period</td><td class="v">___ kg·m²</td></tr>
+    <tr><td>Inertia (torque step)</td><td>J_step</td><td class="v">θ̈ from τ step</td><td class="v">___ kg·m²</td></tr>
+    <tr><td>Coulomb friction (positive direction)</td><td>F_c⁺</td><td class="v">Const-vel sweep</td><td class="v">___ N·m</td></tr>
+    <tr><td>Coulomb friction (negative direction)</td><td>F_c⁻</td><td class="v">Const-vel sweep</td><td class="v">___ N·m</td></tr>
+    <tr><td>Viscous friction</td><td>F_v</td><td class="v">Const-vel sweep slope</td><td class="v">___ N·m·s/rad</td></tr>
+    <tr><td>Stiction</td><td>F_s</td><td class="v">Slow torque ramp</td><td class="v">___ N·m</td></tr>
+    <tr><td>Current-loop time constant</td><td>τ_m</td><td class="v">Torque step to 63%</td><td class="v">___ ms</td></tr>
+    <tr><td>Total actuation latency</td><td>T_lat</td><td class="v">Cmd → measured motion delay</td><td class="v">___ ms (EtherCAT + τ_m)</td></tr>
+    <tr><td>Backlash</td><td>b</td><td class="v">Triangular reversal</td><td class="v">___ rad (expected arc-min)</td></tr>
+    <tr><td>K_g estimator convergence time</td><td>T_Kg</td><td class="v">Payload swap → settled</td><td class="v">___ s at η = ___</td></tr>
+    <tr><td>Payload estimator convergence time</td><td>T_mp</td><td class="v">RLS to within 5%</td><td class="v">___ s</td></tr>
+    <tr><td>Temperature rise (1 kg, 5 min hold)</td><td>ΔT</td><td class="v">External thermistor or CAN</td><td class="v">___ °C</td></tr>
+  </tbody>
+</table>
+
+<div class="panel" data-label="Where these numbers go next">
+  <p style="margin:0">J, F_c, F_v, τ_m become the <em>nominal</em> values for domain randomization in Isaac training (§13 of the sim-to-real guide). Backlash informs whether you need to model it in sim. K_t goes into the sim actuator model. Cycle-time jitter and total latency go into the latency-injection randomization range. The estimator convergence times tell you the upper bound on how fast payload changes can happen before policy behavior degrades.</p>
+</div>
+</section>
+
+<footer>
+  <span>field notes · motor identification protocol · X6 EtherCAT</span>
+  <span>consolidates: payload experiment · payload math · adaptive K_g · full ID · X6 drive reality</span>
+</footer>
+
+</div>
+
+<script>
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#a79a82';
+Chart.defaults.borderColor = '#2a2419';
+const C = { amber:'#e8a33d', cyan:'#5fb3b3', rose:'#d97757', moss:'#8fa968', dim:'#6b6354', grid:'#1e1a13', ink:'#ece2cf' };
+const grid = { grid:{color:C.grid, drawBorder:false}, ticks:{color:C.dim, font:{size:10, family:"'JetBrains Mono',monospace"}}, title:{color:C.dim, font:{size:11, family:"'JetBrains Mono',monospace"}} };
+
+// ── CHART: RLS payload convergence ──
+(function(){
+  const tMax = 25.0, dt = 0.01;
+  const truePts = [];
+  const estPts = [];
+  let m_hat = 0.0;
+  let P = 1000;
+  const lam = 0.99;
+  const l_p = 0.30, g = 9.81;
+  const J_bar = 0.012, b = 0.05, Fc = 0.15, m_bar_eff = 0.15;
+
+  // simulate a slow sinusoid trajectory while payload steps
+  for (let t = 0; t <= tMax; t += dt){
+    let m_true;
+    if (t < 5) m_true = 0;
+    else if (t < 15) m_true = 0.5;
+    else m_true = 1.0;
+    truePts.push({x: t, y: m_true});
+
+    // fake trajectory with excitation
+    const theta = 0.3 * Math.sin(2*Math.PI*0.3*t);
+    const theta_dot = 0.3 * 2*Math.PI*0.3 * Math.cos(2*Math.PI*0.3*t);
+    const theta_ddot = -0.3 * (2*Math.PI*0.3)**2 * Math.sin(2*Math.PI*0.3*t);
+
+    // true torque per plant
+    const J_tot = J_bar + m_true * l_p**2;
+    const tau_true = (J_tot * theta_ddot
+                      + b * theta_dot
+                      + Fc * Math.tanh(theta_dot/0.01)
+                      + (m_bar_eff + m_true * l_p) * g * Math.sin(theta));
+
+    // RLS with known "other" params
+    const tau_known = (J_bar * theta_ddot
+                       + b * theta_dot
+                       + Fc * Math.tanh(theta_dot/0.01)
+                       + m_bar_eff * g * Math.sin(theta));
+    const y = tau_true - tau_known;
+    const phi = l_p**2 * theta_ddot + l_p * g * Math.sin(theta);
+
+    P = P / (lam + phi*phi*P);
+    m_hat = m_hat + P * phi * (y - phi * m_hat);
+
+    // small additive noise for realism
+    const noise = 0.005 * Math.sin(t*30);
+    estPts.push({x: t, y: m_hat + noise});
+  }
+
+  new Chart(document.getElementById('rlsChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      datasets: [
+        { label:'true payload', data: truePts, borderColor: C.dim, borderWidth: 1.5, borderDash:[4,4], pointRadius:0, tension:0, fill:false, stepped:'before' },
+        { label:'RLS estimate m̂', data: estPts, borderColor: C.amber, borderWidth: 2, pointRadius:0, tension:0.1, fill:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{labels:{color:C.ink, boxWidth:10, boxHeight:2}, position:'bottom'},
+        tooltip:{backgroundColor:'#0a0806', titleColor:C.amber, bodyColor:C.ink, borderColor:C.grid, borderWidth:1}
+      },
+      scales: {
+        x:{type:'linear', ...grid, min:0, max:tMax, title:{...grid.title, display:true, text:'time [s]'}},
+        y:{...grid, min:-0.1, max:1.3, title:{...grid.title, display:true, text:'payload mass [kg]'}}
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
