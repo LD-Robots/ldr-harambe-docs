@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Leg torque ceilings — what 80% means and what fails first</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0e0c09; --bg-panel:#15120d; --bg-inset:#0a0806;
+  --ink:#ece2cf; --ink-dim:#a79a82; --ink-faint:#6b6354;
+  --rule:#2a2419; --rule-soft:#1e1a13;
+  --amber:#e8a33d; --amber-deep:#b87a1e;
+  --cyan:#5fb3b3; --rose:#d97757; --moss:#8fa968;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+:root[data-theme="reactive"]{
+  --bg:var(--vscode-editor-background,#1f1f1f);
+  --bg-panel:var(--vscode-sideBar-background,#181818);
+  --bg-inset:var(--vscode-textCodeBlock-background,#1a1a1a);
+  --ink:var(--vscode-editor-foreground,#cccccc);
+  --ink-dim:var(--vscode-descriptionForeground,#9d9d9d);
+  --ink-faint:var(--vscode-disabledForeground,#6f6f6f);
+  --rule:var(--vscode-panel-border,#2b2b2b);
+  --rule-soft:var(--vscode-editorWidget-border,#252525);
+  --amber:var(--vscode-textLink-foreground,#4ec9b0);
+  --amber-deep:var(--vscode-textLink-activeForeground,#569cd6);
+  --cyan:var(--vscode-symbolIcon-functionForeground,#dcdcaa);
+  --rose:var(--vscode-errorForeground,#f48771);
+  --moss:var(--vscode-debugTokenExpression-string,#ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg:var(--vscode-editor-background,#ffffff);
+    --bg-panel:var(--vscode-sideBar-background,#f8f8f8);
+    --bg-inset:var(--vscode-textCodeBlock-background,#f3f3f3);
+    --ink:var(--vscode-editor-foreground,#3b3b3b);
+    --ink-dim:var(--vscode-descriptionForeground,#616161);
+    --ink-faint:var(--vscode-disabledForeground,#8c8c8c);
+    --rule:var(--vscode-panel-border,#e5e5e5);
+    --rule-soft:var(--vscode-editorWidget-border,#ececec);
+    --amber:var(--vscode-textLink-foreground,#0451a5);
+    --amber-deep:var(--vscode-textLink-activeForeground,#0e639c);
+  }
+}
+:root[data-theme="reactive"] body{background:var(--bg)}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"] body::before{opacity:.025}
+}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+.theme-toggle{
+  position:fixed;top:16px;right:16px;z-index:10;
+  background:var(--bg-panel);color:var(--ink-faint);
+  border:1px solid var(--rule);padding:8px 12px;
+  font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.22em;text-transform:uppercase;
+  cursor:pointer;transition:color .2s,border-color .2s;
+}
+.theme-toggle:hover{color:var(--amber);border-color:var(--amber-deep)}
+.theme-toggle .dot{color:var(--amber);margin-right:8px}
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"HW/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"x4 · x8 · ethercat · csp";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.todo{background:linear-gradient(180deg, rgba(95,179,179,.06), rgba(95,179,179,.02));border-left:2px solid var(--cyan);padding:14px 20px;margin:20px 0;font-size:14.5px;font-family:var(--sans);color:var(--ink-dim)}
+.todo strong{color:var(--cyan);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;display:block;margin-bottom:4px}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+table.ref td.todo-cell{color:var(--cyan);font-style:italic}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+.card .big.todo{color:var(--cyan);font-style:italic;font-size:24px}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Hardware · EtherCAT · max_torque</div>
+    <h1 class="title">Leg torque ceilings — <em>80%</em>, and what fails first.</h1>
+    <p class="subtitle">Why the X8 hips, X8 knees, and X4 ankles run at 80% of rated current — what that buys, and what it costs if a controller bug commands sustained max.</p>
+
+    <div class="meta">
+      <div><span class="k">Status</span><span class="v"><em>draft — awaiting load test</em></span></div>
+      <div><span class="k">Owner</span><span class="v">Andrei</span></div>
+      <div><span class="k">Applies to</span><span class="v">12 leg joints</span></div>
+      <div><span class="k">Updated</span><span class="v">2026-04-27</span></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#change"><span class="n">01</span>The change</a>
+      <a href="#why"><span class="n">02</span>Why 80% on legs but 40% on arms</a>
+      <a href="#unit"><span class="n">03</span>What 800 actually means</a>
+      <a href="#config"><span class="n">04</span>Where it lives in config</a>
+      <a href="#evidence"><span class="n">05</span>Load-test evidence</a>
+      <a href="#failure"><span class="n">06</span>What fails first if exceeded</a>
+      <a href="#change-procedure"><span class="n">07</span>Changing the ceiling</a>
+    </nav>
+  </header>
+
+  <!-- ─── §01 THE CHANGE ─── -->
+  <section id="change">
+  <span class="section-num">§ 01 — The change</span>
+  <h2>From <em>40–60%</em> to a flat <em>80%</em> on every leg.</h2>
+
+  <p class="lead">On 2026-04-27 every leg joint slave config in <code>arm_real_bringup/config/ethercat/</code> had its <code>0x6072</code> max-torque ceiling raised to 800 (80% of rated current). Both the SDO that arms the drive at startup and the redundant RxPDO default that re-asserts every cycle were updated together.</p>
+
+  <table class="ref">
+    <thead><tr><th>Joint group</th><th>Motor</th><th>Old</th><th>New</th><th>Δ</th></tr></thead>
+    <tbody>
+      <tr><td>hip pitch (L/R)</td><td>X8</td><td>600 (60%)</td><td>800 (80%)</td><td class="v">+33%</td></tr>
+      <tr><td>hip roll (L/R)</td><td>X8</td><td>400 (40%)</td><td>800 (80%)</td><td class="v">+100%</td></tr>
+      <tr><td>hip yaw (L/R)</td><td>X8</td><td>400–600</td><td>800 (80%)</td><td class="v">+33–100%</td></tr>
+      <tr><td>knee (L/R)</td><td>X8</td><td>600 (60%)</td><td>800 (80%)</td><td class="v">+33%</td></tr>
+      <tr><td>ankle pitch (L/R)</td><td>X4</td><td>400 (40%)</td><td>800 (80%)</td><td class="v">+100%</td></tr>
+      <tr><td>ankle roll (L/R)</td><td>X4</td><td>400 (40%)</td><td>800 (80%)</td><td class="v">+100%</td></tr>
+    </tbody>
+  </table>
+
+  <p>Twelve files, one number each, in two places per file. Captured in commit <code>4259060</code> (<em>which also bundles a left_hip_yaw zero re-calibration — flagged separately</em>).</p>
+  </section>
+
+  <!-- ─── §02 WHY ─── -->
+  <section id="why">
+  <span class="section-num">§ 02 — Why 80% on legs but 40% on arms</span>
+  <h2>The arm hangs. The leg <em>holds</em>.</h2>
+
+  <p>Arms swing free. Worst-case static load is the arm's own mass plus a held payload — a few N·m at the shoulder pitch, an order of magnitude less at the wrist. The 40–50% ceilings on arm joints sit comfortably above that envelope and below anything that would mean the controller has gone wrong.</p>
+
+  <p>Legs are different. A standing humanoid distributes its weight through the kinematic chain; squats, single-leg stance, and any momentum recovery push specific joints — knee in particular — close to their rated limits in normal operation, not just in failure. Set the ceiling too low and the drive clamps mid-step. Set it too high and a runaway controller has authority to break the gearbox before the safety monitor reacts.</p>
+
+  <div class="callout">
+    On arms, the ceiling is a fence. On legs, it is a dimensionable parameter — the value matters, not just the principle.
+  </div>
+
+  <p>80% was chosen as the smallest ceiling that comfortably covers expected peak demand under a stand-and-squat profile, with margin for transient spikes. The next sections capture the math behind that choice, and the load-test data that should validate it.</p>
+  </section>
+
+  <!-- ─── §03 UNIT ─── -->
+  <section id="unit">
+  <span class="section-num">§ 03 — What 800 actually means</span>
+  <h2>Per-mille of rated <em>current</em>, not torque.</h2>
+
+  <p class="lead">CiA 402 object <code>0x6072</code> is "Max Torque." On a typical drive it would be ‰ of rated <em>torque</em>. On the MyActuator V4 family it is ‰ of rated <em>current</em> — a deviation documented in the X6 motor identification field note.</p>
+
+  <p>The practical consequence: 800 means the drive's q-axis current is clamped at 80% of nameplate rated current, not 80% of rated torque. Torque follows current through K_t and the gearbox, so output joint torque under the new ceiling is approximately:</p>
+
+  <div class="math-block labeled">
+    <span class="lbl">Eq. 1 — output torque at ceiling</span>
+    $$ \tau_{joint,\,max} \;\approx\; 0.8 \cdot I_{rated} \cdot K_t \cdot N \cdot \eta $$
+  </div>
+
+  <dl class="vars">
+    <dt>I_rated</dt><dd>nameplate rated current (A) — <em>configured over CAN, not EtherCAT</em></dd>
+    <dt>K_t</dt><dd>torque constant (N·m/A) at the rotor — measured, not trusted</dd>
+    <dt>N</dt><dd>gear ratio (X4 = 36, X8 = 19.612)</dd>
+    <dt>η</dt><dd>gearbox efficiency (~0.85 typical, joint-specific)</dd>
+  </dl>
+
+  <p>Three of those four are not exposed over EtherCAT and need to be pinned down per-motor. See <a href="../tuning/motor_id_protocol.html">motor_id_protocol.html § 12-13</a> for why and how.</p>
+
+  <div class="warn">
+    <strong>Don't reason about this in N·m without measuring K_t per joint.</strong> Datasheet K_t drifts ±5–10% per unit and varies with temperature. The ceiling is set, audited, and changed in raw ‰-of-current units — not in physics units. Any "we have margin to 50 N·m" claim needs a measured K_t and a logged peak current behind it.
+  </div>
+  </section>
+
+  <!-- ─── §04 CONFIG ─── -->
+  <section id="config">
+  <span class="section-num">§ 04 — Where it lives in config</span>
+  <h2>Two writes per drive, <em>both</em> matter.</h2>
+
+  <p>Each per-joint slave YAML sets <code>0x6072</code> twice. The SDO arms the drive at startup (one-time write); the RxPDO copy re-asserts the limit every cycle (defends against drive-side state loss). Both must agree, or behavior is undefined.</p>
+
+  <pre data-lang="yaml"><code><span class="tok-c"># left_knee_X8.yaml — excerpt</span>
+sdo:
+  <span class="tok-c"># Max torque limit (obj 0x6072) — value in 0.1% units of rated torque</span>
+  <span class="tok-c">#   800 = 80% of rated torque. CHANGE THIS to allow more/less torque (max 1000 = 100%)</span>
+  - {index: <span class="tok-n">0x6072</span>, sub_index: <span class="tok-n">0</span>, type: uint16, value: <span class="tok-n">800</span>}
+
+rpdo:
+  - {index: <span class="tok-n">0x1600</span>, channels: [
+      <span class="tok-c"># [2 bytes] Max torque (0x6072) — cycle-level torque limit (redundant with SDO, default 80%)</span>
+      - {index: <span class="tok-n">0x6072</span>, sub_index: <span class="tok-n">0</span>, type: int16, command_interface: ~, default: <span class="tok-n">800</span>}
+    ]}
+</code></pre>
+
+  <p>The comment text says "rated torque" — it is wrong, kept as-is across all 25 files for diff hygiene, but the real unit is ‰ of rated current per § 03. Fix on a separate cleanup pass; does not affect runtime.</p>
+
+  <h3>Generated variants</h3>
+  <p>The build also emits <code>ethercat_readonly/</code> and <code>ethercat_gravcomp/</code> from the canonical <code>ethercat/</code> via <code>sed</code> in <code>CMakeLists.txt</code>. The torque ceiling is copied verbatim into both — bumping <code>ethercat/</code> bumps all three. Manual edits to the generated folders are overwritten on rebuild.</p>
+  </section>
+
+  <!-- ─── §05 EVIDENCE ─── -->
+  <section id="evidence">
+  <span class="section-num">§ 05 — Load-test evidence</span>
+  <h2>What we measured, and the <em>headroom</em> the ceiling gives.</h2>
+
+  <p>Methodology to lock down before merging this note as authoritative: capture peak commanded effort on every leg joint while the robot performs a slow stand-from-squat with a held support, then cross-check against a free-standing single-leg balance episode if available. Logging via <code>ros2 bag record /joint_states /<i>controller</i>/commands</code>, post-process to per-joint peak and 95th-percentile.</p>
+
+  <div class="three-col">
+    <div class="card">
+      <h5>knee peak (sit→stand)</h5>
+      <div class="big todo">— ‰</div>
+      <p>Max commanded effort on either knee during a 3-second stand from 90° squat. Margin to 800 is the headroom.</p>
+    </div>
+    <div class="card">
+      <h5>hip pitch peak</h5>
+      <div class="big todo">— ‰</div>
+      <p>Max commanded effort on hip pitch during the same stand. Expect lower than knee but not by much.</p>
+    </div>
+    <div class="card">
+      <h5>ankle roll peak</h5>
+      <div class="big todo">— ‰</div>
+      <p>Max commanded effort on ankle roll during a deliberate lateral weight shift. Pin down the X4 worst case here.</p>
+    </div>
+  </div>
+
+  <div class="todo">
+    <strong>todo — load test</strong>
+    Run on a robot with a stand support. Capture peak and p95 commanded effort per joint. Required headroom criterion: peak &lt; 600 (60%) under expected operation, leaving the band 600–800 for transient overshoot only. Update this section with the actual numbers and note the date and conditions of the test.
+  </div>
+
+  <h3>Static gravity sanity check</h3>
+  <p>Independently of dynamic load: with the robot held in a known pose, the commanded effort to maintain stance must match the URDF gravity-compensation prediction within K_t tolerance. Disagreement points at a wrong K_t, a wrong I_rated, or a wrong link mass. Numbers below.</p>
+
+  <table class="ref">
+    <thead><tr><th>Joint</th><th>Pose</th><th>Predicted (N·m)</th><th>Measured ‰</th><th>Implied K_t</th></tr></thead>
+    <tbody>
+      <tr><td>left knee</td><td class="v">90° squat, supported</td><td class="todo-cell">—</td><td class="todo-cell">—</td><td class="todo-cell">—</td></tr>
+      <tr><td>left hip pitch</td><td class="v">upright stance</td><td class="todo-cell">—</td><td class="todo-cell">—</td><td class="todo-cell">—</td></tr>
+      <tr><td>left ankle roll</td><td class="v">10° lean right</td><td class="todo-cell">—</td><td class="todo-cell">—</td><td class="todo-cell">—</td></tr>
+    </tbody>
+  </table>
+  </section>
+
+  <!-- ─── §06 FAILURE ─── -->
+  <section id="failure">
+  <span class="section-num">§ 06 — What fails first if exceeded</span>
+  <h2>The drive clamps, the gearbox <em>doesn't</em>.</h2>
+
+  <p>The ceiling is a phase-current clamp inside the drive. A controller that demands more than 800‰ does not get more — the drive silently saturates and the actual torque feedback (<code>0x6077</code>) plateaus at the limit. The control loop sees a torque deficit and integrates it; if the loop is a position-mode JTC, this manifests as following error growing without bound. If it's an effort-mode controller running gravity compensation, the body sags.</p>
+
+  <p>What this means by failure mode, in the order the symptoms appear:</p>
+
+  <ul class="steps">
+    <li>
+      <strong>Following error or sag — first 100 ms</strong>
+      The drive clamps. The mechanical response stops tracking the command. JTC publishes a following-error diagnostic if the deviation exceeds <code>controllers.yaml</code> tolerance.
+    </li>
+    <li>
+      <strong>Phase current at 800‰ sustained — seconds</strong>
+      Stator I²R losses scale with current squared. At 80% rated current sustained, motor temperature rises monotonically. MyActuator drives have internal thermal protection but it is configured over CAN, not EtherCAT, and the threshold is not visible to ros2_control.
+    </li>
+    <li>
+      <strong>Drive thermal fault — tens of seconds, joint-dependent</strong>
+      The drive trips, status word reports fault, the joint goes limp. <code>arm_ethercat_safety</code> sees the CiA 402 state transition and triggers the system e-stop.
+    </li>
+    <li>
+      <strong>Gearbox damage — never reached if the above works</strong>
+      The X4's 36:1 and X8's 19.612:1 reducers are the most expensive component to replace. They tolerate brief overload but degrade under repeated torque cycling at the limit. The 80% ceiling sits below mechanical destruction; the chain above it should trip well before this regime is sustained.
+    </li>
+  </ul>
+
+  <div class="warn">
+    <strong>Prior incident — left wrist yaw X4, 2026-04-01.</strong> A wrist X4 broke physically during an effort-mode PD test. The failure was not the ceiling — the motor was driven into a kinematic limit under closed-loop torque commands, and the inertia stored at impact exceeded the joint's structural rating. Lesson: a high ceiling is only safe if motion limits, e-stop wiring, and safety-monitor watchdogs are all live. Raising leg ceilings without re-validating the safety chain is the same class of mistake.
+  </div>
+  </section>
+
+  <!-- ─── §07 CHANGE-PROCEDURE ─── -->
+  <section id="change-procedure">
+  <span class="section-num">§ 07 — Changing the ceiling</span>
+  <h2>If 80% is wrong, <em>here</em> is how to move it.</h2>
+
+  <ul class="bullets">
+    <li>Edit <code>0x6072</code> in both the <code>sdo</code> block <strong>and</strong> the <code>rpdo</code> default of every joint that needs the new value. Skipping the rpdo copy leaves the cycle-level limit at the old value — silent, intermittent.</li>
+    <li>Update the comment text to match (currently says "rated torque" — the unit is ‰ rated current; fix while you are there).</li>
+    <li><code>colcon build --packages-select arm_real_bringup</code>. The <code>ethercat_readonly/</code> and <code>ethercat_gravcomp/</code> variants regenerate from the canonical configs.</li>
+    <li>Bring up <code>position_viewer.launch.py</code> first — drives stay disabled, no torque applied, but the YAML parse path is exercised.</li>
+    <li>Then <code>arm_real.launch.py</code> on a supported robot, repeat the load test in § 05, and update this doc with new peak/headroom numbers.</li>
+    <li>Commit message convention: <code>arm_real_bringup: leg torque ceiling NN% → MM%</code>. Reference this field note in the body.</li>
+  </ul>
+
+  <div class="callout">
+    The ceiling is a number you set with intent. If you change it, leave evidence behind for whoever reads it next.
+  </div>
+  </section>
+
+  <footer>
+    <span>Field notes · humanoid project · hardware</span>
+    <span>v.26.04 · draft</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY  = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn  = document.querySelector('.theme-toggle');
+  const lbl  = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>

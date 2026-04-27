@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Motion capture and playback — kinesthetic teaching, leg homing, demo replay</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0e0c09; --bg-panel:#15120d; --bg-inset:#0a0806;
+  --ink:#ece2cf; --ink-dim:#a79a82; --ink-faint:#6b6354;
+  --rule:#2a2419; --rule-soft:#1e1a13;
+  --amber:#e8a33d; --amber-deep:#b87a1e;
+  --cyan:#5fb3b3; --rose:#d97757; --moss:#8fa968;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+:root[data-theme="reactive"]{
+  --bg:var(--vscode-editor-background,#1f1f1f);
+  --bg-panel:var(--vscode-sideBar-background,#181818);
+  --bg-inset:var(--vscode-textCodeBlock-background,#1a1a1a);
+  --ink:var(--vscode-editor-foreground,#cccccc);
+  --ink-dim:var(--vscode-descriptionForeground,#9d9d9d);
+  --ink-faint:var(--vscode-disabledForeground,#6f6f6f);
+  --rule:var(--vscode-panel-border,#2b2b2b);
+  --rule-soft:var(--vscode-editorWidget-border,#252525);
+  --amber:var(--vscode-textLink-foreground,#4ec9b0);
+  --amber-deep:var(--vscode-textLink-activeForeground,#569cd6);
+  --cyan:var(--vscode-symbolIcon-functionForeground,#dcdcaa);
+  --rose:var(--vscode-errorForeground,#f48771);
+  --moss:var(--vscode-debugTokenExpression-string,#ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg:var(--vscode-editor-background,#ffffff);
+    --bg-panel:var(--vscode-sideBar-background,#f8f8f8);
+    --bg-inset:var(--vscode-textCodeBlock-background,#f3f3f3);
+    --ink:var(--vscode-editor-foreground,#3b3b3b);
+    --ink-dim:var(--vscode-descriptionForeground,#616161);
+    --ink-faint:var(--vscode-disabledForeground,#8c8c8c);
+    --rule:var(--vscode-panel-border,#e5e5e5);
+    --rule-soft:var(--vscode-editorWidget-border,#ececec);
+    --amber:var(--vscode-textLink-foreground,#0451a5);
+    --amber-deep:var(--vscode-textLink-activeForeground,#0e639c);
+  }
+}
+:root[data-theme="reactive"] body{background:var(--bg)}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"] body::before{opacity:.025}
+}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+.theme-toggle{
+  position:fixed;top:16px;right:16px;z-index:10;
+  background:var(--bg-panel);color:var(--ink-faint);
+  border:1px solid var(--rule);padding:8px 12px;
+  font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.22em;text-transform:uppercase;
+  cursor:pointer;transition:color .2s,border-color .2s;
+}
+.theme-toggle:hover{color:var(--amber);border-color:var(--amber-deep)}
+.theme-toggle .dot{color:var(--amber);margin-right:8px}
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"OPS/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"recorder · player · gravcomp";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:32px;font-weight:400;color:var(--ink);line-height:1.1;margin:4px 0 8px;letter-spacing:-.01em}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Operations · Kinesthetic teaching · Replay</div>
+    <h1 class="title">Motion capture and <em>replay</em>.</h1>
+    <p class="subtitle">Two scripts and one mode change: gravity-comp the robot, push it through a motion by hand, save the joint trace, then replay it back through the trajectory controllers.</p>
+
+    <div class="meta">
+      <div><span class="k">Tools</span><span class="v"><em>recorder</em> + player</span></div>
+      <div><span class="k">Modes</span><span class="v">CST → CSP</span></div>
+      <div><span class="k">Format</span><span class="v">YAML waypoints</span></div>
+      <div><span class="k">Updated</span><span class="v">2026-04-27</span></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#what"><span class="n">01</span>What it is, when to reach for it</a>
+      <a href="#two-modes"><span class="n">02</span>Two launches, two drive modes</a>
+      <a href="#recorder"><span class="n">03</span>The recorder</a>
+      <a href="#format"><span class="n">04</span>The motion file</a>
+      <a href="#player"><span class="n">05</span>The player — real hardware</a>
+      <a href="#sim-player"><span class="n">06</span>The player — Gazebo</a>
+      <a href="#workflows"><span class="n">07</span>Workflows</a>
+      <a href="#failures"><span class="n">08</span>What bites</a>
+    </nav>
+  </header>
+
+  <!-- ─── §01 WHAT ─── -->
+  <section id="what">
+  <span class="section-num">§ 01 — What it is, when to reach for it</span>
+  <h2>Hand the robot a motion, get a <em>YAML</em> back.</h2>
+
+  <p class="lead">Three executables and one launch file together form a kinesthetic-teaching pipeline. Put the drives in gravity-comp mode, move the robot through a motion by hand, and the recorder writes a waypoint file. Switch back to position mode and the player drives the same trajectory through the JTC stack. Same YAML works in Gazebo via a third executable.</p>
+
+  <div class="three-col">
+    <div class="card">
+      <h5>motion_recorder.py</h5>
+      <div class="big">capture</div>
+      <p>Subscribes to <code>/joint_states</code>, samples at a chosen rate with a dead-band filter, writes a YAML motion file. Body-group aware.</p>
+    </div>
+    <div class="card">
+      <h5>motion_player.py</h5>
+      <div class="big">replay</div>
+      <p>Loads a motion YAML, detects which body groups are inside, sends parallel <code>FollowJointTrajectory</code> goals to each group's controller. Direct or MoveIt mode.</p>
+    </div>
+    <div class="card">
+      <h5>motion_player_sim.py</h5>
+      <div class="big">gazebo</div>
+      <p>Same YAML, different control surface — publishes a 25-element <code>Float64MultiArray</code> to <code>/whole_body_controller/commands</code> with linear interpolation between waypoints.</p>
+    </div>
+  </div>
+
+  <h3>Use cases</h3>
+  <ul class="bullets">
+    <li><strong>Kinesthetic teaching</strong> — record gestures, demos, recovery motions by manually moving a gravity-comped arm. The cheapest way to author a motion that a human knows but a planner doesn't.</li>
+    <li><strong>Leg homing</strong> — <code>arm_real.launch.py</code> intentionally skips the leg homing nodes; instead, the player's go-to-start ramps legs to the first waypoint of whatever motion plays first. The motion file <em>is</em> the home pose.</li>
+    <li><strong>Demo replay</strong> — wave_hello, salut, hug, full_demo. The <code>motions/</code> directory accumulates these.</li>
+    <li><strong>Regression / sanity</strong> — replay a known-good motion in Gazebo to validate URDF or controller-config changes before going to real hardware.</li>
+    <li><strong>Training data seed</strong> — recorded motions can seed RL warm-starts or behavior-cloning datasets without needing a planner in the loop.</li>
+  </ul>
+  </section>
+
+  <!-- ─── §02 TWO MODES ─── -->
+  <section id="two-modes">
+  <span class="section-num">§ 02 — Two launches, two drive modes</span>
+  <h2>Recording and playback are <em>mutually exclusive</em>.</h2>
+
+  <p>Recording requires the drives to be in CiA 402 mode 10 (CST — torque control with gravity comp adding the necessary torque to hold against gravity). Playback requires mode 8 (CSP — cyclic synchronous position). The two cannot coexist on the same drive: switching modes mid-session is possible at runtime via the <code>mode_controller</code>, but the launch files configure the drives differently at boot, so in practice you stop one launch, start the other.</p>
+
+  <table class="ref">
+    <thead><tr><th>Phase</th><th>Launch</th><th>Drive mode</th><th>Active controllers</th><th>Slave configs</th></tr></thead>
+    <tbody>
+      <tr><td>record</td><td class="v"><code>recording.launch.py</code></td><td class="v">CST (10)</td><td class="v">arm/leg effort + JSB + gravity_comp_node</td><td class="v"><code>ethercat_gravcomp/</code></td></tr>
+      <tr><td>play</td><td class="v"><code>arm_real.launch.py</code></td><td class="v">CSP (8)</td><td class="v">arm/leg JTC + JSB + mode_controller</td><td class="v"><code>ethercat/</code> (canonical)</td></tr>
+    </tbody>
+  </table>
+
+  <p>Both launches accept <code>robot_group:={arms,arms_waist,legs,full}</code>. Match the recording's group to the playback's group — recording arms-only and playing back as <code>full</code> is fine (legs hold their startup pose), but recording <code>full</code> and playing back as <code>arms</code> drops half the trace.</p>
+
+  <div class="callout">
+    Gravity comp on the arms is not "free movement" — it's "the operator moves a 0-N·m payload from the arm's perspective." If the comp_scale is wrong the arm sags or floats, and your recorded trajectory carries that bias.
+  </div>
+  </section>
+
+  <!-- ─── §03 RECORDER ─── -->
+  <section id="recorder">
+  <span class="section-num">§ 03 — The recorder</span>
+  <h2>Press enter, move the robot, press enter <em>again</em>.</h2>
+
+  <p>Two-keystroke workflow. The recorder samples <code>/joint_states</code> at the requested rate, drops samples that didn't move (dead-band filter), and writes the result on the second ENTER.</p>
+
+  <pre data-lang="bash"><code><span class="tok-c"># in one terminal — gravity-comp the arms</span>
+<span class="tok-f">ros2 launch</span> arm_real_bringup recording.launch.py
+
+<span class="tok-c"># in another — record</span>
+<span class="tok-f">ros2 run</span> dual_arm_moveit_config motion_recorder.py -n wave_hello
+<span class="tok-c"># Press ENTER to start … move the robot … press ENTER to stop</span>
+</code></pre>
+
+  <h3>Flags worth knowing</h3>
+  <table class="ref">
+    <thead><tr><th>Flag</th><th>Default</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><code>-n / --name</code></td><td class="v">required</td><td class="v">Filename stem. Output goes to <code>motions/&lt;name&gt;.yaml</code>.</td></tr>
+      <tr><td><code>-o / --output</code></td><td class="v">auto</td><td class="v">Override output path entirely.</td></tr>
+      <tr><td><code>--rate</code></td><td class="v">10 Hz</td><td class="v">Sampling rate. Bump to 20–50 Hz for fast motions; 10 is fine for demos.</td></tr>
+      <tr><td><code>--min-change</code></td><td class="v">0.001 rad</td><td class="v">Dead-band. Samples within this band of the last waypoint are dropped — keeps the file small during slow phases.</td></tr>
+      <tr><td><code>--robot-group</code></td><td class="v">arms</td><td class="v">Which joints to capture. Choices match the launch arg.</td></tr>
+      <tr><td><code>--joints</code></td><td class="v">—</td><td class="v">Custom joint list. Overrides <code>--robot-group</code>.</td></tr>
+      <tr><td><code>--topic</code></td><td class="v">/joint_states</code></td><td class="v">Source topic. Rare to override.</td></tr>
+      <tr><td><code>-d / --description</code></td><td class="v">—</td><td class="v">Free-text metadata. Ends up in the YAML header — use it.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>What gets written</h3>
+  <p>One waypoint per kept sample, with <code>t</code> in seconds since the first sample and <code>positions</code> as a flow-style array in joint-name order. Positions rounded to 6 decimals, times to 4. The file is loadable as plain YAML with no custom tags.</p>
+  </section>
+
+  <!-- ─── §04 FORMAT ─── -->
+  <section id="format">
+  <span class="section-num">§ 04 — The motion file</span>
+  <h2>Joint <em>names</em> are the contract.</h2>
+
+  <pre data-lang="yaml"><code><span class="tok-k">motion</span>:
+  <span class="tok-k">name</span>: wave_hello_4
+  <span class="tok-k">recorded_at</span>: <span class="tok-s">'2026-03-04T18:15:54'</span>
+  <span class="tok-k">joint_names</span>:
+    - left_shoulder_pitch_joint_X6
+    - left_shoulder_roll_joint_X6
+    - left_shoulder_yaw_joint_X4
+    - left_elbow_pitch_joint_X6
+    - left_wrist_yaw_joint_X4
+    - left_wrist_roll_joint_X4
+  <span class="tok-k">sample_rate_hz</span>: <span class="tok-n">10.0</span>
+  <span class="tok-k">total_duration_sec</span>: <span class="tok-n">66.6145</span>
+  <span class="tok-k">num_waypoints</span>: <span class="tok-n">588</span>
+  <span class="tok-k">playback</span>:
+    <span class="tok-k">speed_scale</span>: <span class="tok-n">1.0</span>
+    <span class="tok-k">velocity_scaling</span>: <span class="tok-n">0.3</span>
+    <span class="tok-k">acceleration_scaling</span>: <span class="tok-n">0.3</span>
+  <span class="tok-k">waypoints</span>:
+    - {<span class="tok-k">t</span>: <span class="tok-n">0.0</span>,    <span class="tok-k">positions</span>: [<span class="tok-n">-0.055236</span>, <span class="tok-n">-0.162179</span>, <span class="tok-n">0.342522</span>, <span class="tok-n">-0.157827</span>, <span class="tok-n">-0.060692</span>, <span class="tok-n">-0.047293</span>]}
+    - {<span class="tok-k">t</span>: <span class="tok-n">3.5002</span>, <span class="tok-k">positions</span>: [<span class="tok-n">-0.055236</span>, <span class="tok-n">-0.158632</span>, <span class="tok-n">0.342546</span>, <span class="tok-n">...</span>]}
+    <span class="tok-c"># …</span>
+</code></pre>
+
+  <p>The player matches motion <code>joint_names</code> against its body-group templates by string. The motor-type suffixes (<code>_X4</code>, <code>_X6</code>, <code>_X8</code>) are part of the name — they are not decoration. A motion captured against the real-hardware joint names will not load against a different URDF that omits the suffixes, and vice versa.</p>
+
+  <div class="warn">
+    <strong>Joint-name mismatch is silent.</strong> The player's group detector returns an empty group set if no template matches, and falls through to "no controllers found, exiting." Always run a <code>--dry-run</code> first when you suspect a name mismatch — it prints the detected groups before sending any motion.
+  </div>
+  </section>
+
+  <!-- ─── §05 PLAYER ─── -->
+  <section id="player">
+  <span class="section-num">§ 05 — The player — real hardware</span>
+  <h2>Detect groups, ramp to start, <em>fire</em>.</h2>
+
+  <p>The player loads the YAML, scans <code>joint_names</code> against the five body-group templates (<code>left_arm</code>, <code>right_arm</code>, <code>waist</code>, <code>left_leg</code>, <code>right_leg</code>), and sends one <code>FollowJointTrajectory</code> goal per detected group, in parallel, to that group's JTC.</p>
+
+  <pre data-lang="bash"><code><span class="tok-c"># normal launch — JTC active on every group</span>
+<span class="tok-f">ros2 launch</span> arm_real_bringup arm_real.launch.py robot_group:=full
+
+<span class="tok-c"># straight playback</span>
+<span class="tok-f">ros2 run</span> dual_arm_moveit_config motion_player.py motions/wave_hello.yaml
+
+<span class="tok-c"># half speed, looping</span>
+<span class="tok-f">ros2 run</span> dual_arm_moveit_config motion_player.py motions/wave_hello.yaml --speed 0.5 --loop
+
+<span class="tok-c"># preflight only — no motion sent</span>
+<span class="tok-f">ros2 run</span> dual_arm_moveit_config motion_player.py motions/wave_hello.yaml --dry-run
+</code></pre>
+
+  <h3>Direct vs MoveIt mode</h3>
+  <table class="ref">
+    <thead><tr><th>Aspect</th><th>direct (default)</th><th>moveit</th></tr></thead>
+    <tbody>
+      <tr><td>Speed</td><td class="v">Replays the original timing scaled by <code>--speed</code>.</td><td class="v">Slower — each waypoint plans separately.</td></tr>
+      <tr><td>Collision</td><td class="v">None — raw trajectory.</td><td class="v">Full collision-aware planning per waypoint.</td></tr>
+      <tr><td>Waypoint density</td><td class="v">All of them.</td><td class="v">Auto-decimated to ≤12 waypoints (or <code>--waypoint-step</code>).</td></tr>
+      <tr><td>Use when</td><td class="v">The motion is known-safe and you want fidelity.</td><td class="v">The environment changed since recording, or you need IK relaxation.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Go-to-start — what makes the player viable for legs</h3>
+  <p>Before any waypoint streaming, the player checks the gap between current <code>/joint_states</code> and waypoint 0. If the max joint displacement exceeds 0.02 rad it sends a slow ramp trajectory at ≤0.2 rad/s with a 3-second floor, prompting the operator first if displacement exceeds 0.5 rad. <em>This</em> is the leg homing mechanism — <code>arm_real.launch.py</code> deliberately omits the leg homing nodes because the first motion's go-to-start does the work, with the motion's first waypoint as the home pose.</p>
+
+  <div class="callout">
+    The home pose is not a constant. It is whatever the next motion starts at. Choose first waypoints carefully on leg motions.
+  </div>
+
+  <h3>Other flags</h3>
+  <ul class="bullets">
+    <li><code>--velocity-scaling</code> / <code>--accel-scaling</code> — MoveIt-mode planning scales. Defaults read from the YAML's <code>playback</code> block (typically 0.3).</li>
+    <li><code>--controller</code> — override controller name detection. Useful if you renamed a controller.</li>
+    <li><code>--planning-group</code> — MoveIt group name override.</li>
+    <li><code>--waypoint-step</code> — MoveIt-mode decimation. <code>1</code> = every waypoint (slow), <code>5</code> = every fifth.</li>
+  </ul>
+  </section>
+
+  <!-- ─── §06 SIM PLAYER ─── -->
+  <section id="sim-player">
+  <span class="section-num">§ 06 — The player — Gazebo</span>
+  <h2>One controller, <em>twenty-five</em> joints, fixed order.</h2>
+
+  <p>Gazebo bringup uses a single <code>whole_body_controller</code> (JointGroupPositionController) instead of the per-group JTCs. The sim player publishes <code>Float64MultiArray</code> commands of length 25 in a fixed joint order — left arm 0–5, right arm 6–11, waist 12, left leg 13–18, right leg 19–24 — at a configurable rate (default 50 Hz) with linear interpolation between motion waypoints.</p>
+
+  <pre data-lang="bash"><code><span class="tok-f">ros2 run</span> full_robot_gazebo motion_player_sim.py motions/wave_hello.yaml
+<span class="tok-f">ros2 run</span> full_robot_gazebo motion_player_sim.py motions/wave_hello.yaml --speed 0.5 --loop
+<span class="tok-f">ros2 run</span> full_robot_gazebo motion_player_sim.py motions/wave_hello.yaml --rate 100
+</code></pre>
+
+  <p>For joints not in the motion file, the sim player captures their position at startup and holds it for the duration of playback. Recording arms-only and playing in sim leaves the legs frozen wherever Gazebo spawned them — which is generally what you want.</p>
+
+  <p>Ramp-up to the first waypoint uses an interpolated timer for <code>--go-to-duration</code> seconds (default 3.0). Same intent as the real-hardware go-to-start, simpler implementation because there is no FollowJointTrajectory action server in the loop.</p>
+  </section>
+
+  <!-- ─── §07 WORKFLOWS ─── -->
+  <section id="workflows">
+  <span class="section-num">§ 07 — Workflows</span>
+  <h2>Three patterns that <em>cover most of it</em>.</h2>
+
+  <h3>A. Author a new motion from scratch</h3>
+  <ul class="steps">
+    <li>
+      <strong>Stop any running launch on the robot</strong>
+      Confirm the bus is idle: <code>ros2 control list_controllers</code> returns nothing or errors.
+    </li>
+    <li>
+      <strong>Bring up gravity-comp</strong>
+      <code>ros2 launch arm_real_bringup recording.launch.py robot_group:=arms</code>. Wait for "Successful operation" from each controller spawner.
+    </li>
+    <li>
+      <strong>Record</strong>
+      <code>ros2 run dual_arm_moveit_config motion_recorder.py -n &lt;name&gt; -d "what this is"</code>. Press ENTER, do the motion, press ENTER again.
+    </li>
+    <li>
+      <strong>Switch to position mode</strong>
+      Stop recording.launch.py. Bring up <code>arm_real.launch.py</code>.
+    </li>
+    <li>
+      <strong>Dry-run, then play</strong>
+      <code>... motion_player.py motions/&lt;name&gt;.yaml --dry-run</code>. Confirm the detected groups match what you recorded. Then drop <code>--dry-run</code>.
+    </li>
+  </ul>
+
+  <h3>B. Validate a motion in sim before real hardware</h3>
+  <ul class="steps">
+    <li>
+      <strong>Bring up Gazebo full robot</strong>
+      With <code>whole_body_controller</code> active.
+    </li>
+    <li>
+      <strong>Sim-play the YAML</strong>
+      <code>ros2 run full_robot_gazebo motion_player_sim.py motions/&lt;name&gt;.yaml</code>. Watch for self-collisions or table contacts that didn't show up during recording.
+    </li>
+    <li>
+      <strong>Iterate on the YAML if needed</strong>
+      Edit waypoints in-place, or re-record. Sim playback is the cheap loop.
+    </li>
+  </ul>
+
+  <h3>C. Boot the legs into a known stance</h3>
+  <ul class="steps">
+    <li>
+      <strong>Bring up <code>arm_real.launch.py</code> with legs included</strong>
+      <code>robot_group:=full</code> or <code>legs</code>. Legs sit wherever they powered up — no auto-homing.
+    </li>
+    <li>
+      <strong>Play a "stance" motion whose first waypoint is the desired home pose</strong>
+      The go-to-start ramp moves the legs there at ≤0.2 rad/s. The rest of the motion is the actual stance trajectory.
+    </li>
+  </ul>
+  </section>
+
+  <!-- ─── §08 FAILURES ─── -->
+  <section id="failures">
+  <span class="section-num">§ 08 — What bites</span>
+  <h2>Six things that have, or <em>will</em>.</h2>
+
+  <ul class="bullets">
+    <li><strong>Wrong launch active.</strong> Recording during <code>arm_real.launch.py</code> records a frozen pose because the JTC fights every nudge. Playing during <code>recording.launch.py</code> errors out with "no controllers found." Always check <code>ros2 control list_controllers</code> first.</li>
+    <li><strong>Joint-name suffix drift.</strong> A motion recorded against <code>_X4</code>/<code>_X6</code>/<code>_X8</code> suffixes will silently match no body group on a URDF that omits them. <code>--dry-run</code> catches this.</li>
+    <li><strong>Gravity-comp scale wrong.</strong> If <code>comp_scale</code> in <code>recording.launch.py</code> is off (mirrored arm signs, drift since last tune), the recorded trajectory carries the bias. The arm sags or floats relative to where the operator moved it.</li>
+    <li><strong>Drive faults during recording.</strong> A CST-mode drive that loses sync or trips thermal kicks back to SWITCH_ON_DISABLED. Gravity comp stops, the arm drops. Operator should support the arm before pressing ENTER to start recording, and after pressing ENTER to stop.</li>
+    <li><strong>Loop with environment.</strong> <code>--loop</code> with a motion that ends near a payload or table assumes the environment hasn't moved. It has. Use MoveIt mode if you don't trust the recorded path under repeat play.</li>
+    <li><strong>Leg first-waypoint surprise.</strong> Because the player ramps legs to the first waypoint, a motion authored with the legs in an awkward pose will move them awkwardly on every run. Audit the first waypoint of every leg motion.</li>
+  </ul>
+
+  <div class="warn">
+    <strong>Prior incident — left wrist yaw X4, 2026-04-01.</strong> A wrist X4 broke during effort-mode testing under closed-loop torque commands that drove the joint into a kinematic limit. Kinesthetic teaching is not closed-loop torque, but it shares the gravity-comp infrastructure. Validate that the operator, not the controller, is the source of every commanded torque before committing to a long recording session.
+  </div>
+  </section>
+
+  <footer>
+    <span>Field notes · humanoid project · operations</span>
+    <span>v.26.04</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY  = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn  = document.querySelector('.theme-toggle');
+  const lbl  = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>
