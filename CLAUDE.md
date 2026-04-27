@@ -9,11 +9,14 @@ hardware notes. Docs are living — they grow and mutate with the project.
 All HTML docs use the "Field Notes" design system defined in
 `design_guide.md` at the repo root. Before creating or editing any HTML:
 
-1. Read `design_guide.md` to pick up the CSS tokens, component patterns,
+1. **For new docs, copy `boilerplate.html` and rename.** It carries the
+   full token set, the reactive-palette toggle (Field Notes ↔ VSCode-matching),
+   and the standard hero/section/footer skeleton already wired up.
+2. Read `design_guide.md` to pick up the CSS tokens, component patterns,
    and complete CSS block at the end of the file.
-2. Use the components defined there — panels, callouts, cards, steps,
+3. Use the components defined there — panels, callouts, cards, steps,
    bullets, math-block, tables — don't invent parallel ones.
-3. When in doubt, match the tone and structure of an existing doc in
+4. When in doubt, match the tone and structure of an existing doc in
    the same subdirectory.
 
 ## Directory conventions
