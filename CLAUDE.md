@@ -34,9 +34,13 @@ All HTML docs use the "Field Notes" design system defined in
 - Prefer prose and short paragraphs over deep bullet nesting.
 
 ## Project state (update when this changes)
-- Stage: single-joint bench (X6 motor, 70 cm bar, 1 kg @ 30 cm)
-- Identified params: J ≈ 0.102 kg·m², mgl = 2.943 N·m,
-  F_c ≈ 0.15 N·m, F_v ≈ 0.05 N·m·s/rad, τ_m ≈ 10 ms
+- Stage: real-arm calibration — left arm (6 DoF, 5.1 kg URDF chain mass,
+  X6/X6/X4/X6/X4/X4) running CST gravity comp via `humanoid_pd_tuning`
+- Bench-rig identified params (single-joint X6, 70 cm bar, 1 kg @ 30 cm):
+  J ≈ 0.102 kg·m², mgl = 2.943 N·m, F_c ≈ 0.15 N·m,
+  F_v ≈ 0.05 N·m·s/rad, τ_m ≈ 10 ms
+- Active task: discovering per-joint k_g on real hardware; URDF inertials
+  suspect (gravity_comp_node with k_g = 1 drove arms to limits)
 - Stack: ROS 2 (effort control), Isaac Gym training, Gazebo validation
 - End goal: ONNX policies transferring to full humanoid
 

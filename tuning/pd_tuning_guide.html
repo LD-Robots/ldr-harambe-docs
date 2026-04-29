@@ -498,10 +498,10 @@ footer{
   <p class="subtitle">A field guide for going from a balanced bar on a test stand to an ONNX policy that actually transfers to a humanoid.</p>
 
   <div class="meta">
-    <div><span class="k">Rig</span><span class="v">X6 · 70 cm bar · <em>1 kg @ 30 cm</em></span></div>
-    <div><span class="k">Status</span><span class="v">PD stable · <em>0.1 s traj OK</em></span></div>
+    <div><span class="k">Rig</span><span class="v">Full humanoid · <em>left arm first</em> · pendulum bench (params TBD)</span></div>
+    <div><span class="k">Status</span><span class="v">Humanoid calibration · <em>k<sub>g</sub> per-joint discovery</em> · sim then real</span></div>
     <div><span class="k">Target</span><span class="v">Full humanoid <em>sim-to-real</em></span></div>
-    <div><span class="k">Scope</span><span class="v">Formulas · code · graphs</span></div>
+    <div><span class="k">Scope</span><span class="v">Formulas · code · graphs · workflow</span></div>
   </div>
 
   <nav class="toc">
@@ -518,7 +518,8 @@ footer{
     <a href="#ros"><span class="n">11</span>ROS 2 effort tuning</a>
     <a href="#sim2real"><span class="n">12</span>Sim-to-real for ONNX</a>
     <a href="#sweep"><span class="n">13</span>Automated tuning sweep</a>
-    <a href="#ref"><span class="n">14</span>Quick reference card</a>
+    <a href="#humanoid"><span class="n">14</span>Per-joint humanoid calibration</a>
+    <a href="#ref"><span class="n">15</span>Quick reference card</a>
   </nav>
 </header>
 
@@ -1151,9 +1152,133 @@ tau = control_step(joint, gains,
 <p>The real upgrade later is Bayesian optimization instead of a grid — fewer trials, better coverage. But a 5×3 grid gets you 90% of the way in 15 joint seconds × 15 configs = 4 minutes per joint.</p>
 </section>
 
-<!-- ═══════════════ 14 · REFERENCE ═══════════════ -->
+<!-- ═══════════════ 14 · HUMANOID CALIBRATION ═══════════════ -->
+<section id="humanoid">
+<span class="section-num">§ 14 — Per-joint humanoid calibration</span>
+<h2>From bench gains to a <em>real arm</em> that floats.</h2>
+
+<p class="lead">The bench-rig math (§01–§09) gives you the form of the answer; the humanoid is where you discover that the URDF link masses are wrong, three of the right-arm motor mounts are mirrored, and one of the wrists is delicate enough that a stale torque step broke it last time. The first version of the gravity-comp node assumed k<sub>g</sub> = 1 everywhere and the arms drifted to their limits the moment it came up. The <code>humanoid_pd_tuning</code> ROS 2 package is the calibration runtime that closes that loop — same node runs in Gazebo first, then on real hardware, then becomes the production gravcomp/PD controller.</p>
+
+<p>The bench pendulum is a separate identification rig inherited from an earlier project; its J, m·g·l, F<sub>c</sub>, F<sub>v</sub> have to be re-measured against this exact actuator and bar before its identified-parameter cards (§09 quick reference) apply here. Treat any number imported from there as provisional until verified.</p>
+
+<div class="callout">
+  Same node, two lives. During calibration you flip joints into TUNE mode one at a time and dial kg by hand. After the campaign, that same node — with mode = PD and kg ≈ 1 across the board — is what runs in production.
+</div>
+
+<h3>The mode machine</h3>
+
+<p>Each joint independently lives in one of three modes. The control law is computed in software inside the tuning node; the EtherCAT drives are booted into CST (mode 10) and never switched at runtime — that path was disabled after the wrist-yaw incident.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 14a — per-joint torque law</span>
+  $$ \tau_i \;=\; \begin{cases}
+    0 & \text{mode} = \text{FREE} \\[2pt]
+    s_i\,k_g^{(i)}\,\tau_g^{(i)}(q) & \text{mode} = \text{TUNE} \\[2pt]
+    s_i\,k_g^{(i)}\,\tau_g^{(i)}(q) + k_p^{(i)}(q^d_i - q_i) - k_d^{(i)}\dot q_i & \text{mode} = \text{PD}
+  \end{cases} $$
+</div>
+
+<dl class="vars">
+  <dt>τ<sub>g</sub><sup>(i)</sup>(q)</dt> <dd>gravity torque at joint i, computed by PyKDL <code>ChainDynParam.JntToGravity</code> over the full chain — already accounts for the pose of every upstream joint.</dd>
+  <dt>k<sub>g</sub><sup>(i)</sup></dt> <dd>per-joint gravity scalar — the thing you're discovering. URDF correct ⇒ k<sub>g</sub> = 1.</dd>
+  <dt>s<sub>i</sub></dt> <dd>±1 motor-mounting flip. On the right arm three joints (shoulder_roll, shoulder_yaw, wrist_yaw) are mirrored; <code>comp_sign = −1</code>.</dd>
+  <dt>q<sup>d</sup><sub>i</sub></dt> <dd>PD setpoint. Captured from current position with one click before flipping a joint into PD mode.</dd>
+</dl>
+
+<p>FREE means the joint receives zero effort and falls under gravity — you (or a jig) physically support it. TUNE is gravity-only with kp = kd = 0; this is what you're in for the bulk of the calibration campaign. PD is the production law, used for verification once kg is dialed in.</p>
+
+<div class="warn">
+  <strong>Hold the limb before clicking TUNE.</strong> The node ramps from 0 to gravity-comp torque over 0.5 s, but if k<sub>g</sub> is already badly wrong, the ramped torque can still drive the joint to its limit. The GUI requires confirmation before activating any non-FREE mode for exactly this reason. The wrist yaw broke from a torque step that bypassed this kind of check.
+</div>
+
+<h3>The procedure — sim first, distal to proximal</h3>
+
+<p>The same launcher and the same node run in Gazebo and on real hardware. Sim is for catching the embarrassing failures (URDF chains that won't parse, controllers that won't spawn, a sign-flipped <code>comp_sign</code> that drives a joint into its limit) before they happen with current flowing through real motors. Real hardware is for the parts sim cannot tell you: the actual link masses, the actuator's static and Coulomb friction, the motor-mount mirrors that exist in the physical assembly but not in the URDF.</p>
+
+<p>Calibrate from the wrist inward in both. Distal joints carry the smallest mass, so a wrong k<sub>g</sub> is least dangerous; their gravity term is also least entangled with upstream joints, so the k<sub>g</sub> you find at the wrist is closer to a clean reading of one link's mass error.</p>
+
+<ul class="steps">
+  <li><strong>Pre-flight (no hardware)</strong>
+    <code>compute_initial_kg --chain left_arm</code> prints the URDF-derived gravity torque at home, shoulder horizontal, elbow bent, and combined. Sanity-check magnitudes — for the left arm at horizontal extension you should see ~12 N·m at <code>shoulder_roll</code>. If numbers are an order of magnitude off, the URDF is broken before you touch hardware or sim.
+  </li>
+  <li><strong>Sim run</strong>
+    <code>ros2 launch humanoid_pd_tuning pd_tuning.launch.py use_sim:=true robot_group:=left_arm</code>. Loads the full humanoid in Gazebo Harmonic with <code>control_mode:=effort</code> (URDF declares effort interfaces with X4/X6/X8 moderate-effort min/max — see <code>actuator_properties.xacro</code>). Same per-chain <code>JointGroupEffortController</code> as on real hardware; same tuning node; same GUI. Sim has perfect mass knowledge, so k<sub>g</sub> should converge to 1.000 — any deviation means the tuning loop itself is broken (wrong sign, wrong Kt conversion, controller not active). Fix it here.
+  </li>
+  <li><strong>Launch on real hardware with everything FREE</strong>
+    <code>ros2 launch humanoid_pd_tuning pd_tuning.launch.py use_sim:=false robot_group:=left_arm</code>. The drives boot into CST via the existing <code>ethercat_gravcomp/</code> configs. Every joint receives 0.0 effort. Support the arm by hand or in a jig — the limb will fall otherwise.
+  </li>
+  <li><strong>Tune one joint at a time</strong>
+    Confirm the dialog, click <span style="color:var(--moss);font-family:var(--mono);">TUNE</span> on <code>wrist_roll</code>. The kg slider starts at 1.0. Move the joint by hand through its range and watch: if it drifts up, kg is too high; if it sags, too low. Adjust until the joint feels neutral across multiple poses. Click FREE, then TUNE the next joint.
+  </li>
+  <li><strong>Save</strong>
+    "Save gains…" writes a YAML containing <code>{name, motor, mode, kg, kp, kd, q_des, comp_sign, max_effort}</code> per joint. Pass that file via <code>gains_file:=</code> on the next launch to start where you left off.
+  </li>
+  <li><strong>Tune kp, then kd</strong>
+    Once every joint's kg is steady, "Capture current" then click <span style="color:var(--cyan);font-family:var(--mono);">PD</span>. Raise kp until the joint resists displacement firmly under hand pressure; raise kd if it rings. The bench math from §05 (K<sub>p</sub> = J ω<sub>n</sub>², K<sub>d</sub> = 2ζ√(K<sub>p</sub>J)) gives you the starting point — tune from there per joint.
+  </li>
+  <li><strong>Verify URDF mass</strong>
+    <code>verify_mass_from_gains gains/left_arm_tuned.yaml</code> flags joints whose tuned k<sub>g</sub> deviates from 1 by more than 5%. A joint with k<sub>g</sub> = 1.15 indicates the URDF mass model is ~15% low for the links downstream of that joint. Edit <code>full_robot_description/urdf/links/*.xacro</code>, rebuild, retune. If the new k<sub>g</sub> lands at 1 ± 5%, the mass model is healthy.
+  </li>
+</ul>
+
+<h3>Why upstream joints matter — the axis-tilt readout</h3>
+
+<p>The wrist roll axis is vertical when the shoulder and elbow are at home — gravity torque on that joint is identically zero, and no value of k<sub>g</sub> will move the arm. Lift the shoulder to horizontal and the wrist roll axis tilts toward horizontal too — now gravity has a lever arm and k<sub>g</sub> matters. PyKDL's <code>JntToGravity</code> already returns the torque at joint i taking the full upstream pose into account; the GUI also computes and displays the axis tilt directly so you understand <em>why</em> the gravity torque is what it is at the current pose.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. 14b — axis tilt from gravity</span>
+  $$ \theta_{\text{tilt}}^{(i)} \;=\; \arccos\!\Big|\; \mathbf{R}_{0 \to i}(q)\,\hat a_i^{\text{local}} \cdot \hat g \;\Big| $$
+</div>
+
+<dl class="vars">
+  <dt>R<sub>0→i</sub>(q)</dt> <dd>rotation from chain root to joint i's parent frame, given current upstream angles q. Computed via <code>ChainFkSolverPos_recursive</code>.</dd>
+  <dt>â<sub>i</sub><sup>local</sup></dt> <dd>joint i's axis in its local frame, as defined in the URDF (e.g. (0,0,1) for a yaw joint).</dd>
+  <dt>ĝ</dt> <dd>unit gravity vector in the root frame, (0,0,−1) for an upright torso.</dd>
+</dl>
+
+<p>The folded absolute value collapses the sign into [0°, 90°]. 0° means the axis is parallel to gravity — the joint sees no gravity torque from any downstream mass, and you can't tune k<sub>g</sub> in that pose. 90° means horizontal — full lever arm, maximum sensitivity. The GUI's <code>tilt</code> column tells you which poses to try when a joint's gravity reading looks suspiciously small.</p>
+
+<h3>Calibration order, by joint</h3>
+
+<p>Distal-to-proximal, with each row's downstream chain locked rigidly by hand. The <code>tilt at home</code> column tells you whether the home pose actually exercises that joint's gravity term — for axis-aligned joints (wrist_roll, shoulder_yaw on the left arm at home), you have to deflect upstream joints first or the calibration is uninformative.</p>
+
+<table class="ref">
+  <thead><tr><th>order</th><th>joint</th><th>motor</th><th>tilt at home</th><th>useful pose to deflect to</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>wrist_roll</td><td class="v">X4</td><td>≈ 8°</td><td class="v">shoulder_pitch = π/2 to put forearm horizontal</td></tr>
+    <tr><td>2</td><td>wrist_yaw</td><td class="v">X4</td><td>≈ 12°</td><td class="v">elbow_pitch = −π/2 + shoulder roll</td></tr>
+    <tr><td>3</td><td>elbow_pitch</td><td class="v">X6</td><td>≈ 45°</td><td class="v">home pose is fine; sweep through ±π/4</td></tr>
+    <tr><td>4</td><td>shoulder_yaw</td><td class="v">X4</td><td>≈ 0°</td><td class="v">shoulder_roll = π/2 first</td></tr>
+    <tr><td>5</td><td>shoulder_roll</td><td class="v">X6</td><td>≈ 4°</td><td class="v">target the horizontal-arm pose; ~12 N·m peak</td></tr>
+    <tr><td>6</td><td>shoulder_pitch</td><td class="v">X6</td><td>≈ 87°</td><td class="v">home pose is informative; full ±π/2 sweep</td></tr>
+  </tbody>
+</table>
+
+<h3>Worked example — first kg pass on the left arm</h3>
+
+<p>For the left arm at home, the URDF predicts <code>shoulder_pitch τ<sub>g</sub> ≈ −2.26 N·m</code> with a chain mass of 5.11 kg. If during calibration that joint floats neutrally at k<sub>g</sub> = 1.08, the URDF is underestimating mass downstream of <code>shoulder_pitch</code> by ~8%. The offender is one of seven links (upper arm through hand_base). The biggest single contributor at home is the upper-arm assembly; bias the URDF correction there first, rebuild, retune, and watch k<sub>g</sub> on every distal joint converge toward 1 simultaneously.</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># Sanity-check before touching hardware</span>
+ros2 run humanoid_pd_tuning compute_initial_kg --chain left_arm
+
+<span class="tok-c"># Pre-flight, then launch with the GUI</span>
+bash $(ros2 pkg prefix arm_real_bringup)/share/arm_real_bringup/scripts/check_ethercat.sh
+ros2 launch humanoid_pd_tuning pd_tuning.launch.py robot_group:=left_arm
+
+<span class="tok-c"># In the GUI: confirm safety dialog, click TUNE on wrist_roll,</span>
+<span class="tok-c"># dial kg until floating, click Save. Repeat distal-to-proximal.</span>
+
+<span class="tok-c"># Verify the mass model</span>
+ros2 run humanoid_pd_tuning verify_mass_from_gains \
+    gains/left_arm_tuned.yaml --threshold 0.05
+</code></pre>
+
+<p>Once both arms converge with k<sub>g</sub> within ±5% of unity and PD gains hold position firmly, <code>recording.launch.py</code> gets rewritten to spawn <code>pd_tuning_node</code> with the tuned <code>gains_file</code> and the legacy <code>gravity_comp_node.py</code> retires. From that point on, the same node that ran the calibration is what runs in production — and the gain numbers shipped to ONNX training (§12) are the same numbers running on the real arm by construction.</p>
+</section>
+
+<!-- ═══════════════ 15 · REFERENCE ═══════════════ -->
 <section id="ref">
-<span class="section-num">§ 14 — Quick reference card</span>
+<span class="section-num">§ 15 — Quick reference card</span>
 <h2>Everything on one page.</h2>
 
 <table class="ref">
