@@ -831,6 +831,15 @@ lam = <span class="tok-n">0.99</span>
   <p style="margin:0"><strong>6077h on the X6 reports q-axis current scaled to ‰ of rated current</strong> (nameplate 9.5 Arms, firmware default 10 A). To get amperes: multiply by I_rated / 1000. To get torque: multiply amperes by K_t. And K_t is not published — you derive it from rated_torque / rated_current. So your torque reading has two stacked calibration dependencies, and the I_rated value is configured over CAN, not EtherCAT.</p>
 </div>
 
+<div class="panel" data-label="As-built calibration — X6 #0 (pendulum_test_v1, 2026-04-28)">
+  <ul class="bullets" style="margin:0">
+    <li>I_rated = 13.40 A — read via MyActuator setup tool over CAN; neither the firmware default 10 A nor the nameplate 9.5 A applied.</li>
+    <li>K_t spec = 2.1 N·m/A; effective K_t = 2.0095 N·m/A (4.5% under spec — gearbox/temperature/magnet tolerance), derived from a static-hold calibration per §10.2.</li>
+    <li>Rated output torque = K_t · I_rated = <strong>26.93 N·m</strong>. The EtherCAT command factor must be calibrated against this product, not against any nominal "rated torque" number.</li>
+    <li>EtherCAT command factor = 1000 / 26.93 = <strong>37.14</strong> (state factor 0.02693). Was 50.0 (assumed 20 N·m rated) — produced 41% over-amplification at the shaft.</li>
+  </ul>
+</div>
+
 <h3>What this means for your ID protocol</h3>
 
 <ul class="bullets">
