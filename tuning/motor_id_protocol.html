@@ -840,6 +840,42 @@ lam = <span class="tok-n">0.99</span>
   </ul>
 </div>
 
+<h3>Deriving the EtherCAT YAML factor</h3>
+
+<p>The forward chain from §10.2 is:</p>
+
+<div class="math-block">
+  $$ T_{shaft} \;=\; T_{cmd} \cdot \frac{\text{factor}}{1000} \cdot I_{rated} \cdot K_t $$
+</div>
+
+<p>The <code>factor</code> is the EtherCAT YAML scaling on the command interface — the <code>factor:</code> field on the 6071h <code>command_interface: effort</code> entry in <code>config/ethercat/icub_x6_drive.yaml</code>. For a 1:1 mapping where commanded N·m equals shaft N·m (so the policy can ignore per-mille entirely), set:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. — command factor (N·m → ‰)</span>
+  $$ \text{factor}_{cmd} \;=\; \frac{1000}{K_t \cdot I_{rated}} $$
+</div>
+
+<p>The state-interface factor (‰ → N·m on the feedback path, 6077h) is the inverse:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">Eq. — state factor (‰ → N·m)</span>
+  $$ \text{factor}_{state} \;=\; \frac{K_t \cdot I_{rated}}{1000} $$
+</div>
+
+<p>The product <code>K_t · I_rated</code> is the rated output torque — the physical quantity that 1000‰ corresponds to. <strong>Both factors break the moment either input changes</strong>: a firmware reflash that resets I_rated, a motor swap with a different K_t (or even the same model with magnet-tolerance drift), or any drive parameter touched via the MyActuator CAN tool. There is no automatic check from the EtherCAT side because the drive only reports per-mille; the absolute scale is whatever the master assumes.</p>
+
+<div class="panel" data-label="Per-mille reference — X6 #0 (K_t = 2.0095, I_rated = 13.40 A)">
+  <table class="od-table" style="margin:0">
+    <thead><tr><th>6071h ‰</th><th>Current (A)</th><th>Shaft torque (N·m)</th></tr></thead>
+    <tbody>
+      <tr><td class="idx">100</td><td>1.34</td><td class="v">2.69</td></tr>
+      <tr><td class="idx">250</td><td>3.35</td><td class="v">6.73</td></tr>
+      <tr><td class="idx">500</td><td>6.70</td><td class="v">13.46</td></tr>
+      <tr><td class="idx">1000</td><td>13.40</td><td class="v">26.93 (rated)</td></tr>
+    </tbody>
+  </table>
+</div>
+
 <h3>What this means for your ID protocol</h3>
 
 <ul class="bullets">
