@@ -912,8 +912,8 @@ lam = <span class="tok-n">0.99</span>
   <li><strong>6077h is per-mille of rated CURRENT, not rated torque</strong>
     Deviation from how most CiA 402 drives behave. If you copy torque-handling code from another vendor's driver, the conversion will be wrong by gearbox_efficiency × K_t.
   </li>
-  <li><strong>I_rated defaults to 10 A but nameplate is 9.5 Arms</strong>
-    Pin this down via MyActuator's CAN-based setup tool before any torque scaling work. Every ‰-to-ampere conversion depends on it. Default vs nameplate is a ~5% source of bias.
+  <li><strong>I_rated defaults to 10 A but nameplate is 9.5 Arms — and the actual setting can differ by tens of percent</strong>
+    Pin this down via MyActuator's CAN-based setup tool before any torque scaling work. Every ‰-to-ampere conversion depends on it. Default vs nameplate is a ~5% bias; on the pendulum_test rig as of 2026-04-28 it was 13.40 A (40% above firmware default), which made the EtherCAT YAML's <code>factor: 50.0</code> deliver 1.41× the commanded torque until corrected to 37.14.
   </li>
   <li><strong>No torque slope (6087h)</strong>
     Writes to 6071h take effect on the very next cycle. For humanoid impact/landing scenarios, implement a master-side rate limiter so you don't command 0 → 60 N·m in one tick.
