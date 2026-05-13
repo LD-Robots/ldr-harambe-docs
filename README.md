@@ -35,7 +35,11 @@ Pipeline, architecture, decision records.
 
 ## Hardware
 
-Motor specs, wiring, mechanical, sensor calibration. (No notes yet.)
+Motor specs, wiring, mechanical, sensor calibration.
+
+- [`hardware/ethercat_control_guide.html`](hardware/ethercat_control_guide.html)
+  — MyActuator X6 EtherCAT servo control: CiA 402 modes, object dictionary,
+  PDO mapping, PVT impedance gains (×1000 scaling).
 
 ## Conventions
 

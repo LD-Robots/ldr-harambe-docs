@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MyActuator EtherCAT control guide — Field Notes</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   FIELD NOTES — design tokens. See design_guide.md.
+   ═══════════════════════════════════════════════════ */
+:root{
+  --bg:#0e0c09; --bg-panel:#15120d; --bg-inset:#0a0806;
+  --ink:#ece2cf; --ink-dim:#a79a82; --ink-faint:#6b6354;
+  --rule:#2a2419; --rule-soft:#1e1a13;
+  --amber:#e8a33d; --amber-deep:#b87a1e;
+  --cyan:#5fb3b3; --rose:#d97757; --moss:#8fa968;
+  --mono:'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --sans:'IBM Plex Sans', system-ui, sans-serif;
+  --serif:'Fraunces', Georgia, serif;
+}
+:root[data-theme="reactive"]{
+  --bg:var(--vscode-editor-background,#1f1f1f); --bg-panel:var(--vscode-sideBar-background,#181818);
+  --bg-inset:var(--vscode-textCodeBlock-background,#1a1a1a);
+  --ink:var(--vscode-editor-foreground,#cccccc); --ink-dim:var(--vscode-descriptionForeground,#9d9d9d);
+  --ink-faint:var(--vscode-disabledForeground,#6f6f6f);
+  --rule:var(--vscode-panel-border,#2b2b2b); --rule-soft:var(--vscode-editorWidget-border,#252525);
+  --amber:var(--vscode-textLink-foreground,#4ec9b0); --amber-deep:var(--vscode-textLink-activeForeground,#569cd6);
+  --cyan:var(--vscode-symbolIcon-functionForeground,#dcdcaa); --rose:var(--vscode-errorForeground,#f48771);
+  --moss:var(--vscode-debugTokenExpression-string,#ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg:var(--vscode-editor-background,#ffffff); --bg-panel:var(--vscode-sideBar-background,#f8f8f8);
+    --bg-inset:var(--vscode-textCodeBlock-background,#f3f3f3);
+    --ink:var(--vscode-editor-foreground,#3b3b3b); --ink-dim:var(--vscode-descriptionForeground,#616161);
+    --ink-faint:var(--vscode-disabledForeground,#8c8c8c);
+    --rule:var(--vscode-panel-border,#e5e5e5); --rule-soft:var(--vscode-editorWidget-border,#ececec);
+    --amber:var(--vscode-textLink-foreground,#0451a5); --amber-deep:var(--vscode-textLink-activeForeground,#0e639c);
+  }
+}
+:root[data-theme="reactive"] body{ background: var(--bg); }
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"] body::before{ opacity:.025; }
+}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+.theme-toggle{
+  position:fixed; top:16px; right:16px; z-index:10;
+  background:var(--bg-panel); color:var(--ink-faint);
+  border:1px solid var(--rule); padding:8px 12px;
+  font-family:var(--mono); font-size:10px; font-weight:500;
+  letter-spacing:.22em; text-transform:uppercase;
+  cursor:pointer; transition:color .2s, border-color .2s;
+}
+.theme-toggle:hover{ color:var(--amber); border-color:var(--amber-deep); }
+.theme-toggle .dot{ color:var(--amber); margin-right:8px; }
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"DOC/HW";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"field notes";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px 36px}
+nav.toc .toc-col{display:flex;flex-direction:column}
+nav.toc .toc-head{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--amber-deep)}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:7px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:13.5px;font-weight:300;transition:color .2s,padding-left .2s;text-decoration:none}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:12px}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(30px,4.3vw,48px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:24px;line-height:1.2;letter-spacing:-.01em;margin:44px 0 14px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:72ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+hr.divider{border:none;border-top:1px solid var(--rule);margin:72px 0}
+
+.part{margin:144px 0 48px;padding:48px 0 8px;border-top:1px solid var(--amber-deep);position:relative}
+.part::before{content:"";position:absolute;top:-1px;left:0;width:80px;height:3px;background:var(--amber)}
+.part .pnum{font-family:var(--mono);font-size:11px;letter-spacing:.35em;color:var(--amber);text-transform:uppercase;margin-bottom:12px}
+.part h2.phead{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(36px,5vw,58px);line-height:1.05;letter-spacing:-.015em;margin:0 0 14px;color:var(--ink);max-width:860px}
+.part h2.phead em{color:var(--amber);font-style:italic;font-weight:500}
+.part .pdesc{font-family:var(--serif);font-weight:300;font-size:20px;color:var(--ink-dim);line-height:1.4;max-width:64ch;margin:0}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.panel.inset{background:var(--bg-inset)}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.tip{background:linear-gradient(180deg, rgba(143,169,104,.08), rgba(143,169,104,.03));border-left:2px solid var(--moss);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.tip strong{color:var(--moss)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+.math-block .katex-display{margin:.4em 0}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+.od-table{width:100%;border-collapse:collapse;margin:20px 0;font-family:var(--mono);font-size:12.5px}
+.od-table th,.od-table td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+.od-table th{color:var(--amber);font-weight:500;font-size:10px;letter-spacing:.15em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+.od-table td.idx{color:var(--amber);font-weight:500}
+.od-table td.v{color:var(--ink-dim);font-family:var(--sans);font-size:13.5px;font-weight:300;line-height:1.5}
+.od-table tr.vendor td.idx{color:var(--cyan)}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:78ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:72ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:30px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+.zh{font-family:var(--sans);color:var(--ink-faint);font-size:.92em;letter-spacing:0}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="eyebrow">Hardware · MyActuator EtherCAT · CiA 402 control protocol</div>
+  <h1 class="title">Driving the <em>X6</em><br>over EtherCAT.</h1>
+  <p class="subtitle">A working guide to the MyActuator EtherCAT servo: state machine, every object dictionary entry, all four PDO mappings, every operating mode — with the <em>×1000</em> PVT gain scaling spelled out.</p>
+
+  <div class="meta">
+    <div><span class="k">Source</span><span class="v">EtherCAT<span class="zh">说明</span> · <em>2026-04-14, 56 pp</em></span></div>
+    <div><span class="k">Drive</span><span class="v">X6-P20-60 · <em>V4 EtherCAT</em></span></div>
+    <div><span class="k">Repo modes</span><span class="v">CST <em>0x1600</em> · PVT <em>0x1601</em></span></div>
+    <div><span class="k">Doc version</span><span class="v">v.26.05</span></div>
+  </div>
+
+  <nav class="toc">
+    <div class="toc-col">
+      <div class="toc-head">Part I — Architecture</div>
+      <a href="#overview"><span class="n">01</span>Supported modes</a>
+      <a href="#comms"><span class="n">02</span>EtherCAT comms</a>
+      <a href="#state-machine"><span class="n">03</span>CiA 402 state machine</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part II — Object dict</div>
+      <a href="#od-class"><span class="n">04</span>Classification</a>
+      <a href="#od-full"><span class="n">05</span>Complete listing</a>
+      <a href="#od-ctrlstat"><span class="n">06</span>Control / status / modes</a>
+      <a href="#od-targets"><span class="n">07</span>Targets &amp; actuals</a>
+      <a href="#od-profile"><span class="n">08</span>Profile parameters</a>
+      <a href="#od-monitor"><span class="n">09</span>Position monitoring</a>
+      <a href="#od-offset"><span class="n">10</span>Offsets / feedforward</a>
+      <a href="#od-limits"><span class="n">11</span>Max torque &amp; rated current</a>
+      <a href="#od-homing"><span class="n">12</span>Homing method</a>
+      <a href="#od-vendor"><span class="n">13</span>Vendor-specific</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part III — PDO mapping</div>
+      <a href="#pdo-principles"><span class="n">14</span>PDO principles</a>
+      <a href="#rxpdo"><span class="n">15</span>RxPDO mappings</a>
+      <a href="#txpdo"><span class="n">16</span>TxPDO mappings</a>
+      <a href="#sm-pdo"><span class="n">17</span>SM-PDO assignment</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part IV — Operating modes</div>
+      <a href="#csp"><span class="n">18</span>CSP — Mode 8</a>
+      <a href="#csv"><span class="n">19</span>CSV — Mode 9</a>
+      <a href="#cst"><span class="n">20</span>CST — Mode 10</a>
+      <a href="#pp"><span class="n">21</span>PP — Mode 1</a>
+      <a href="#pv"><span class="n">22</span>PV — Mode 3</a>
+      <a href="#pvt"><span class="n">23</span>PVT / MIT — Mode 5</a>
+      <a href="#homing"><span class="n">24</span>Homing — Mode 6</a>
+      <a href="#quick-stop"><span class="n">25</span>Quick Stop</a>
+    </div>
+    <div class="toc-col">
+      <div class="toc-head">Part V — Examples</div>
+      <a href="#ex-csp"><span class="n">26</span>CSP control loop</a>
+      <a href="#ex-pp"><span class="n">27</span>PP point-to-point</a>
+      <a href="#ex-pvt"><span class="n">28</span>PVT impedance control</a>
+      <a href="#ex-sdo-pid"><span class="n">29</span>SDO PID adjustment</a>
+      <a href="#fault"><span class="n">30</span>Fault recovery</a>
+    </div>
+  </nav>
+</header>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART I — ARCHITECTURE
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part I</div>
+  <h2 class="phead">The <em>shape</em> of the protocol.</h2>
+  <p class="pdesc">What the drive does, what it expects from the master, and the seven CiA 402 states that gate every motion.</p>
+</div>
+
+<!-- ─── §01 OVERVIEW ─── -->
+<section id="overview">
+<span class="section-num">§ 01 — Supported operating modes</span>
+<h2>Seven modes, two used in this <em>repo</em>.</h2>
+
+<p class="lead">The MyActuator V4 EtherCAT firmware advertises seven CiA 402 operating modes. The pendulum stack currently uses only two — CST for the ONNX deploy path and PVT for the impedance-control bring-up — but a future humanoid bring-up will likely add CSP and Homing as well, so they're documented here too.</p>
+
+<table class="ref">
+  <thead><tr><th>Mode value</th><th>Abbrev.</th><th>Name</th><th>What master sends</th><th>Where the loop closes</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>PP</td><td class="v">Profile Position</td><td class="v">Target position + profile params; Bit4 trigger</td><td class="v">Drive (trapezoidal planner + position loop)</td></tr>
+    <tr><td>3</td><td>PV</td><td class="v">Profile Velocity</td><td class="v">Target velocity + ramp params; Bit4 trigger</td><td class="v">Drive (velocity ramp + speed loop)</td></tr>
+    <tr><td>5</td><td>PVT</td><td class="v">PVT / MIT impedance</td><td class="v">pos, vel, τ_ff, K_p, K_d every cycle</td><td class="v">Drive (MIT law each cycle)</td></tr>
+    <tr><td>6</td><td>Homing</td><td class="v">Homing</td><td class="v">Mode change only</td><td class="v">Drive (current position → zero)</td></tr>
+    <tr><td>8</td><td>CSP</td><td class="v">Cyclic Sync Position</td><td class="v">Target position every cycle</td><td class="v">Drive (position loop)</td></tr>
+    <tr><td>9</td><td>CSV</td><td class="v">Cyclic Sync Velocity</td><td class="v">Target velocity every cycle</td><td class="v">Drive (velocity loop)</td></tr>
+    <tr><td>10</td><td>CST</td><td class="v">Cyclic Sync Torque</td><td class="v">Target torque every cycle</td><td class="v">Master (drive runs current loop only)</td></tr>
+  </tbody>
+</table>
+
+<div class="panel" data-label="In this repo">
+  <p style="margin:0"><strong>CST (Mode 10)</strong> is the deploy path for the ONNX policy — the master computes torque every 20 ms and the drive's current loop tracks it. <strong>PVT (Mode 5)</strong> is the impedance path mirroring Isaac Lab's <code>ImplicitActuatorCfg</code> — the drive runs the PD law at 1 kHz with K_p / K_d streamed from the master.</p>
+</div>
+
+<p>The cyclic modes (CSP / CSV / CST / PVT) expect data <em>every</em> bus cycle. The profile modes (PP / PV) are one-shot — write the target, raise <em>Bit 4 (New Setpoint)</em> on the control word, and the drive plans the rest. Homing is even simpler: switch to Mode 6, enable, and the current position becomes the zero point.</p>
+</section>
+
+<!-- ─── §02 COMMS ─── -->
+<section id="comms">
+<span class="section-num">§ 02 — EtherCAT communication architecture</span>
+<h2>Master, slaves, one frame per <em>cycle</em>.</h2>
+
+<p class="lead">The X6 drive is a slave on the bus. The master sends one Ethernet frame per cycle; each slave reads its own segment from the passing frame, writes back its feedback into the same frame, and the frame returns to the master. Bandwidth utilisation can exceed 90 % — the protocol is built for tight cyclic control.</p>
+
+<p>Two data classes share the bus:</p>
+
+<table class="ref">
+  <thead><tr><th>Class</th><th>Purpose</th><th>Timing</th><th>Used for</th></tr></thead>
+  <tbody>
+    <tr><td>PDO</td><td class="v">Process Data Object — cyclic data exchange</td><td class="v">Every cycle (e.g. 1 kHz)</td><td class="v">Control word, target / actual position, target / actual torque, status word</td></tr>
+    <tr><td>SDO</td><td class="v">Service Data Object — request / response</td><td class="v">Acyclic, non-real-time</td><td class="v">PID gains, limits, mode of operation (when not in PDO)</td></tr>
+  </tbody>
+</table>
+
+<p>PDO mapping is configured in <strong>PreOP</strong> state. Once the bus is brought up to OP, the mapping is fixed for that session — changing it later requires dropping back to PreOP. This is why <code>icub_x6_drive.yaml</code> and <code>icub_x6_drive_mit.yaml</code> declare their RxPDO 0x1600 / 0x1601 in the slave-config YAML rather than at runtime.</p>
+
+<div class="tip">
+  <strong>Why PDO over SDO.</strong> SDO writes are request / response and take multiple cycles. For a 1 kHz control loop you want target torque to land in the same cycle you wrote it — that requires PDO. The PDF's headline 90 % bandwidth figure assumes most of the traffic is PDO.
+</div>
+</section>
+
+<!-- ─── §03 STATE MACHINE ─── -->
+<section id="state-machine">
+<span class="section-num">§ 03 — CiA 402 state machine</span>
+<h2>Seven states, one <em>required</em> enable sequence.</h2>
+
+<p class="lead">Before the drive will accept torque or position commands it must be walked through the CiA 402 state machine to <em>Operation Enabled</em>. The master controls the walk via the Control Word (0x6040); the drive reports its current state via the Status Word (0x6041). There is no shortcut — sending a non-zero torque while the drive is in <em>Switch On Disabled</em> just gets ignored.</p>
+
+<h3>The seven states</h3>
+
+<table class="ref">
+  <thead><tr><th>State</th><th>What it means</th></tr></thead>
+  <tbody>
+    <tr><td>Initialization <span class="zh">初始化</span></td><td class="v">Drive boots and self-tests. Parameters cannot be set, motion cannot start.</td></tr>
+    <tr><td>Switch On Disabled <span class="zh">伺服无故障</span></td><td class="v">Self-test passed. Parameters can be configured.</td></tr>
+    <tr><td>Ready To Switch On <span class="zh">伺服准备好</span></td><td class="v">Ready for power-on. Parameters still writable.</td></tr>
+    <tr><td>Switched On <span class="zh">等待打开伺服使能</span></td><td class="v">Power applied to motor, waiting for enable. Holding position but no commanded motion.</td></tr>
+    <tr><td>Operation Enabled <span class="zh">伺服运行</span></td><td class="v">Commands take effect. The motor will rotate when target ≠ 0 and mode is set.</td></tr>
+    <tr><td>Quick Stop Active <span class="zh">快速停机</span></td><td class="v">Quick Stop deceleration in progress per 0x605A option code.</td></tr>
+    <tr><td>Fault Reaction Active / Fault <span class="zh">故障</span></td><td class="v">Drive detected a fault. All commands inhibited until reset.</td></tr>
+  </tbody>
+</table>
+
+<h3>State transitions (Control Word → Status Word)</h3>
+
+<table class="ref">
+  <thead><tr><th>Transition</th><th>Write 0x6040</th><th>Wait for 0x6041 bit0–9</th></tr></thead>
+  <tbody>
+    <tr><td>Switch On Disabled → Ready To Switch On</td><td>0x0006</td><td>0x0231</td></tr>
+    <tr><td>Ready To Switch On → Switched On</td><td>0x0007</td><td>0x0233</td></tr>
+    <tr><td>Switched On → Operation Enabled</td><td>0x000F</td><td>0x0237</td></tr>
+    <tr><td>Operation Enabled → Switched On</td><td>0x0007</td><td>0x0233</td></tr>
+    <tr><td>Switched On → Ready To Switch On</td><td>0x0006</td><td>0x0231</td></tr>
+    <tr><td>Ready To Switch On → Switch On Disabled</td><td>0x0000</td><td>0x0250</td></tr>
+    <tr><td>(any) → Quick Stop Active</td><td>0x0002</td><td>(per 0x605A)</td></tr>
+  </tbody>
+</table>
+
+<h3>Standard enable procedure</h3>
+
+<p>To enter Operation Enabled in any cyclic mode, walk this seven-step sequence:</p>
+
+<ul class="steps">
+  <li><strong>Set the operating mode</strong>
+    Write 0x6060 = <code>1/3/5/6/8/9/10</code> depending on the target mode (e.g. 8 for CSP).
+  </li>
+  <li><strong>Write Control Word = 0x0006 (Shutdown)</strong>
+    Master sends 0x6040 = 0x0006.
+  </li>
+  <li><strong>Wait for Ready To Switch On (0x0231)</strong>
+    Poll 0x6041 until lower bits = 0x231.
+  </li>
+  <li><strong>Write Control Word = 0x0007 (Switch On)</strong>
+    0x6040 = 0x0007.
+  </li>
+  <li><strong>Wait for Switched On (0x0233)</strong>
+    0x6041 lower bits = 0x233.
+  </li>
+  <li><strong>Write Control Word = 0x000F (Enable Operation)</strong>
+    0x6040 = 0x000F.
+  </li>
+  <li><strong>Wait for Operation Enabled (0x0237)</strong>
+    0x6041 lower bits = 0x237. The motor is now live; in CST/CSP/CSV/PVT modes every PDO write takes effect.
+  </li>
+</ul>
+
+<div class="warn">
+  <strong>Fault state requires a Fault Reset before re-enabling.</strong> If the drive enters Fault, the enable sequence above will not work. First send <em>Fault Reset</em> — a <strong>rising edge</strong> on Control Word bit 7 (i.e. write 0x0080). The drive performs a system reset, transitions to Switch On Disabled, and only then can the enable sequence be repeated. A constant 0x0080 does nothing — it must be a rising edge.
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART II — OBJECT DICTIONARY
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part II</div>
+  <h2 class="phead">The <em>object dictionary</em>.</h2>
+  <p class="pdesc">Every entry the X6 exposes — what it does, what unit it takes, and where in your YAML it shows up.</p>
+</div>
+
+<!-- ─── §04 CLASSIFICATION ─── -->
+<section id="od-class">
+<span class="section-num">§ 04 — Object dictionary classification</span>
+<h2>Three address bands, three <em>provenances</em>.</h2>
+
+<p class="lead">CiA 402 partitions the address space by who defines the entry. Communication objects live in 0x1000–0x1FFF, vendor-specific objects in 0x2000–0x2FFF, and the CiA 402 profile (control word, modes, targets, actuals) in 0x6000–0x6FFF. Knowing which band you're in tells you whether you can copy code between vendors.</p>
+
+<table class="ref">
+  <thead><tr><th>Address range</th><th>Category</th><th>Examples</th></tr></thead>
+  <tbody>
+    <tr><td>0x1000–0x1FFF</td><td class="v">Communication / EtherCAT</td><td class="v">PDO mapping (0x1600–0x1603, 0x1A00–0x1A03), SM-PDO assignment (0x1C12, 0x1C13)</td></tr>
+    <tr><td>0x2000–0x2FFF</td><td class="v">Vendor-specific</td><td class="v">PVT_KP (0x2000), PVT_KD (0x2001), inner-loop PID gains (0x2002–0x2008), motor / drive temperature, bus voltage</td></tr>
+    <tr><td>0x6000–0x6FFF</td><td class="v">CiA 402 drive profile</td><td class="v">Control Word (0x6040), Status Word (0x6041), Modes of Operation (0x6060), targets &amp; actuals</td></tr>
+  </tbody>
+</table>
+
+<p>Code that drives a CiA 402 motor over EtherCAT — Synapticon, Kollmorgen, Inovance — uses the 0x6xxx band identically. The vendor-specific 0x2xxx band is where vendors differ; the MyActuator <em>PVT_KP</em> object would be at a completely different index on another drive. <strong>Cross-vendor code reuse stops at 0x2000.</strong></p>
+</section>
+
+<!-- ─── §05 FULL OD ─── -->
+<section id="od-full">
+<span class="section-num">§ 05 — Complete object dictionary listing</span>
+<h2>Everything the drive <em>exposes</em>.</h2>
+
+<p class="lead">The full set of indices documented in the v2026-04-14 manual. Vendor-specific entries are highlighted in cyan; everything else is CiA 402 standard. Use this as the master reference when writing PDO mappings or SDO probes.</p>
+
+<table class="od-table">
+  <thead><tr><th>Index</th><th>Type</th><th>Name</th><th>Access</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="idx">0x603F</td><td>UINT16</td><td>Error Code</td><td>RO / PDO</td><td class="v">0 = no fault. See § 07 for code list.</td></tr>
+    <tr><td class="idx">0x6040</td><td>UINT16</td><td>Control Word</td><td>RW / PDO</td><td class="v">CiA 402 enable sequence + mode-specific bits. Bit 7 = Fault Reset (rising edge).</td></tr>
+    <tr><td class="idx">0x6041</td><td>UINT16</td><td>Status Word</td><td>RO / PDO</td><td class="v">Bits 0–9 encode state; bit 10 = Target Reached; bit 12 mode-dependent.</td></tr>
+    <tr><td class="idx">0x605A</td><td>INT16</td><td>Quick Stop Option Code</td><td>RW</td><td class="v">0 = decelerate via 0x6085 then Switch On Disabled.</td></tr>
+    <tr><td class="idx">0x605B</td><td>INT16</td><td>Shutdown Option Code</td><td>RW</td><td class="v">Behaviour on transition out of Operation Enabled.</td></tr>
+    <tr><td class="idx">0x605C</td><td>INT16</td><td>Disable Operation Option</td><td>RW</td><td class="v">Behaviour when the drive disables.</td></tr>
+    <tr><td class="idx">0x605E</td><td>INT16</td><td>Fault Reaction Code</td><td>RW</td><td class="v">Behaviour on detected fault.</td></tr>
+    <tr><td class="idx">0x6060</td><td>INT8</td><td>Modes of Operation</td><td>RW / PDO</td><td class="v">1=PP, 3=PV, 5=PVT, 6=Homing, 8=CSP, 9=CSV, 10=CST.</td></tr>
+    <tr><td class="idx">0x6061</td><td>INT8</td><td>Modes of Operation Display</td><td>RO / PDO</td><td class="v">Echo of active mode. Returns 0 if FaultCode ≠ 0.</td></tr>
+    <tr><td class="idx">0x6062</td><td>INT32</td><td>Position Demand Value</td><td>RO / PDO</td><td class="v">Drive's internal position setpoint after planner.</td></tr>
+    <tr><td class="idx">0x6064</td><td>INT32</td><td>Position Actual Value</td><td>RO / PDO</td><td class="v">Encoder pulses.</td></tr>
+    <tr><td class="idx">0x6065</td><td>UINT32</td><td>Following Error Window</td><td>RW</td><td class="v">Default 131072 (1 rev). Exceeding sets status-word bit 13.</td></tr>
+    <tr><td class="idx">0x6066</td><td>UINT16</td><td>Following Error Timeout</td><td>RW</td><td class="v">ms. Default 10.</td></tr>
+    <tr><td class="idx">0x6067</td><td>UINT32</td><td>Position Window</td><td>RW</td><td class="v">Default 100. 0 disables Target Reached detection.</td></tr>
+    <tr><td class="idx">0x6068</td><td>UINT16</td><td>Position Window Time</td><td>RW</td><td class="v">ms. Default 10. 0 = immediate target-reached.</td></tr>
+    <tr><td class="idx">0x6071</td><td>INT16</td><td>Target Torque</td><td>RW / PDO</td><td class="v">‰ of rated current. CST command; PVT torque feedforward.</td></tr>
+    <tr><td class="idx">0x6072</td><td>UINT16</td><td>Max Torque</td><td>RW / PDO</td><td class="v">‰ of rated current. Speed-loop output clamp. 0 reverts to stall-current limit.</td></tr>
+    <tr><td class="idx">0x6075</td><td>INT32</td><td>Motor Rated Current</td><td>RW</td><td class="v">mA. Default = MOTOR_RATE_IQCURRENT × 1000.</td></tr>
+    <tr><td class="idx">0x6077</td><td>INT16</td><td>Torque Actual Value</td><td>RO / PDO</td><td class="v">‰ of rated current. <code>IqFilter × 1000 / MOTOR_RATE_IQCURRENT</code>.</td></tr>
+    <tr><td class="idx">0x607A</td><td>INT32</td><td>Target Position</td><td>RW / PDO</td><td class="v">Pulses. CSP / PP target; PVT desired position p_des.</td></tr>
+    <tr><td class="idx">0x607D</td><td>RECORD</td><td>Software Position Limit</td><td>RW</td><td class="v">Sub 1 = min INT32; sub 2 = max INT32. Used in PP mode.</td></tr>
+    <tr><td class="idx">0x6081</td><td>UINT32</td><td>Profile Velocity</td><td>RW / PDO</td><td class="v">Encoder pulses / s. Cap on PP mode motion speed.</td></tr>
+    <tr><td class="idx">0x6083</td><td>UINT32</td><td>Profile Acceleration</td><td>RW / PDO</td><td class="v">Pulses / s². PP / PV.</td></tr>
+    <tr><td class="idx">0x6084</td><td>UINT32</td><td>Profile Deceleration</td><td>RW / PDO</td><td class="v">Pulses / s². PP / PV.</td></tr>
+    <tr><td class="idx">0x6085</td><td>UINT32</td><td>Quick Stop Deceleration</td><td>RW / PDO</td><td class="v">Pulses / s². Used when 0x605A = 0.</td></tr>
+    <tr><td class="idx">0x6098</td><td>INT8</td><td>Homing Method</td><td>RW</td><td class="v">Mode 6 = set current position as zero.</td></tr>
+    <tr><td class="idx">0x60B0</td><td>INT32</td><td>Position Offset</td><td>RW / PDO</td><td class="v">CSP only. Actual target = 0x607A + 0x60B0.</td></tr>
+    <tr><td class="idx">0x60B1</td><td>INT32</td><td>Velocity Offset</td><td>RW / PDO</td><td class="v">CSP / CSV velocity feedforward.</td></tr>
+    <tr><td class="idx">0x60B2</td><td>INT16</td><td>Torque Offset</td><td>RW / PDO</td><td class="v">‰ of rated current. CSP / CSV / CST torque feedforward.</td></tr>
+    <tr><td class="idx">0x60F4</td><td>INT32</td><td>Following Error Actual</td><td>RO / PDO</td><td class="v">Live following error in pulses.</td></tr>
+    <tr><td class="idx">0x60FF</td><td>INT32</td><td>Target Velocity</td><td>RW / PDO</td><td class="v">Pulses / s. CSV target; PV target; PVT desired velocity v_des.</td></tr>
+    <tr class="vendor"><td class="idx">0x2000</td><td>INT32</td><td>PVT_KP</td><td>RW / PDO</td><td class="v"><strong>Actual K_p = written value × 0.001.</strong> Master writes 1000× the engineering gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2001</td><td>INT32</td><td>PVT_KD</td><td>RW / PDO</td><td class="v"><strong>Actual K_d = written value × 0.001.</strong></td></tr>
+    <tr class="vendor"><td class="idx">0x2002</td><td>REAL32</td><td>CUR_LOOP_KP</td><td>RW</td><td class="v">Current-loop proportional gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2003</td><td>REAL32</td><td>CUR_LOOP_KI</td><td>RW</td><td class="v">Current-loop integral gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2004</td><td>REAL32</td><td>SPD_LOOP_KP</td><td>RW</td><td class="v">Speed-loop proportional gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2005</td><td>REAL32</td><td>SPD_LOOP_KI</td><td>RW</td><td class="v">Speed-loop integral gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2006</td><td>REAL32</td><td>POS_LOOP_KP</td><td>RW</td><td class="v">Position-loop proportional gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2007</td><td>REAL32</td><td>POS_LOOP_KI</td><td>RW</td><td class="v">Position-loop integral gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2008</td><td>REAL32</td><td>POS_LOOP_KD</td><td>RW</td><td class="v">Position-loop derivative gain.</td></tr>
+    <tr class="vendor"><td class="idx">0x2009</td><td>INT16</td><td>Motor Temperature</td><td>RO / PDO</td><td class="v">°C.</td></tr>
+    <tr class="vendor"><td class="idx">0x200A</td><td>UINT16</td><td>Bus Voltage</td><td>RO / PDO</td><td class="v">V (rounded integer).</td></tr>
+    <tr class="vendor"><td class="idx">0x200B</td><td>INT32</td><td>First Encoder Value</td><td>RO / PDO</td><td class="v">Absolute position from primary encoder.</td></tr>
+    <tr class="vendor"><td class="idx">0x200C</td><td>INT16</td><td>Drive Temperature</td><td>RO / PDO</td><td class="v">°C. MOSFET temperature.</td></tr>
+    <tr class="vendor"><td class="idx">0x2FFD</td><td>INT8</td><td>Dummy Byte 1</td><td>RW / PDO</td><td class="v">Padding to align RxPDO byte count.</td></tr>
+    <tr class="vendor"><td class="idx">0x2FFE</td><td>INT8</td><td>Dummy Byte 2</td><td>RO / PDO</td><td class="v">Padding to align TxPDO byte count.</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ─── §06 CONTROL / STATUS / MODES ─── -->
+<section id="od-ctrlstat">
+<span class="section-num">§ 06 — Control Word, Status Word, Modes</span>
+<h2>The <em>three</em> objects every cycle touches.</h2>
+
+<h3>Control Word — 0x6040</h3>
+
+<table class="ref">
+  <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Type</td><td class="v">UINT16</td></tr>
+    <tr><td>Access</td><td class="v">RW, RxPDO mappable</td></tr>
+    <tr><td>Default</td><td class="v">0x0000</td></tr>
+  </tbody>
+</table>
+
+<p>Beyond the bits in § 03, the Control Word also drives the parameter-save protocol.</p>
+
+<div class="panel" data-label="Parameter save sequence — only when motor is disabled">
+  <ul class="bullets" style="margin:0">
+    <li>Write ControlWord = 0 (init first stage).</li>
+    <li>Write ControlWord = 4096 (0x1000) — triggers save.</li>
+    <li>Within 3 s, write ControlWord = 0 — confirms save; the drive commits modified parameters to flash.</li>
+    <li>Saving is rejected if the drive is in Operation Enabled. Always disable first.</li>
+  </ul>
+</div>
+
+<h3>Status Word — 0x6041</h3>
+
+<table class="ref">
+  <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Type</td><td class="v">UINT16</td></tr>
+    <tr><td>Access</td><td class="v">RO, TxPDO mappable</td></tr>
+    <tr><td>Default</td><td class="v">0x0000</td></tr>
+  </tbody>
+</table>
+
+<p>Bits 0–9 encode the CiA 402 state (see § 03). Bit 10 = <em>Target Reached</em>; bit 13 = <em>Following Error</em>; bit 12 is repurposed per active mode (PP mode "Set Point Acknowledge", CST/CSV mode flags).</p>
+
+<h3>Modes of Operation — 0x6060 (write) / 0x6061 (read)</h3>
+
+<p>0x6060 sets the mode. 0x6061 echoes the active mode — and returns <strong>0</strong> if the drive has a fault. A 0 readback on 0x6061 while you're commanding torque is a strong signal that you're in Fault and the drive is silently dropping your commands.</p>
+</section>
+
+<!-- ─── §07 TARGETS & ACTUALS ─── -->
+<section id="od-targets">
+<span class="section-num">§ 07 — Targets, actuals, error code</span>
+<h2>What you <em>send</em> vs what you <em>read</em>.</h2>
+
+<h3>Target Position — 0x607A · INT32 · pulses</h3>
+<ul class="bullets">
+  <li><strong>PP mode:</strong> write target, then trigger Bit 4 rising edge on Control Word to start trajectory planning.</li>
+  <li><strong>CSP mode:</strong> value written every cycle is used directly as position reference (plus 0x60B0 Position Offset).</li>
+  <li><strong>PVT mode:</strong> used as desired position p_des in the MIT control law.</li>
+</ul>
+
+<h3>Target Velocity — 0x60FF · INT32 · pulses/s</h3>
+<ul class="bullets">
+  <li><strong>CSV mode:</strong> drive tracks target velocity each cycle, no trajectory planning.</li>
+  <li><strong>PV mode:</strong> Bit 4 rising edge triggers ramp.</li>
+  <li><strong>PVT mode:</strong> desired velocity v_des in the MIT control law.</li>
+</ul>
+
+<h3>Target Torque — 0x6071 · INT16 · ‰ of rated current</h3>
+<ul class="bullets">
+  <li><strong>CST mode:</strong> direct torque command, no speed / position protection. Always pair with 0x6072 Max Torque as a safety clamp.</li>
+  <li><strong>PVT mode:</strong> torque feedforward t_ff (added on top of K_p·err + K_d·dot_err).</li>
+</ul>
+
+<div class="math-block labeled">
+  <span class="lbl">unit conversion — target torque → motor current</span>
+  $$ I_{actual} \;=\; \text{TargetTorque} \times 0.001 \times I_{rated} $$
+</div>
+
+<p>TargetTorque = 500 corresponds to 50 % of rated current. <strong>This is per-mille of rated <em>current</em>, not rated <em>torque</em></strong> — see the X6 reality note in <a href="../tuning/motor_id_protocol.html#x6-reality">tuning/motor_id_protocol.html § 12</a> for why the master-side YAML factor has to be calibrated against the measured K_t · I_rated product.</p>
+
+<h3>Actual Position / Velocity / Torque — 0x6064 / 0x606C / 0x6077</h3>
+
+<p>Read-only feedback. 0x6064 is encoder pulses; 0x606C is encoder pulses per second; 0x6077 is per-mille of rated current, computed as:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">torque-actual formula</span>
+  $$ \text{TorqueActual} \;=\; \frac{\text{IqFilter} \times 1000}{\text{MOTOR\_RATE\_IQCURRENT}} $$
+</div>
+
+<h3>Error Code — 0x603F · UINT16</h3>
+
+<table class="ref">
+  <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td>0x0002</td><td class="v">Motor stall</td></tr>
+    <tr><td>0x0004</td><td class="v">Undervoltage</td></tr>
+    <tr><td>0x0008</td><td class="v">Overvoltage</td></tr>
+    <tr><td>0x0010</td><td class="v">Phase overcurrent</td></tr>
+    <tr><td>0x0080</td><td class="v">Calibration parameter write error</td></tr>
+    <tr><td>0x0100</td><td class="v">Overspeed</td></tr>
+    <tr><td>0x0800</td><td class="v">Component over-temperature</td></tr>
+    <tr><td>0x1000</td><td class="v">Motor over-temperature</td></tr>
+    <tr><td>0x2000</td><td class="v">Encoder calibration error</td></tr>
+    <tr><td>0x4000</td><td class="v">Encoder data error</td></tr>
+  </tbody>
+</table>
+
+<p>0 means no fault. Multiple bits can be set simultaneously — a phase overcurrent caused by overspeed will report 0x0110.</p>
+</section>
+
+<!-- ─── §08 PROFILE PARAMETERS ─── -->
+<section id="od-profile">
+<span class="section-num">§ 08 — Profile parameter objects</span>
+<h2>Velocity, acceleration, deceleration — for the <em>profile</em> modes.</h2>
+
+<p class="lead">PP and PV modes need profile parameters so the drive's trajectory planner has something to work with. CSP / CSV / CST do not use these — there is no on-drive planner in cyclic modes.</p>
+
+<h3>Profile Velocity — 0x6081 · UINT32 · encoder pulses/s</h3>
+
+<p>Maximum operating speed in PP mode. The drive auto-converts the written pulses-per-second to its internal RPM units:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">internal speed conversion</span>
+  $$ \text{POSPLAN\_MAXSPD (RPM)} \;=\; \frac{\text{ProfileVelocity}}{\text{Resolution}} \times \text{GearRatio} \times 60 $$
+</div>
+
+<h3>Profile Acceleration / Deceleration — 0x6083 / 0x6084 · UINT32 · pulses/s²</h3>
+
+<p>Acceleration and deceleration limits used in PP and PV. Internal conversion:</p>
+
+<div class="math-block labeled">
+  <span class="lbl">internal accel conversion</span>
+  $$ \text{POSPLAN\_ACC (deg/s}^2\text{)} \;=\; \frac{\text{ProfileAcceleration} \times 360}{\text{Resolution}} \times \text{GearRatio} $$
+</div>
+
+<h3>Quick Stop Deceleration — 0x6085 · UINT32 · pulses/s²</h3>
+
+<p>Used during Quick Stop when 0x605A (Quick Stop Option Code) = 0: the drive decelerates at this rate to zero speed and then transitions to <em>Switch On Disabled</em>.</p>
+</section>
+
+<!-- ─── §09 POSITION MONITORING ─── -->
+<section id="od-monitor">
+<span class="section-num">§ 09 — Position monitoring parameters</span>
+<h2>Software limits, following error, target window.</h2>
+
+<h3>Software Position Limit — 0x607D · RECORD</h3>
+
+<p>Sub-index 1 = min INT32; sub-index 2 = max INT32. Target position in PP mode is clamped to this range before the planner runs. <strong>Has no effect in CSP / CSV / CST</strong> — in cyclic modes you must enforce limits master-side.</p>
+
+<h3>Following Error Window — 0x6065 · UINT32 (pulses)</h3>
+
+<p>Default 131072 (one encoder revolution). If <code>|position_demand − position_actual|</code> exceeds this for longer than 0x6066, the drive sets Status Word bit 13 and faults.</p>
+
+<h3>Following Error Timeout — 0x6066 · UINT16 (ms)</h3>
+
+<p>Default 10 ms.</p>
+
+<h3>Position Window / Position Window Time — 0x6067 / 0x6068</h3>
+
+<p>0x6067 default 100 pulses; 0x6068 default 10 ms. After the actual position stays inside the window for longer than the time, Status Word bit 10 (Target Reached) is set. Setting 0x6067 = 0 disables the target-reached detection; setting 0x6068 = 0 makes it immediate.</p>
+
+<h3>Following Error Actual — 0x60F4 · INT32 (RO)</h3>
+
+<p>Live following error in pulses. Mappable in TxPDO 0x1A03 for tracking-error analysis.</p>
+</section>
+
+<!-- ─── §10 OFFSET / FEEDFORWARD ─── -->
+<section id="od-offset">
+<span class="section-num">§ 10 — Offset / feedforward objects</span>
+<h2>Position, velocity, torque <em>feedforward</em>.</h2>
+
+<p class="lead">These three objects let the master inject feedforward terms into the drive's control loops. In high-precision applications they typically come in via RxPDO 0x1603, alongside the standard control channel.</p>
+
+<table class="ref">
+  <thead><tr><th>Index</th><th>Name</th><th>Type</th><th>Unit</th><th>Used in</th></tr></thead>
+  <tbody>
+    <tr><td>0x60B0</td><td class="v">Position Offset</td><td>INT32</td><td class="v">Encoder pulses</td><td class="v">CSP — added to 0x607A as <code>actual_target = 0x607A + 0x60B0</code></td></tr>
+    <tr><td>0x60B1</td><td class="v">Velocity Offset</td><td>INT32</td><td class="v">Encoder pulses/s</td><td class="v">CSP, CSV — velocity feedforward</td></tr>
+    <tr><td>0x60B2</td><td class="v">Torque Offset</td><td>INT16</td><td class="v">‰ rated current</td><td class="v">CSP, CSV, CST — torque feedforward</td></tr>
+  </tbody>
+</table>
+
+<div class="tip">
+  <strong>For CSP-with-feedforward applications</strong>, activate RxPDO 0x1600 + RxPDO 0x1603 together. The drive will read its standard control channel from one and the offset / feedforward channel from the other in the same cycle.
+</div>
+</section>
+
+<!-- ─── §11 LIMITS ─── -->
+<section id="od-limits">
+<span class="section-num">§ 11 — Max torque and rated current</span>
+<h2>The two SDOs that define the <em>torque envelope</em>.</h2>
+
+<h3>Max Torque — 0x6072 · UINT16 · ‰ of rated current</h3>
+
+<p>Sets the output limit of the speed loop — equivalently, the maximum torque the drive will command:</p>
+
+<div class="math-block">
+  $$ \text{OutMax} \;=\; \text{MaxTorque} \times 0.001 \times I_{rated} $$
+</div>
+
+<div class="warn">
+  <strong>The calculated current cannot exceed motor stall current.</strong> If MaxTorque ×0.001 × I_rated > MOTOR_STALL_IQCURRENT, the drive silently clamps to stall. Setting MaxTorque = 0 also reverts to the stall-current limit — so a missing write does not mean "no limit", it means "stall ceiling".
+</div>
+
+<p>For the X6 in the pendulum rig (I_rated = 13.40 A, K_t = 2.0095 N·m/A), 0x6072 = 2500 corresponds to 25 % rated current ≈ 6.7 A ≈ 13.46 N·m at the shaft — half of motor rated. <code>icub_x6_drive.yaml</code> sets it there as a deliberate safety cap.</p>
+
+<h3>Motor Rated Current — 0x6075 · INT32 · mA</h3>
+
+<p>Reference value for all per-mille torque conversions. Default = <code>MOTOR_RATE_IQCURRENT × 1000</code>. Writes update the internal rated-current parameter; the drive refuses values exceeding stall current. This is the single number that, when changed, breaks every YAML factor that converts ‰ to amps to torque — handle with care.</p>
+</section>
+
+<!-- ─── §12 HOMING ─── -->
+<section id="od-homing"><span class="section-num">§ 12 — Homing method</span>
+<h2>One method: set <em>current</em> position as zero.</h2>
+
+<p class="lead">The X6 supports a single homing method: switching to Mode 6 sets the current motor position as the zero point. No limit switch, no index pulse — just write 0x6098 (any non-zero), switch 0x6060 to 6, enable, and PosZero updates internally.</p>
+
+<table class="ref">
+  <thead><tr><th>Index</th><th>Type</th><th>Behaviour</th></tr></thead>
+  <tbody>
+    <tr><td>0x6098</td><td>INT8</td><td class="v">Homing Method — Mode 6 of 0x6060 sets current position = zero.</td></tr>
+  </tbody>
+</table>
+
+<p>After homing, switch 0x6060 back to whatever cyclic mode you actually want to run (CST / CSP / PVT). The homing zero point persists until power cycle or another homing pass.</p>
+</section>
+
+<!-- ─── §13 VENDOR-SPECIFIC ─── -->
+<section id="od-vendor">
+<span class="section-num">§ 13 — Vendor-specific objects</span>
+<h2>The <em>0x2000 band</em> — and where the ×1000 trap lives.</h2>
+
+<p class="lead">Everything in 0x2000–0x2FFF is MyActuator-specific. Two of these objects, PVT_KP and PVT_KD, are the heart of the impedance-control path — and both expect the master to write a value 1000× the actual gain you want.</p>
+
+<h3>PVT_KP — 0x2000 · INT32</h3>
+
+<div class="math-block labeled">
+  <span class="lbl">PVT proportional gain scaling</span>
+  $$ K_{p,\text{actual}} \;=\; \text{PVT\_KP}_{\text{written}} \times 0.001 $$
+</div>
+
+<h3>PVT_KD — 0x2001 · INT32</h3>
+
+<div class="math-block labeled">
+  <span class="lbl">PVT derivative gain scaling</span>
+  $$ K_{d,\text{actual}} \;=\; \text{PVT\_KD}_{\text{written}} \times 0.001 $$
+</div>
+
+<div class="callout">
+  Want an effective stiffness of 2 Nm/rad? Write <code>0x2000 = 2000</code>. Want damping 0.1 Nm·s/rad? Write <code>0x2001 = 100</code>. Skip the ×1000 and the drive sees gains 1000× weaker than you intended; multiply twice and you'll get a violent oscillation.
+</div>
+
+<div class="warn">
+  <strong>This scaling was undocumented in the previous protocol revision.</strong> The repo's earlier <code>icub_x6_drive_pvt.yaml</code> wrote raw int32 with <code>factor: 1.0</code>, which forced empirical gain discovery on every bring-up. The <code>icub_x6_drive_mit.yaml</code> introduced in May 2026 bakes the 1000× into the slave YAML's <code>factor</code> field — so when <code>pvt_publisher.py</code> publishes <code>kp = 2.0</code> as an engineering value, the wire carries the int32 2000 and the drive applies an actual gain of 2.
+</div>
+
+<h3>Inner-loop PID gains — 0x2002–0x2008</h3>
+
+<p>The three-loop cascade controller is exposed as live-writable REAL32 SDOs (none are PDO-mappable; modify acyclically and save to flash).</p>
+
+<table class="ref">
+  <thead><tr><th>Index</th><th>Name</th><th>Loop</th></tr></thead>
+  <tbody>
+    <tr><td>0x2002</td><td class="v">CUR_LOOP_KP</td><td class="v">Current loop, proportional</td></tr>
+    <tr><td>0x2003</td><td class="v">CUR_LOOP_KI</td><td class="v">Current loop, integral</td></tr>
+    <tr><td>0x2004</td><td class="v">SPD_LOOP_KP</td><td class="v">Speed loop, proportional</td></tr>
+    <tr><td>0x2005</td><td class="v">SPD_LOOP_KI</td><td class="v">Speed loop, integral</td></tr>
+    <tr><td>0x2006</td><td class="v">POS_LOOP_KP</td><td class="v">Position loop, proportional</td></tr>
+    <tr><td>0x2007</td><td class="v">POS_LOOP_KI</td><td class="v">Position loop, integral</td></tr>
+    <tr><td>0x2008</td><td class="v">POS_LOOP_KD</td><td class="v">Position loop, derivative</td></tr>
+  </tbody>
+</table>
+
+<div class="tip">
+  <strong>PID writes take effect immediately; no restart needed.</strong> Initial values are loaded from internal config. To persist, use the parameter-save sequence (Control Word 0 → 4096 → 0). See § 29 for the worked example.
+</div>
+
+<h3>Status monitoring objects — 0x2009–0x200C</h3>
+
+<table class="ref">
+  <thead><tr><th>Index</th><th>Name</th><th>Unit</th></tr></thead>
+  <tbody>
+    <tr><td>0x2009</td><td class="v">Motor Temperature</td><td class="v">°C</td></tr>
+    <tr><td>0x200A</td><td class="v">Bus Voltage</td><td class="v">V (rounded)</td></tr>
+    <tr><td>0x200B</td><td class="v">First Encoder Value</td><td class="v">absolute pulses</td></tr>
+    <tr><td>0x200C</td><td class="v">Drive (MOSFET) Temperature</td><td class="v">°C</td></tr>
+  </tbody>
+</table>
+
+<p>Map these in TxPDO 0x1A02 if you want live thermal telemetry — useful for spotting derating under sustained load.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART III — PDO MAPPING
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part III</div>
+  <h2 class="phead">The <em>process-data</em> wire.</h2>
+  <p class="pdesc">Four RxPDO and four TxPDO mappings, and the PreOP SDO sequence to swap between them.</p>
+</div>
+
+<!-- ─── §14 PRINCIPLES ─── -->
+<section id="pdo-principles">
+<span class="section-num">§ 14 — PDO mapping principles</span>
+<h2>What goes on the wire each <em>cycle</em>.</h2>
+
+<p class="lead">PDOs are bundles of object-dictionary entries packed into a single EtherCAT frame segment. RxPDO carries master-to-slave data — control word, targets, gains. TxPDO carries slave-to-master data — status word, actuals, telemetry. The drive supports up to four mappings of each direction; the master picks which to activate via the SM-PDO assignment registers (§ 17).</p>
+
+<table class="ref">
+  <thead><tr><th>Direction</th><th>Mappings available</th><th>Default active</th><th>Total bytes (default)</th></tr></thead>
+  <tbody>
+    <tr><td>RxPDO (master → slave)</td><td class="v">0x1600, 0x1601, 0x1602, 0x1603</td><td class="v">0x1600 only</td><td class="v">16 bytes</td></tr>
+    <tr><td>TxPDO (slave → master)</td><td class="v">0x1A00, 0x1A01, 0x1A02, 0x1A03</td><td class="v">0x1A00 only</td><td class="v">16 bytes</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ─── §15 RxPDO ─── -->
+<section id="rxpdo">
+<span class="section-num">§ 15 — RxPDO mappings (master → slave)</span>
+<h2>Four flavours of <em>command</em> channel.</h2>
+
+<h3>0x1600 — Standard control · 16 bytes</h3>
+<p>The default. Carries everything you need for CST / CSP / CSV without feedforward.</p>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x6040</td><td>Control Word</td><td>16</td></tr>
+    <tr><td>2</td><td class="idx">0x607A</td><td>Target Position</td><td>32</td></tr>
+    <tr><td>3</td><td class="idx">0x60FF</td><td>Target Velocity</td><td>32</td></tr>
+    <tr><td>4</td><td class="idx">0x6071</td><td>Target Torque</td><td>16</td></tr>
+    <tr><td>5</td><td class="idx">0x6072</td><td>Max Torque</td><td>16</td></tr>
+    <tr><td>6</td><td class="idx">0x6060</td><td>Modes of Operation</td><td>8</td></tr>
+    <tr><td>7</td><td class="idx">0x2FFD</td><td>Dummy Byte 1 (padding)</td><td>8</td></tr>
+  </tbody>
+</table>
+
+<h3>0x1601 — PVT control channel · 22 bytes</h3>
+<p>Standard control plus PVT_KP and PVT_KD. Required for PVT / MIT mode.</p>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x6040</td><td>Control Word</td><td>16</td></tr>
+    <tr><td>2</td><td class="idx">0x607A</td><td>Target Position</td><td>32</td></tr>
+    <tr><td>3</td><td class="idx">0x60FF</td><td>Target Velocity</td><td>32</td></tr>
+    <tr><td>4</td><td class="idx">0x6071</td><td>Target Torque</td><td>16</td></tr>
+    <tr><td>5</td><td class="idx">0x2000</td><td>PVT_KP</td><td>32</td></tr>
+    <tr><td>6</td><td class="idx">0x2001</td><td>PVT_KD</td><td>32</td></tr>
+    <tr><td>7</td><td class="idx">0x6060</td><td>Modes of Operation</td><td>8</td></tr>
+    <tr><td>8</td><td class="idx">0x2FFD</td><td>Dummy Byte 1 (padding)</td><td>8</td></tr>
+  </tbody>
+</table>
+
+<h3>0x1602 — Profile parameter channel · 16 bytes</h3>
+<p>For PP / PV mode profile tuning.</p>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x6081</td><td>Profile Velocity</td><td>32</td></tr>
+    <tr><td>2</td><td class="idx">0x6083</td><td>Profile Acceleration</td><td>32</td></tr>
+    <tr><td>3</td><td class="idx">0x6084</td><td>Profile Deceleration</td><td>32</td></tr>
+    <tr><td>4</td><td class="idx">0x6085</td><td>Quick Stop Deceleration</td><td>32</td></tr>
+  </tbody>
+</table>
+
+<h3>0x1603 — Offset / feedforward channel · 10 bytes</h3>
+<p>For CSP / CSV with feedforward — activate alongside 0x1600.</p>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x60B0</td><td>Position Offset</td><td>32</td></tr>
+    <tr><td>2</td><td class="idx">0x60B1</td><td>Velocity Offset</td><td>32</td></tr>
+    <tr><td>3</td><td class="idx">0x60B2</td><td>Torque Offset</td><td>16</td></tr>
+  </tbody>
+</table>
+
+<div class="panel" data-label="In this repo">
+  <p style="margin:0">The CST path (<code>ethercat.launch.py</code>, <code>ethercat_pd.launch.py</code>) uses RxPDO <strong>0x1600</strong>. The PVT path (<code>ethercat_mit.launch.py</code>) uses RxPDO <strong>0x1601</strong>. 0x1602 and 0x1603 are unused but available for future high-precision CSP applications.</p>
+</div>
+</section>
+
+<!-- ─── §16 TxPDO ─── -->
+<section id="txpdo">
+<span class="section-num">§ 16 — TxPDO mappings (slave → master)</span>
+<h2>Four flavours of <em>feedback</em> channel.</h2>
+
+<h3>0x1A00 — Standard status · 16 bytes</h3>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x6041</td><td>Status Word</td><td>16</td></tr>
+    <tr><td>2</td><td class="idx">0x6064</td><td>Position Actual Value</td><td>32</td></tr>
+    <tr><td>3</td><td class="idx">0x606C</td><td>Velocity Actual Value</td><td>32</td></tr>
+    <tr><td>4</td><td class="idx">0x6077</td><td>Torque Actual Value</td><td>16</td></tr>
+    <tr><td>5</td><td class="idx">0x603F</td><td>Error Code</td><td>16</td></tr>
+    <tr><td>6</td><td class="idx">0x6061</td><td>Modes of Operation Display</td><td>8</td></tr>
+    <tr><td>7</td><td class="idx">0x2FFE</td><td>Dummy Byte 2 (padding)</td><td>8</td></tr>
+  </tbody>
+</table>
+
+<h3>0x1A01 — Extended status with encoder · 20 bytes</h3>
+<p>Adds 0x200B (First Encoder Value, absolute) for setups where the master tracks absolute position separately from the gear-output 0x6064.</p>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x6041</td><td>Status Word</td><td>16</td></tr>
+    <tr><td>2</td><td class="idx">0x6064</td><td>Position Actual Value</td><td>32</td></tr>
+    <tr><td>3</td><td class="idx">0x606C</td><td>Velocity Actual Value</td><td>32</td></tr>
+    <tr><td>4</td><td class="idx">0x6077</td><td>Torque Actual Value</td><td>16</td></tr>
+    <tr><td>5</td><td class="idx">0x603F</td><td>Error Code</td><td>16</td></tr>
+    <tr><td>6</td><td class="idx">0x200B</td><td>First Encoder Value</td><td>32</td></tr>
+    <tr><td>7</td><td class="idx">0x6061</td><td>Modes of Op Display</td><td>8</td></tr>
+    <tr><td>8</td><td class="idx">0x2FFE</td><td>Dummy Byte 2 (padding)</td><td>8</td></tr>
+  </tbody>
+</table>
+
+<h3>0x1A02 — Extended status with thermal / voltage · 22 bytes</h3>
+<p>Standard status + motor temp + drive temp + bus voltage.</p>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x6041</td><td>Status Word</td><td>16</td></tr>
+    <tr><td>2</td><td class="idx">0x6064</td><td>Position Actual Value</td><td>32</td></tr>
+    <tr><td>3</td><td class="idx">0x606C</td><td>Velocity Actual Value</td><td>32</td></tr>
+    <tr><td>4</td><td class="idx">0x6077</td><td>Torque Actual Value</td><td>16</td></tr>
+    <tr><td>5</td><td class="idx">0x603F</td><td>Error Code</td><td>16</td></tr>
+    <tr><td>6</td><td class="idx">0x2009</td><td>Motor Temperature</td><td>16</td></tr>
+    <tr><td>7</td><td class="idx">0x200C</td><td>Drive Temperature</td><td>16</td></tr>
+    <tr><td>8</td><td class="idx">0x200A</td><td>Bus Voltage</td><td>16</td></tr>
+    <tr><td>9</td><td class="idx">0x6061</td><td>Modes of Op Display</td><td>8</td></tr>
+    <tr><td>10</td><td class="idx">0x2FFE</td><td>Dummy Byte 2 (padding)</td><td>8</td></tr>
+  </tbody>
+</table>
+
+<h3>0x1A03 — Position demand / following error · 8 bytes</h3>
+<p>For closed-loop tracking analysis. Use alongside 0x1A00.</p>
+
+<table class="od-table">
+  <thead><tr><th>Sub</th><th>Index</th><th>Name</th><th>Bits</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="idx">0x6062</td><td>Position Demand Value</td><td>32</td></tr>
+    <tr><td>2</td><td class="idx">0x60F4</td><td>Following Error Actual</td><td>32</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ─── §17 SM-PDO ─── -->
+<section id="sm-pdo">
+<span class="section-num">§ 17 — SM-PDO assignment (0x1C12 / 0x1C13)</span>
+<h2>Switching mappings in <em>PreOP</em>.</h2>
+
+<p class="lead">PDO assignments can only be changed while the bus is in PreOP. Once OP is reached the active mapping is locked until the next state transition. Switching from default 0x1600 to PVT-capable 0x1601 takes three SDO writes.</p>
+
+<table class="ref">
+  <thead><tr><th>Index</th><th>Attribute</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>0x1C12</td><td class="v">RxPDO Assignment</td><td class="v">Default 1 active channel = 0x1600. Available = 0x1600, 0x1601, 0x1602, 0x1603. Modify in PreOP only.</td></tr>
+    <tr><td>0x1C13</td><td class="v">TxPDO Assignment</td><td class="v">Default 1 active channel = 0x1A00. Available = 0x1A00, 0x1A01, 0x1A02, 0x1A03.</td></tr>
+  </tbody>
+</table>
+
+<h3>Switching to PVT — three SDO writes in PreOP</h3>
+
+<ul class="steps">
+  <li><strong>Clear the assignment</strong>
+    <code>SDO write 0x1C12 sub 0 = 0</code> — sets the active-channel count to zero.
+  </li>
+  <li><strong>Assign channel 1 to 0x1601</strong>
+    <code>SDO write 0x1C12 sub 1 = 0x1601</code>.
+  </li>
+  <li><strong>Activate one channel</strong>
+    <code>SDO write 0x1C12 sub 0 = 1</code> — sets the active count back to 1, now pointing at 0x1601.
+  </li>
+</ul>
+
+<p>For multi-channel setups (e.g. RxPDO 0x1600 + RxPDO 0x1603 for CSP with feedforward) the pattern extends: sub 0 = 0; sub 1 = 0x1600; sub 2 = 0x1603; sub 0 = 2.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART IV — OPERATING MODES
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part IV</div>
+  <h2 class="phead">The <em>seven</em> operating modes.</h2>
+  <p class="pdesc">Each mode's required PDOs, operation sequence, and the master/drive responsibility split.</p>
+</div>
+
+<!-- ─── §18 CSP ─── -->
+<section id="csp">
+<span class="section-num">§ 18 — CSP · Cyclic Sync Position · Mode 8</span>
+<h2>Master interpolates, drive <em>tracks</em>.</h2>
+
+<p class="lead">In CSP, the master sends a target position every cycle. The drive performs no trajectory planning — it just closes the position loop on whatever number the master hands it. Trajectory smoothness is the master's problem.</p>
+
+<h4>Required PDOs</h4>
+<ul class="bullets">
+  <li><strong>RxPDO:</strong> Control Word (0x6040), Target Position (0x607A), Modes of Operation (0x6060) — i.e. mapping 0x1600.</li>
+  <li><strong>TxPDO:</strong> Status Word (0x6041), Position Actual (0x6064) — i.e. mapping 0x1A00.</li>
+  <li><strong>Optional:</strong> Position Offset (0x60B0), Velocity Offset (0x60B1), Torque Offset (0x60B2) — i.e. add mapping 0x1603.</li>
+</ul>
+
+<h4>Operation steps</h4>
+<ul class="steps">
+  <li><strong>In PreOP — configure PDO mapping</strong> (default 0x1600 + 0x1A00 is sufficient).</li>
+  <li><strong>Write Modes of Operation = 8.</strong></li>
+  <li><strong>Execute CiA 402 enable sequence:</strong> 0x0006 → 0x0007 → 0x000F.</li>
+  <li><strong>Each cycle — write Target Position (0x607A).</strong></li>
+  <li><strong>Read Position Actual (0x6064)</strong> to confirm tracking.</li>
+</ul>
+
+<div class="tip">
+  <strong>CSP supports velocity feedforward (0x60B1) and torque feedforward (0x60B2)</strong> — both significantly improve trajectory tracking. Activate RxPDO 0x1603 alongside 0x1600 for high-precision applications.
+</div>
+</section>
+
+<!-- ─── §19 CSV ─── -->
+<section id="csv">
+<span class="section-num">§ 19 — CSV · Cyclic Sync Velocity · Mode 9</span>
+<h2>Direct velocity command, drive <em>follows</em>.</h2>
+
+<p>In CSV mode the master sends a target velocity every cycle and the drive's speed loop tracks it directly — no trajectory planning. Required PDOs: Control Word + Target Velocity (0x60FF) + Modes of Operation in RxPDO; Status Word + Velocity Actual (0x606C) in TxPDO.</p>
+
+<h4>Operation steps</h4>
+<ul class="steps">
+  <li><strong>Configure PDO mapping.</strong></li>
+  <li><strong>Write Modes of Operation = 9.</strong></li>
+  <li><strong>Execute CiA 402 enable sequence.</strong></li>
+  <li><strong>Each cycle — write Target Velocity (0x60FF).</strong> Unit: encoder pulses/s.</li>
+  <li><strong>Read Velocity Actual (0x606C)</strong> to confirm tracking.</li>
+</ul>
+</section>
+
+<!-- ─── §20 CST ─── -->
+<section id="cst">
+<span class="section-num">§ 20 — CST · Cyclic Sync Torque · Mode 10</span>
+<h2>Direct torque, no <em>speed or position protection</em>.</h2>
+
+<p class="lead">CST hands the master direct control of the current loop's setpoint. Every other safety the drive normally provides — speed limit, position limit, trajectory planning — is bypassed. This is also the mode the ONNX policy uses in this repo.</p>
+
+<h4>Operation steps</h4>
+<ul class="steps">
+  <li><strong>Configure PDO mapping.</strong></li>
+  <li><strong>Write Modes of Operation = 10.</strong></li>
+  <li><strong>Execute CiA 402 enable sequence.</strong></li>
+  <li><strong>Each cycle — write Target Torque (0x6071).</strong> Unit: ‰ of rated current.</li>
+  <li><strong>Read Torque Actual (0x6077)</strong> to confirm tracking.</li>
+</ul>
+
+<div class="warn">
+  <strong>CST mode controls motor torque directly without speed/position protection.</strong> Always set Max Torque (0x6072) first to clamp current draw. In <code>config/ethercat/icub_x6_drive.yaml</code> this is configured as <code>0x6072 = 2500</code> (≈ 13.46 N·m shaft torque, half motor rated) — a deliberate safety cap on an otherwise unbounded command. Raise toward 743 (the value matching <code>effort_limit = 20 Nm</code> at the rated K_t · I_rated product) only after empirical validation.
+</div>
+</section>
+
+<!-- ─── §21 PP ─── -->
+<section id="pp">
+<span class="section-num">§ 21 — PP · Profile Position · Mode 1</span>
+<h2>Set a point-to-point target, drive <em>plans</em>.</h2>
+
+<p>PP mode is one-shot: the master writes a target position plus profile parameters (velocity, acceleration, deceleration), then triggers motion by raising a control-word bit. The drive runs a trapezoidal trajectory planner internally and reports back when it reaches the target window.</p>
+
+<h4>Related objects</h4>
+<ul class="bullets">
+  <li>Target Position — 0x607A</li>
+  <li>Profile Velocity — 0x6081</li>
+  <li>Profile Acceleration — 0x6083</li>
+  <li>Profile Deceleration — 0x6084</li>
+  <li>Position Limit — 0x607D (clamps target before planner runs)</li>
+  <li>Position Window / Time — 0x6067, 0x6068 (Target Reached judgment)</li>
+  <li>Following Error — 0x6065, 0x6066, 0x60F4</li>
+</ul>
+
+<h4>Operation steps</h4>
+<ul class="steps">
+  <li><strong>Configure PDO mapping</strong> (recommended: 0x1600 + 0x1602 for profile params on the wire).</li>
+  <li><strong>Write Modes of Operation = 1.</strong></li>
+  <li><strong>Set motion parameters via SDO or PDO:</strong> 0x6081, 0x6083, 0x6084, 0x607D.</li>
+  <li><strong>Execute state-machine enable sequence.</strong></li>
+  <li><strong>Write Target Position (0x607A).</strong></li>
+  <li><strong>Set Control Word Bit 4 rising edge to trigger motion</strong> — write 0x000F first, then 0x001F.</li>
+  <li><strong>Monitor Status Word Bit 10 (Target Reached)</strong> to detect completion.</li>
+</ul>
+
+<div class="panel" data-label="PP mode Bit 4 trigger mechanism">
+  <p style="margin:0">PP mode uses the <strong>rising edge</strong> of Control Word Bit 4 (New Setpoint) to start each new motion. Sequence: write target → flip Bit 4 from 0 → 1 → drive plans &amp; moves → Status Word Bit 10 = 1 when target reached → clear Bit 4 (0x000F) → repeat for next motion. A constant Bit 4 = 1 does <em>not</em> queue continuous motions — only the rising edge fires.</p>
+</div>
+</section>
+
+<!-- ─── §22 PV ─── -->
+<section id="pv">
+<span class="section-num">§ 22 — PV · Profile Velocity · Mode 3</span>
+<h2>Ramped <em>velocity</em>, drive plans the slope.</h2>
+
+<p>In PV mode the master writes a target velocity plus acceleration/deceleration parameters; the drive runs an internal velocity ramp. Like PP, motion is triggered by a Bit 4 rising edge on the control word.</p>
+
+<h4>Operation steps</h4>
+<ul class="steps">
+  <li><strong>Configure PDO mapping.</strong></li>
+  <li><strong>Write Modes of Operation = 3.</strong></li>
+  <li><strong>Set Profile Acceleration (0x6083) and Profile Deceleration (0x6084).</strong></li>
+  <li><strong>Execute state-machine enable sequence.</strong></li>
+  <li><strong>Write Target Velocity (0x60FF).</strong></li>
+  <li><strong>Trigger Bit 4 rising edge</strong> to start the ramp.</li>
+  <li><strong>Monitor Status Word Bit 10</strong> — set when target velocity is reached within ±50 pulses tolerance.</li>
+</ul>
+</section>
+
+<!-- ─── §23 PVT ─── -->
+<section id="pvt">
+<span class="section-num">§ 23 — PVT / MIT · Mode 5</span>
+<h2>The <em>impedance</em> mode.</h2>
+
+<p class="lead">PVT (also called MIT mode) is a hybrid control mode where the master streams desired position, velocity, torque feedforward, and PD gains every cycle; the drive computes output torque internally per the MIT impedance law. It's the mode that matches Isaac Lab's <code>ImplicitActuatorCfg</code> behaviour, which is why this repo uses it for the impedance-control bring-up.</p>
+
+<div class="math-block labeled">
+  <span class="lbl">drive-side control law (Mode 5)</span>
+  $$ \tau \;=\; K_p \cdot (p_{des} - p_{fb}) \;+\; K_d \cdot (v_{des} - v_{fb}) \;+\; t_{ff} $$
+</div>
+
+<dl class="vars">
+  <dt>p_des</dt><dd>Desired position from 0x607A, converted to radians at the drive.</dd>
+  <dt>p_fb</dt><dd>Actual position feedback.</dd>
+  <dt>v_des</dt><dd>Desired velocity from 0x60FF, converted to rad/s.</dd>
+  <dt>v_fb</dt><dd>Actual velocity feedback.</dd>
+  <dt>K_p</dt><dd>Position gain. Drive reads 0x2000 PVT_KP and applies × 0.001 internally.</dd>
+  <dt>K_d</dt><dd>Velocity gain. Drive reads 0x2001 PVT_KD and applies × 0.001 internally.</dd>
+  <dt>t_ff</dt><dd>Torque feedforward from 0x6071 Target Torque, in ‰ of rated current.</dd>
+</dl>
+
+<h4>Required PDO</h4>
+<p><strong>Must use RxPDO 0x1601</strong> because PVT_KP and PVT_KD are not in the standard mapping. Switch with the three-write PreOP sequence in § 17.</p>
+
+<h4>Operation steps</h4>
+<ul class="steps">
+  <li><strong>In PreOP — switch RxPDO to 0x1601.</strong>
+    SDO writes: <code>0x1C12 sub 0 = 0</code> · <code>0x1C12 sub 1 = 0x1601</code> · <code>0x1C12 sub 0 = 1</code>.
+  </li>
+  <li><strong>Write Modes of Operation = 5.</strong></li>
+  <li><strong>Execute CiA 402 enable sequence.</strong></li>
+  <li><strong>Each cycle — write the five-channel command vector:</strong>
+    <code>0x607A</code> Target Position (pulses) · <code>0x60FF</code> Target Velocity (pulses/s) · <code>0x6071</code> Target Torque (‰ of rated) as feedforward · <code>0x2000</code> PVT_KP = K_p × 1000 · <code>0x2001</code> PVT_KD = K_d × 1000.
+  </li>
+</ul>
+
+<div class="tip">
+  <strong>PVT mode is well-suited to joint impedance control.</strong> Adjusting K_p and K_d gives different stiffness / damping profiles without leaving the cyclic loop. Combined with K_p = K_d = 0 the drive becomes a pure torque feedforward port — equivalent to CST.
+</div>
+
+<div class="panel" data-label="Bring-up sequence — pendulum_test rig">
+  <p style="margin:0 0 8px"><strong>From a clean enable, with the drive limp:</strong></p>
+  <ul class="bullets" style="margin:0">
+    <li><strong>Step 1</strong> — enter Mode 5 with K_p = K_d = 0, ff_torque = 0, target = current actual position. Confirm there is no torque kick on transition.</li>
+    <li><strong>Step 2</strong> — ramp K_d (damping) first: write 0 → 100 → 500 (actual 0.1 → 0.5 Nm·s/rad). Push the link by hand; it should resist motion without holding position. Listen for chatter.</li>
+    <li><strong>Step 3</strong> — ramp K_p (stiffness): write 0 → 500 → 2000 (actual 0.5 → 2.0 Nm/rad) with the target held at the current position. Link should resist gentle pushes and return to the hold point.</li>
+    <li><strong>Step 4</strong> — command a small step (≤ 10°) and verify the response shape. Expand range only after the step looks clean.</li>
+    <li><strong>Hard stop</strong> at any growling, overcurrent (0x603F bit set), or following-error timeout (0x6065 / 0x6066 trip).</li>
+  </ul>
+</div>
+</section>
+
+<!-- ─── §24 HOMING ─── -->
+<section id="homing">
+<span class="section-num">§ 24 — Homing · Mode 6</span>
+<h2>Set <em>current position</em> as zero.</h2>
+
+<p>Homing mode does one thing: sets the current motor position as the new zero point. After execution, PosZero is updated internally and persists until the next homing pass or power cycle.</p>
+
+<h4>Operation steps</h4>
+<ul class="steps">
+  <li><strong>Write Modes of Operation = 6.</strong></li>
+  <li><strong>Execute state-machine enable sequence.</strong></li>
+  <li><strong>The drive automatically sets the current position as zero.</strong></li>
+  <li><strong>After homing — switch to your target operating mode</strong> (CST, CSP, PVT, etc.).</li>
+</ul>
+</section>
+
+<!-- ─── §25 QUICK STOP ─── -->
+<section id="quick-stop">
+<span class="section-num">§ 25 — Quick Stop</span>
+<h2>The <em>controlled</em> stop path.</h2>
+
+<p>From Operation Enabled, sending Control Word = 0x0002 triggers the Quick Stop sequence. Behaviour depends on 0x605A Quick Stop Option Code.</p>
+
+<table class="ref">
+  <thead><tr><th>0x605A value</th><th>Behaviour</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td class="v">Decelerate via 0x6085 Quick Stop Deceleration to zero speed, then transition to Switch On Disabled.</td></tr>
+  </tbody>
+</table>
+
+<p>For an emergency situation that needs to be cleared and re-enabled, Quick Stop is the right path. For an uncontrolled hard stop (e.g. E-stop circuit), drop EtherCAT power — the drive will fault on watchdog, and you'll need the Fault Reset sequence (§ 03) to bring it back.</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PART V — EXAMPLES & FAULT HANDLING
+     ═══════════════════════════════════════════════════ -->
+<div class="part">
+  <div class="pnum">Part V</div>
+  <h2 class="phead">Four <em>worked</em> examples.</h2>
+  <p class="pdesc">The pseudocode the PDF ships, reproduced here so you can copy-paste from a single source. Plus fault recovery.</p>
+</div>
+
+<!-- ─── §26 CSP EXAMPLE ─── -->
+<section id="ex-csp">
+<span class="section-num">§ 26 — Example: CSP mode motor control</span>
+<h2>Master <em>interpolates</em>, drive tracks.</h2>
+
+<pre data-lang="pseudocode"><code>// 1. In PreOP, configure PDO mapping
+//    Default 0x1600 + 0x1A00 is fine for basic CSP.
+
+// 2. Bus transition: PreOP → SafeOP → OP
+
+// 3. Set operating mode
+SDO_Write(0x6060, 0x00, 8);          // Mode = CSP
+
+// 4. CiA 402 enable sequence
+PDO_Write(0x6040, 0x0006);           // Shutdown
+Wait_StatusWord(0x0021);             // Ready To Switch On
+PDO_Write(0x6040, 0x0007);           // Switch On
+Wait_StatusWord(0x0023);             // Switched On
+PDO_Write(0x6040, 0x000F);           // Enable Operation
+Wait_StatusWord(0x0027);             // Operation Enabled
+
+// 5. Stream target position every cycle
+while (running) {
+    position = TrajectoryGenerator();    // master-side planner
+    PDO_Write(0x607A, position);         // Target Position
+    PDO_Write(0x60B1, vel_ff);           // Velocity Offset (optional)
+
+    actual_pos = PDO_Read(0x6064);       // Position Actual
+    status     = PDO_Read(0x6041);       // Status Word
+}</code></pre>
+</section>
+
+<!-- ─── §27 PP EXAMPLE ─── -->
+<section id="ex-pp">
+<span class="section-num">§ 27 — Example: PP point-to-point motion</span>
+<h2>Trigger via <em>Bit 4 rising edge</em>.</h2>
+
+<pre data-lang="pseudocode"><code>// 1. Set operating mode
+SDO_Write(0x6060, 0x00, 1);          // Mode = PP
+
+// 2. Configure motion parameters
+SDO_Write(0x6081, 0x00, 10000);      // Profile Velocity (pulses/s)
+SDO_Write(0x6083, 0x00, 50000);      // Profile Acceleration
+SDO_Write(0x6084, 0x00, 50000);      // Profile Deceleration
+
+// 3. Enable
+PDO_Write(0x6040, 0x0006);
+PDO_Write(0x6040, 0x0007);
+PDO_Write(0x6040, 0x000F);
+
+// 4. Write target and trigger motion (Bit4 rising edge)
+PDO_Write(0x607A, 131072);           // Target: 1 rev at 17-bit encoder
+PDO_Write(0x6040, 0x001F);           // Enable + New Setpoint
+
+// 5. Wait for arrival
+while (!(PDO_Read(0x6041) & 0x0400)) {
+    // Wait for Target Reached (bit 10)
+}
+
+// 6. Prepare next motion — clear Bit 4
+PDO_Write(0x6040, 0x000F);
+
+// 7. New target, re-trigger
+PDO_Write(0x607A, 0);                // Target: back to zero
+PDO_Write(0x6040, 0x001F);           // Trigger new setpoint</code></pre>
+</section>
+
+<!-- ─── §28 PVT EXAMPLE ─── -->
+<section id="ex-pvt">
+<span class="section-num">§ 28 — Example: PVT / MIT impedance control</span>
+<h2>Five channels every cycle, with the <em>×1000</em> scaling visible.</h2>
+
+<pre data-lang="pseudocode"><code>// 1. In PreOP, switch RxPDO to 0x1601
+SDO_Write(0x1C12, 0x00, 0);          // Clear
+SDO_Write(0x1C12, 0x01, 0x1601);     // Use Mapping 1
+SDO_Write(0x1C12, 0x00, 1);          // Activate
+
+// 2. Set operating mode
+SDO_Write(0x6060, 0x00, 5);          // Mode = PVT
+
+// 3. Enable
+PDO_Write(0x6040, 0x0006);
+PDO_Write(0x6040, 0x0007);
+PDO_Write(0x6040, 0x000F);
+
+// 4. Cyclic PVT command vector
+while (running) {
+    PDO_Write(0x607A, target_pos);   // Position (encoder pulses)
+    PDO_Write(0x60FF, target_vel);   // Velocity (pulses/s)
+    PDO_Write(0x6071, torque_ff);    // Torque FF (‰ rated current)
+    PDO_Write(0x2000, kp * 1000);    // PVT_KP — write 1000× the actual gain
+    PDO_Write(0x2001, kd * 1000);    // PVT_KD — write 1000× the actual gain
+}</code></pre>
+
+<p>The <code>icub_x6_drive_mit.yaml</code> slave configuration in this repo already bakes the 1000× into the EtherCAT YAML <code>factor</code> field, so the master-side publisher can publish K_p and K_d in engineering units and let the slave-yaml multiplication handle the on-wire scaling.</p>
+</section>
+
+<!-- ─── §29 SDO PID EXAMPLE ─── -->
+<section id="ex-sdo-pid">
+<span class="section-num">§ 29 — Example: SDO PID tuning + parameter save</span>
+<h2>Live-tune the <em>three-loop</em> cascade.</h2>
+
+<pre data-lang="pseudocode"><code>// Read current PID parameters
+cur_kp = SDO_Read_Float(0x2002, 0x00);  // CUR_LOOP_KP
+cur_ki = SDO_Read_Float(0x2003, 0x00);  // CUR_LOOP_KI
+spd_kp = SDO_Read_Float(0x2004, 0x00);  // SPD_LOOP_KP
+spd_ki = SDO_Read_Float(0x2005, 0x00);  // SPD_LOOP_KI
+pos_kp = SDO_Read_Float(0x2006, 0x00);  // POS_LOOP_KP
+pos_ki = SDO_Read_Float(0x2007, 0x00);  // POS_LOOP_KI
+pos_kd = SDO_Read_Float(0x2008, 0x00);  // POS_LOOP_KD
+
+// Modify speed-loop gains
+SDO_Write_Float(0x2004, 0x00, 2.5);     // SPD_KP = 2.5
+SDO_Write_Float(0x2005, 0x00, 0.01);    // SPD_KI = 0.01
+
+// Save to flash — motor must be disabled first
+SDO_Write(0x6040, 0x00, 0);             // ControlWord = 0
+SDO_Write(0x6040, 0x00, 4096);          // ControlWord = 0x1000 (trigger save)
+SDO_Write(0x6040, 0x00, 0);             // ControlWord = 0 (confirm — within 3 s)</code></pre>
+
+<div class="warn">
+  <strong>The save sequence is rejected in Operation Enabled.</strong> Disable the motor before writing 0 → 4096 → 0, otherwise the values modify the live PID loops but are <em>not</em> persisted. After power cycle they revert to the stored values.
+</div>
+</section>
+
+<!-- ─── §30 FAULT ─── -->
+<section id="fault">
+<span class="section-num">§ 30 — Fault detection &amp; recovery</span>
+<h2>How the drive <em>reports</em>, how to clear.</h2>
+
+<h3>Detection</h3>
+<ul class="bullets">
+  <li><strong>Error Code (0x603F)</strong> — read the specific fault. See § 07 for the value table.</li>
+  <li><strong>Modes of Operation Display (0x6061)</strong> — returns 0 whenever a fault is active, even if 0x6060 says otherwise. A 0 echo while you're commanding non-zero mode is the strongest signal you're in Fault and the drive is dropping commands silently.</li>
+</ul>
+
+<h3>Recovery sequence</h3>
+<ul class="steps">
+  <li><strong>Check Error Code (0x603F)</strong> to confirm the cause.</li>
+  <li><strong>Eliminate the fault cause</strong> — clear overvoltage / overcurrent / over-temperature condition, fix mechanical jam, etc.</li>
+  <li><strong>Send Fault Reset:</strong> set Control Word Bit 7 — write 0x0080. This must be a <em>rising edge</em>, not a sustained value.</li>
+  <li><strong>Drive performs system reset</strong> and transitions to Switch On Disabled.</li>
+  <li><strong>Walk the standard enable sequence again</strong> — 0x0006 → 0x0007 → 0x000F.</li>
+</ul>
+
+<div class="callout">
+  Fault Reset is a rising edge, not a level. A code path that holds 0x0080 high will reset once and then do nothing on subsequent faults. Flip Bit 7 low between resets.
+</div>
+</section>
+
+
+<footer>
+  <span>Field notes · humanoid project · sourced from MyActuator EtherCAT<span class="zh">说明</span> v2026-04-14</span>
+  <span>v.26.05</span>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY  = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn  = document.querySelector('.theme-toggle');
+  const lbl  = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>
