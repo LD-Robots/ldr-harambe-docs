@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Safety supervisor — Field Notes</title>
+
+<!-- KaTeX (math). Drop if no equations. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<!-- Chart.js (graphs). Drop if no charts. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   FIELD NOTES — design tokens.
+   See design_guide.md for the full system reference.
+   ═══════════════════════════════════════════════════ */
+:root{
+  --bg:        #0e0c09;
+  --bg-panel:  #15120d;
+  --bg-inset:  #0a0806;
+
+  --ink:       #ece2cf;
+  --ink-dim:   #a79a82;
+  --ink-faint: #6b6354;
+
+  --rule:      #2a2419;
+  --rule-soft: #1e1a13;
+
+  --amber:      #e8a33d;
+  --amber-deep: #b87a1e;
+
+  --cyan: #5fb3b3;
+  --rose: #d97757;
+  --moss: #8fa968;
+
+  --mono:  'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --sans:  'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+}
+
+/* ─────── Reactive palette (toggle) ─────────────────────
+   When data-theme="reactive" is set on <html>, tokens
+   resolve to VSCode webview CSS variables, falling back
+   to VSCode Dark/Light Modern hexes when those aren't
+   injected (i.e. doc opened in a regular browser).
+   prefers-color-scheme handles light vs dark fallback. */
+:root[data-theme="reactive"]{
+  --bg:        var(--vscode-editor-background, #1f1f1f);
+  --bg-panel:  var(--vscode-sideBar-background, #181818);
+  --bg-inset:  var(--vscode-textCodeBlock-background, #1a1a1a);
+  --ink:       var(--vscode-editor-foreground, #cccccc);
+  --ink-dim:   var(--vscode-descriptionForeground, #9d9d9d);
+  --ink-faint: var(--vscode-disabledForeground, #6f6f6f);
+  --rule:      var(--vscode-panel-border, #2b2b2b);
+  --rule-soft: var(--vscode-editorWidget-border, #252525);
+  --amber:      var(--vscode-textLink-foreground, #4ec9b0);
+  --amber-deep: var(--vscode-textLink-activeForeground, #569cd6);
+  --cyan: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --rose: var(--vscode-errorForeground,              #f48771);
+  --moss: var(--vscode-debugTokenExpression-string,  #ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg:        var(--vscode-editor-background, #ffffff);
+    --bg-panel:  var(--vscode-sideBar-background, #f8f8f8);
+    --bg-inset:  var(--vscode-textCodeBlock-background, #f3f3f3);
+    --ink:       var(--vscode-editor-foreground, #3b3b3b);
+    --ink-dim:   var(--vscode-descriptionForeground, #616161);
+    --ink-faint: var(--vscode-disabledForeground, #8c8c8c);
+    --rule:      var(--vscode-panel-border, #e5e5e5);
+    --rule-soft: var(--vscode-editorWidget-border, #ececec);
+    --amber:      var(--vscode-textLink-foreground, #0451a5);
+    --amber-deep: var(--vscode-textLink-activeForeground, #0e639c);
+  }
+}
+:root[data-theme="reactive"] body{ background: var(--bg); }
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"] body::before{ opacity:.025; }
+}
+
+/* ─────── Base ───────────────────────────────────────── */
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+/* ─────── Theme toggle ───────────────────────────────── */
+.theme-toggle{
+  position:fixed; top:16px; right:16px; z-index:10;
+  background:var(--bg-panel); color:var(--ink-faint);
+  border:1px solid var(--rule); padding:8px 12px;
+  font-family:var(--mono); font-size:10px; font-weight:500;
+  letter-spacing:.22em; text-transform:uppercase;
+  cursor:pointer; transition:color .2s, border-color .2s;
+}
+.theme-toggle:hover{ color:var(--amber); border-color:var(--amber-deep); }
+.theme-toggle .dot{ color:var(--amber); margin-right:8px; }
+
+/* ─────── Hero ───────────────────────────────────────── */
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"DOC/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"field notes";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+/* ─────── Sections + prose ───────────────────────────── */
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+hr.divider{border:none;border-top:1px solid var(--rule);margin:72px 0}
+hr.divider-soft{border:none;border-top:1px dashed var(--rule-soft);margin:32px 0}
+
+/* ─────── Components ─────────────────────────────────── */
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.panel.inset{background:var(--bg-inset)}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+.math-block .katex-display{margin:.4em 0}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+.graph-wrap{background:var(--bg-panel);border:1px solid var(--rule);margin:28px 0;padding:24px 28px 28px;position:relative}
+.graph-wrap .g-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:12px}
+.graph-wrap .g-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink)}
+.graph-wrap .g-sub{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase}
+.graph-wrap .g-desc{color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px}
+.graph-canvas{position:relative;height:340px;width:100%}
+
+.readouts{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:12px}
+.readouts .ro{display:flex;flex-direction:column;gap:2px}
+.readouts .ro .k{font-size:10px;letter-spacing:.2em;color:var(--ink-faint);text-transform:uppercase}
+.readouts .ro .v{color:var(--amber);font-size:14px;font-weight:500}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Safety · supervisor · e-stop</div>
+    <h1 class="title">One library, one config, one <em>supervisor</em>.</h1>
+    <p class="subtitle">Centralised safety enforcement for the LDR pendulum testbed — position, velocity, effort and temperature caps plus a latched, manually-reset emergency stop shared by every control path.</p>
+
+    <div class="meta">
+      <div><span class="k">Status</span><span class="v">Live on bench</span></div>
+      <div><span class="k">Owner</span><span class="v">Andrei</span></div>
+      <div><span class="k">Stage</span><span class="v"><em>operator-reset</em> required after any latch</span></div>
+      <div><span class="k">Updated</span><span class="v">2026-05-26</span></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#why"><span class="n">01</span>Why a separate package</a>
+      <a href="#halves"><span class="n">02</span>The two halves</a>
+      <a href="#limiter"><span class="n">03</span>The limiter library</a>
+      <a href="#supervisor"><span class="n">04</span>The supervisor node</a>
+      <a href="#estop"><span class="n">05</span>The e-stop signalling contract</a>
+      <a href="#actions"><span class="n">06</span>Per-trigger FREE / HOLD</a>
+      <a href="#config"><span class="n">07</span>Configuration</a>
+      <a href="#consumers"><span class="n">08</span>How each controller consumes it</a>
+      <a href="#caveats"><span class="n">09</span>Caveats &amp; extension points</a>
+    </nav>
+  </header>
+
+  <section id="why">
+    <span class="section-num">§ 01 — Why a separate package</span>
+    <h2>Limits were <em>scattered</em>. Now they aren't.</h2>
+    <p class="lead">Before this package each controller carried its own <code>clamp_symmetric</code> and <code>tau_limit</code>; <code>DriveStatusBroadcaster</code> knew temperature thresholds but only published <code>/diagnostics</code> and never acted; the policy node had an ad-hoc fall e-stop. Same numbers, three places, two of them dormant.</p>
+
+    <div class="callout">
+      <code>pendulum_safety</code> makes them one library, one config file and one supervisor.
+    </div>
+
+    <p>The package caps <strong>position</strong>, <strong>velocity</strong>, <strong>effort</strong> and <strong>temperature</strong>, and drives a configurable, manually-reset <strong>emergency stop</strong> shared by all three control paths (<code>pendulum_pd_control</code>, <code>pendulum_pvt_control</code>, <code>pendulum_pvt_policy</code>).</p>
+  </section>
+
+  <section id="halves">
+    <span class="section-num">§ 02 — The two halves</span>
+    <h2>One library linked into <em>every</em> controller. One supervisor node.</h2>
+    <p>The package splits cleanly into a realtime-safe library that runs <em>inside</em> each controller process and a stand-alone supervisor that does breach detection and drives the e-stop.</p>
+
+    <table class="ref">
+      <thead><tr><th>Half</th><th>What it is</th><th>Runs where</th></tr></thead>
+      <tbody>
+        <tr><td>Limiter library</td><td><code>libpendulum_safety.so</code> — realtime-safe clamp / rate-limit / thermal primitives</td><td class="v">linked into the PD, PVT and policy processes</td></tr>
+        <tr><td>Supervisor node</td><td><code>pendulum_safety_supervisor</code> — all breach detection + the e-stop</td><td class="v">a stand-alone node, one per system</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="limiter">
+    <span class="section-num">§ 03 — The limiter library</span>
+    <h2>Header-only and allocation-free, on the hot path.</h2>
+    <p>A realtime-safe C++ library — every function reachable from a controller's <code>update()</code> is allocation-free, lock-free and log-free.</p>
+
+    <table class="ref">
+      <thead><tr><th>Header</th><th>Provides</th></tr></thead>
+      <tbody>
+        <tr><td>safety_limits.hpp</td><td class="v"><code>SafetyLimits</code> POD struct, <code>BreachReason</code> / <code>EstopAction</code> enums</td></tr>
+        <tr><td>clamp.hpp</td><td class="v"><code>clampPosition</code> / <code>clampVelocity</code> / <code>clampEffort</code> (header-only <code>inline</code>)</td></tr>
+        <tr><td>rate_limiter.hpp</td><td class="v"><code>RateLimiter</code> — stateful slew-rate <strong>and</strong> acceleration limiter</td></tr>
+        <tr><td>sustained_effort_monitor.hpp</td><td class="v"><code>SustainedEffortMonitor</code> — leaky-bucket time-above-threshold detector</td></tr>
+        <tr><td>thermal.hpp</td><td class="v"><code>kpScaleForTemp</code> / <code>kpScaleCombined</code> — thermal <code>Kp</code>-derating curve</td></tr>
+        <tr><td>breach.hpp</td><td class="v"><code>checkPosition</code> / <code>checkVelocity</code> / <code>checkMotorTemp</code> / … breach predicates</td></tr>
+        <tr><td>param_loader.hpp</td><td class="v"><code>loadSafetyLimits()</code> — declare + read <code>SafetyLimits</code> from ROS params</td></tr>
+        <tr><td>estop_subscriber.hpp</td><td class="v"><code>EstopSubscriber</code> — consumer-side helper for the e-stop signal</td></tr>
+      </tbody>
+    </table>
+
+    <p><code>clampSymmetric</code> keeps the <code>limit &lt;= 0 → disabled</code> semantics of the old <code>clamp_symmetric</code> helpers, so swapping them in is behaviour-preserving.</p>
+  </section>
+
+  <section id="supervisor">
+    <span class="section-num">§ 04 — The supervisor node</span>
+    <h2>A plain <em>rclcpp::Node</em>, a 200 Hz watchdog, a latched breach.</h2>
+    <p><code>pendulum_safety_supervisor</code> runs every breach predicate on the latest telemetry inside a watchdog timer (<code>watchdog_rate_hz</code>, default 200 Hz), latches the <strong>first</strong> breach, and drives the e-stop.</p>
+
+    <h4>Subscribes</h4>
+    <table class="ref">
+      <thead><tr><th>Topic</th><th>Type</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td>/joint_states</td><td>sensor_msgs/JointState</td><td class="v">position + velocity, <strong>and</strong> effort — the drive's actual torque (EtherCAT <code>0x6077</code>) on real hardware, the gz effort in sim — for the sustained-effort monitor</td></tr>
+        <tr><td>/drive_status_broadcaster/motor_temperature</td><td>std_msgs/Float64</td><td class="v">motor over-temp (real only)</td></tr>
+        <tr><td>/drive_status_broadcaster/drive_temperature</td><td>std_msgs/Float64</td><td class="v">drive over-temp (real only)</td></tr>
+        <tr><td>/drive_status_broadcaster/bus_voltage</td><td>std_msgs/Float64</td><td class="v">bus-voltage window (real only)</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Publishes</h4>
+    <table class="ref">
+      <thead><tr><th>Topic</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>/pendulum/safety/estop_state</td><td>std_msgs/Int8</td><td class="v"><strong>latched</strong> — <code>0</code> clear / <code>1</code> e-stop+FREE / <code>2</code> e-stop+HOLD</td></tr>
+        <tr><td>/pendulum/safety/kp_scale</td><td>std_msgs/Float64</td><td class="v"><strong>latched</strong> — thermal <code>Kp</code> multiplier <code>[kp_scale_floor, 1.0]</code></td></tr>
+        <tr><td>/pendulum/safety/breach_reason</td><td>std_msgs/String</td><td class="v"><strong>latched</strong> — operator-facing latched breach name</td></tr>
+        <tr><td>/diagnostics</td><td>diagnostic_msgs/DiagnosticArray</td><td class="v">live telemetry + state, ~10 Hz</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Services</h4>
+<pre data-lang="bash"><code><span class="tok-c"># Manual e-stop — latches BreachReason::MANUAL immediately</span>
+ros2 service call /pendulum_safety_supervisor/estop std_srvs/srv/Trigger
+
+<span class="tok-c"># Manual reset — REFUSED (success=false) while any breach is still active</span>
+ros2 service call /pendulum_safety_supervisor/reset std_srvs/srv/Trigger
+</code></pre>
+
+    <div class="panel" data-label="Latch policy">
+      <p>The latch never auto-clears — once tripped it stays tripped until <code>~/reset</code> succeeds, and reset succeeds only when every predicate is back in range. This is deliberate: <strong>the drive cannot silently re-energise without an operator.</strong></p>
+    </div>
+  </section>
+
+  <section id="estop">
+    <span class="section-num">§ 05 — The e-stop signalling contract</span>
+    <h2>Two latched <em>std_msgs</em> topics. No service round-trip.</h2>
+    <p>The supervisor → controller link is two latched <code>std_msgs</code> topics — no custom messages. Controllers consume them via <code>EstopSubscriber</code>, which stores the values in lock-free atomics so <code>update()</code> reads them with no blocking.</p>
+
+    <ul class="bullets">
+      <li><code>/pendulum/safety/estop_state</code> (<code>Int8</code>): <code>0</code> = clear, <code>1</code> = e-stop + FREE, <code>2</code> = e-stop + HOLD.</li>
+      <li><code>/pendulum/safety/kp_scale</code> (<code>Float64</code>): <code>Kp</code> is multiplied by this every cycle — <code>1.0</code> when cool or when no supervisor is running.</li>
+    </ul>
+
+    <div class="callout">
+      Reaction time &lt; 10 ms — a controller reacts inside its own 1 kHz <code>update()</code>. The only latency is topic delivery plus one control cycle.
+    </div>
+
+    <div class="panel" data-label="No supervisor running?">
+      <p>The latched topics have no publisher, the atomics keep their defaults (no e-stop, <code>kp_scale = 1.0</code>), and every control path behaves exactly as it did before this package existed. The dependency is opt-in by construction.</p>
+    </div>
+  </section>
+
+  <section id="actions">
+    <span class="section-num">§ 06 — Per-trigger FREE / HOLD</span>
+    <h2>Each breach picks its <em>own</em> reaction.</h2>
+    <p>Each breach category resolves to an action — <strong>FREE</strong> (zero torque, the joint coasts) or <strong>HOLD</strong> (lock at the position latched when the e-stop fired) — set in <code>config/safety_limits.yaml</code>:</p>
+
+<pre data-lang="yaml"><code>    action.temperature: free        <span class="tok-c"># over-temp / bus voltage</span>
+    action.overspeed: hold
+    action.position: hold           <span class="tok-c"># out-of-range position</span>
+    action.manual: free
+    action.stale_joint_state: hold  <span class="tok-c"># lost /joint_states</span>
+    action.sustained_effort: free
+</code></pre>
+
+    <p>An e-stop <strong>HOLD</strong> overrides the controller's own FREE mode — safety must hold the joint regardless of what the operator asked for.</p>
+  </section>
+
+  <section id="config">
+    <span class="section-num">§ 07 — Configuration</span>
+    <h2>One source of truth — <em>safety_limits.yaml</em>.</h2>
+    <p><code>config/safety_limits.yaml</code> is the <strong>only</strong> place limit numbers are edited. Its <code>/**:</code> wildcard block means the same file applies to whatever node it is passed to — the supervisor, all three controllers (via an extra <code>--param-file</code> on the spawner) and the policy node all read the same <code>safety.*</code> values.</p>
+
+    <table class="ref">
+      <thead><tr><th>Param (safety.*)</th><th>Meaning</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>position_limits_enable</td><td class="v">enable the position clamp</td><td>true</td></tr>
+        <tr><td>position_min / position_max</td><td class="v">joint bounds (rad) — URDF <code>[0, 2π]</code></td><td>0.0 / 6.2832</td></tr>
+        <tr><td>effort_limit</td><td class="v">symmetric torque cap (N·m); <code>&lt;=0</code> disables</td><td>20.0</td></tr>
+        <tr><td>sustained_effort_threshold</td><td class="v">"high effort" level (N·m)</td><td>16.0</td></tr>
+        <tr><td>sustained_effort_window_sec</td><td class="v">above-threshold time that trips an e-stop</td><td>1.0</td></tr>
+        <tr><td>velocity_limit</td><td class="v">symmetric speed cap (rad/s) — URDF velocity limit</td><td>3.0</td></tr>
+        <tr><td>slew_rate_limit</td><td class="v">position-command slew (rad/s)</td><td>2.5</td></tr>
+        <tr><td>acceleration_limit</td><td class="v">position-command acceleration cap (rad/s²)</td><td>60.0</td></tr>
+        <tr><td>motor_temp_warn / motor_temp_error</td><td class="v">derate-start / e-stop temps (°C)</td><td>70 / 90</td></tr>
+        <tr><td>drive_temp_warn / drive_temp_error</td><td class="v">derate-start / e-stop temps (°C)</td><td>70 / 85</td></tr>
+        <tr><td>bus_voltage_min / bus_voltage_max</td><td class="v">bus-voltage window (V)</td><td>40 / 54</td></tr>
+        <tr><td>kp_scale_floor</td><td class="v"><code>Kp</code> multiplier at/above the error temp</td><td>0.3</td></tr>
+        <tr><td>joint_state_timeout_sec</td><td class="v"><code>/joint_states</code> freshness watchdog (s)</td><td>0.25</td></tr>
+      </tbody>
+    </table>
+
+    <p>A second, node-name-targeted block holds the supervisor's own topic names, <code>watchdog_rate_hz</code> and the per-trigger <code>action.*</code> map.</p>
+
+    <h4>Launching</h4>
+<pre data-lang="bash"><code>ros2 launch pendulum_safety safety.launch.py             <span class="tok-c"># real hardware</span>
+ros2 launch pendulum_safety safety.launch.py use_sim:=true   <span class="tok-c"># simulation</span>
+</code></pre>
+
+    <p><code>safety.launch.py</code> is also pulled in automatically by <code>pvt.launch.py</code> and <code>pd_custom.launch.py</code> (and, transitively, <code>policy.launch.py</code>) — so the supervisor comes up with the control stack and the controllers receive <code>safety_limits.yaml</code> on their spawners.</p>
+
+    <p>In <strong>simulation</strong> (<code>use_sim:=true</code>) there are no temperature interfaces, so the launch sets <code>monitor_temperature:=false</code> (the supervisor skips the temperature subscriptions and checks) and points the effort source at <code>/joint_states</code>. The supervisor still monitors position, velocity, sustained effort and joint-state freshness.</p>
+  </section>
+
+  <section id="consumers">
+    <span class="section-num">§ 08 — How each controller consumes it</span>
+    <h2>Same library, three integration shapes.</h2>
+    <p>All three paths load <code>SafetyLimits</code> from the <code>safety.*</code> parameters (<code>loadSafetyLimits</code>) and apply the library every cycle:</p>
+
+    <table class="ref">
+      <thead><tr><th>Path</th><th>Position</th><th>Velocity</th><th>Effort</th><th>Slew / accel</th><th>Kp derate</th><th>E-stop reaction</th></tr></thead>
+      <tbody>
+        <tr><td>PD controller</td><td class="v">clampPosition</td><td class="v">clampVelocity</td><td class="v">clampEffort</td><td class="v">—</td><td class="v">yes</td><td class="v">FREE → 0 τ · HOLD → active PD hold</td></tr>
+        <tr><td>PVT controller</td><td class="v">clampPosition</td><td class="v">clampVelocity</td><td class="v">clampEffort</td><td class="v">RateLimiter</td><td class="v">yes</td><td class="v">FREE → write_free_outputs() · HOLD → static PVT hold</td></tr>
+        <tr><td>policy node</td><td class="v">clampPosition on the published setpoint</td><td class="v">overspeed → fall-latch</td><td class="v">—</td><td class="v">RateLimiter</td><td class="v">—</td><td class="v">e-stop latches the fall-hold</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="caveats">
+    <span class="section-num">§ 09 — Caveats &amp; extension points</span>
+    <h2>What the clamp <em>doesn't</em> catch.</h2>
+
+    <div class="warn">
+      <strong>The clamp is a software layer, not the last line of defence.</strong> On real hardware the drive's <code>0x6072</code> max_torque SDO remains the independent hardware torque ceiling. <code>clampEffort</code> sits above it.
+    </div>
+
+    <ul class="bullets">
+      <li><strong>Temperature monitoring is real-hardware only.</strong> <code>DriveStatusBroadcaster</code> (the temperature source) does not run in Gazebo. In sim the supervisor runs with <code>monitor_temperature:=false</code>; thermal derating and over-temp e-stops are inactive there.</li>
+      <li><strong>DriveStatusBroadcaster keeps its own thresholds.</strong> It still grades <code>/diagnostics</code> for reporting; its threshold numbers are intentionally kept in sync with <code>safety_limits.yaml</code>. The supervisor is the component that <em>acts</em>.</li>
+      <li><strong>A NaN reading never latches an e-stop.</strong> Missing telemetry (an unread interface, a silent sensor) is treated as "no data", not as a breach.</li>
+    </ul>
+
+    <h4>Verifying</h4>
+<pre data-lang="bash"><code><span class="tok-c"># supervisor up, initial state clear</span>
+ros2 topic echo --once /pendulum/safety/estop_state    <span class="tok-c"># data: 0</span>
+
+<span class="tok-c"># manual e-stop -> state 1, breach MANUAL</span>
+ros2 service call /pendulum_safety_supervisor/estop std_srvs/srv/Trigger
+ros2 topic echo --once /pendulum/safety/breach_reason  <span class="tok-c"># data: MANUAL</span>
+
+<span class="tok-c"># overspeed: publish joint states past velocity_limit -> state latches, OVERSPEED</span>
+ros2 topic pub -r 50 /joint_states sensor_msgs/msg/JointState \
+  "{name: [pendulum_joint], velocity: [100.0]}"
+
+<span class="tok-c"># reset is refused while the breach is still active, succeeds once back in range</span>
+ros2 service call /pendulum_safety_supervisor/reset std_srvs/srv/Trigger
+</code></pre>
+  </section>
+
+  <footer>
+    <span>Field notes · pendulum testbed · safety supervisor</span>
+    <span>v.26.05</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY  = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn  = document.querySelector('.theme-toggle');
+  const lbl  = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>
