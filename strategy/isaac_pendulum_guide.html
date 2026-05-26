@@ -1345,6 +1345,21 @@ action = sess.run(<span class="tok-k">None</span>, {sess.get_inputs()[<span clas
 <div class="panel" data-label="The deploy checklist">
   <p style="margin:0">Before pushing to real hardware: (1) this node runs cleanly in Gazebo with the simulated actuator from the Gazebo-actuator guide, (2) tracking looks qualitatively like the Isaac play session, (3) the ROS 2 bag shows the observation order matches training, (4) tau_max, vel_max, and episode_length_s constants match training values. All four? Deploy. Any one missing? Fix first.</p>
 </div>
+
+<h3>The PVT deployment path</h3>
+
+<p>On the pendulum bench the pure-effort deployment above is now the <em>alternative</em>, not the default. The X6 drive boots into <strong>PVT (CiA-402 mode 5)</strong> and <code>pendulum_pvt_controller</code> claims <code>position / velocity / effort / kp / kd</code> command interfaces; the impedance law <code>tau = Kp(q_d - q) + Kd(qd_d - qd) + tau_ff</code> runs in drive firmware at 1 kHz. The policy node publishes a <code>trajectory_msgs/JointTrajectoryPoint</code> setpoint on <code>~/setpoint</code>; the controller streams it to the drive every cycle. This mirrors Isaac Lab's <code>ImplicitActuatorCfg</code> — the same gain numbers used in <code>ArticulationCfg</code> apply unmodified.</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># Step to 1.0 rad — controller flips into PVT on first setpoint</span>
+ros2 topic pub --once /pendulum_pvt_controller/setpoint \
+  trajectory_msgs/msg/JointTrajectoryPoint \
+  '{positions: [1.0], velocities: [0.0], accelerations: [0.0]}'
+</code></pre>
+
+<p>Around the controller, <code>pendulum_safety_supervisor</code> wraps both the effort and PVT paths with a latched e-stop and a thermal <code>kp_scale</code> derate, broadcast on two latched <code>std_msgs</code> topics (<code>/pendulum/safety/estop_state</code>, <code>/pendulum/safety/kp_scale</code>). See the <a href="safety_supervisor_guide.html">safety supervisor field note</a> and the <a href="../tuning/pvt_tuning_guide.html">PVT tuning field note</a> for the full contract.</p>
+
+<p>Use the pure-effort deployment when PVT mode isn't available (e.g. drives without firmware support, or a sim plugin that only exposes <code>effort</code>); use the PVT deployment when you want sim-to-real gain parity with Isaac's ImplicitActuator at the lowest possible jitter — the PD loop sits one EtherCAT cycle away from the encoder, not one host control cycle.</p>
+
 </section>
 
 
@@ -1375,6 +1390,10 @@ action = sess.run(<span class="tok-k">None</span>, {sess.get_inputs()[<span clas
     <tr><td>Out-of-memory during training</td><td>Too many envs</td><td class="v">Halve num_envs; confirm with nvidia-smi</td></tr>
     <tr><td>Policy looks fine, ONNX outputs garbage</td><td>Normalization not frozen at export</td><td class="v">Re-export using RSL-RL's exporter with empirical_normalization enabled</td></tr>
     <tr><td>NaN in training logs</td><td>Physics explosion or gradient blowup</td><td class="v">Add reward clipping; lower max_grad_norm; check joint limits aren't being violated</td></tr>
+    <tr><td>Joint kicks on reset / first command</td><td>Safety-supervisor e-stop still latched (state ≠ 0)</td><td class="v">Read <code>/pendulum/safety/estop_state</code>; if non-zero call <code>~/reset</code>. Reset only succeeds once every predicate is back in range</td></tr>
+    <tr><td>Position-command slew clipped vs commanded</td><td>Rate limiter in pendulum_safety</td><td class="v">Bump <code>slew_rate_limit</code> / <code>acceleration_limit</code> in <code>safety_limits.yaml</code> — defaults are 2.5 rad/s and 60 rad/s²</td></tr>
+    <tr><td>Reset refused, breach STALE_JOINT_STATE latched</td><td>Lost <code>/joint_states</code> for &gt; <code>joint_state_timeout_sec</code></td><td class="v">Check the broadcaster is alive and the feed is fresh ≥ <code>startup_grace_sec</code> before retrying reset</td></tr>
+    <tr><td>Policy effective stiffness shrinks during long runs</td><td>Thermal derate via <code>kp_scale</code> as motor heats</td><td class="v">Echo <code>/pendulum/safety/kp_scale</code>; tune <code>motor_temp_warn</code>/<code>motor_temp_error</code> or improve cooling — see the <a href="safety_supervisor_guide.html">safety supervisor field note</a></td></tr>
   </tbody>
 </table>
 
