@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PVT tuning — Field Notes</title>
+
+<!-- KaTeX (math). Drop if no equations. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<!-- Chart.js (graphs). Drop if no charts. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   FIELD NOTES — design tokens.
+   See design_guide.md for the full system reference.
+   ═══════════════════════════════════════════════════ */
+:root{
+  --bg:        #0e0c09;
+  --bg-panel:  #15120d;
+  --bg-inset:  #0a0806;
+
+  --ink:       #ece2cf;
+  --ink-dim:   #a79a82;
+  --ink-faint: #6b6354;
+
+  --rule:      #2a2419;
+  --rule-soft: #1e1a13;
+
+  --amber:      #e8a33d;
+  --amber-deep: #b87a1e;
+
+  --cyan: #5fb3b3;
+  --rose: #d97757;
+  --moss: #8fa968;
+
+  --mono:  'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --sans:  'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+}
+
+/* ─────── Reactive palette (toggle) ─────────────────────
+   When data-theme="reactive" is set on <html>, tokens
+   resolve to VSCode webview CSS variables, falling back
+   to VSCode Dark/Light Modern hexes when those aren't
+   injected (i.e. doc opened in a regular browser).
+   prefers-color-scheme handles light vs dark fallback. */
+:root[data-theme="reactive"]{
+  --bg:        var(--vscode-editor-background, #1f1f1f);
+  --bg-panel:  var(--vscode-sideBar-background, #181818);
+  --bg-inset:  var(--vscode-textCodeBlock-background, #1a1a1a);
+  --ink:       var(--vscode-editor-foreground, #cccccc);
+  --ink-dim:   var(--vscode-descriptionForeground, #9d9d9d);
+  --ink-faint: var(--vscode-disabledForeground, #6f6f6f);
+  --rule:      var(--vscode-panel-border, #2b2b2b);
+  --rule-soft: var(--vscode-editorWidget-border, #252525);
+  --amber:      var(--vscode-textLink-foreground, #4ec9b0);
+  --amber-deep: var(--vscode-textLink-activeForeground, #569cd6);
+  --cyan: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --rose: var(--vscode-errorForeground,              #f48771);
+  --moss: var(--vscode-debugTokenExpression-string,  #ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg:        var(--vscode-editor-background, #ffffff);
+    --bg-panel:  var(--vscode-sideBar-background, #f8f8f8);
+    --bg-inset:  var(--vscode-textCodeBlock-background, #f3f3f3);
+    --ink:       var(--vscode-editor-foreground, #3b3b3b);
+    --ink-dim:   var(--vscode-descriptionForeground, #616161);
+    --ink-faint: var(--vscode-disabledForeground, #8c8c8c);
+    --rule:      var(--vscode-panel-border, #e5e5e5);
+    --rule-soft: var(--vscode-editorWidget-border, #ececec);
+    --amber:      var(--vscode-textLink-foreground, #0451a5);
+    --amber-deep: var(--vscode-textLink-activeForeground, #0e639c);
+  }
+}
+:root[data-theme="reactive"] body{ background: var(--bg); }
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"] body::before{ opacity:.025; }
+}
+
+/* ─────── Base ───────────────────────────────────────── */
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+/* ─────── Theme toggle ───────────────────────────────── */
+.theme-toggle{
+  position:fixed; top:16px; right:16px; z-index:10;
+  background:var(--bg-panel); color:var(--ink-faint);
+  border:1px solid var(--rule); padding:8px 12px;
+  font-family:var(--mono); font-size:10px; font-weight:500;
+  letter-spacing:.22em; text-transform:uppercase;
+  cursor:pointer; transition:color .2s, border-color .2s;
+}
+.theme-toggle:hover{ color:var(--amber); border-color:var(--amber-deep); }
+.theme-toggle .dot{ color:var(--amber); margin-right:8px; }
+
+/* ─────── Hero ───────────────────────────────────────── */
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"DOC/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"field notes";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+/* ─────── Sections + prose ───────────────────────────── */
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+hr.divider{border:none;border-top:1px solid var(--rule);margin:72px 0}
+hr.divider-soft{border:none;border-top:1px dashed var(--rule-soft);margin:32px 0}
+
+/* ─────── Components ─────────────────────────────────── */
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.panel.inset{background:var(--bg-inset)}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+.math-block .katex-display{margin:.4em 0}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+.graph-wrap{background:var(--bg-panel);border:1px solid var(--rule);margin:28px 0;padding:24px 28px 28px;position:relative}
+.graph-wrap .g-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:12px}
+.graph-wrap .g-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink)}
+.graph-wrap .g-sub{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase}
+.graph-wrap .g-desc{color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px}
+.graph-canvas{position:relative;height:340px;width:100%}
+
+.readouts{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:12px}
+.readouts .ro{display:flex;flex-direction:column;gap:2px}
+.readouts .ro .k{font-size:10px;letter-spacing:.2em;color:var(--ink-faint);text-transform:uppercase}
+.readouts .ro .v{color:var(--amber);font-size:14px;font-weight:500}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">PVT · drive-side PD · impedance</div>
+    <h1 class="title">PVT tuning &amp; <em>impedance</em> on the X6 drive.</h1>
+    <p class="subtitle">Position-velocity-time (CiA-402 mode 5) impedance control on the LDR pendulum bench rig: streaming setpoints, drive-side PD, the offline GUI, and the gain knobs.</p>
+
+    <div class="meta">
+      <div><span class="k">Status</span><span class="v">Bench tuning</span></div>
+      <div><span class="k">Owner</span><span class="v">Andrei</span></div>
+      <div><span class="k">Stage</span><span class="v"><em>drive-side PD</em> live</span></div>
+      <div><span class="k">Updated</span><span class="v">2026-05-26</span></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#mechanics"><span class="n">01</span>PVT vs CST</a>
+      <a href="#matrix"><span class="n">02</span>drive_side_pd matrix</a>
+      <a href="#launching"><span class="n">03</span>Building &amp; launching</a>
+      <a href="#setpoint"><span class="n">04</span>Streaming setpoint</a>
+      <a href="#action"><span class="n">05</span>FollowJointTrajectory + lag governor</a>
+      <a href="#goto"><span class="n">06</span>pvt_goto CLI</a>
+      <a href="#simgui"><span class="n">07</span>Offline validation — pvt_sim_gui</a>
+      <a href="#services"><span class="n">08</span>Mode services &amp; runtime tuning</a>
+      <a href="#params"><span class="n">09</span>Parameters reference</a>
+      <a href="#telemetry"><span class="n">10</span>Drive telemetry hook</a>
+      <a href="#caveats"><span class="n">11</span>Caveats</a>
+    </nav>
+  </header>
+
+  <section id="mechanics">
+    <span class="section-num">§ 01 — PVT vs CST</span>
+    <h2>The drive runs the <em>law</em>. The host streams the payload.</h2>
+    <p class="lead">Where <code>pendulum_pd_control</code> boots the drive into <strong>CST (mode 10)</strong> and runs the PD law in software, this package boots it into <strong>PVT (mode 5)</strong> and the <strong>drive</strong> runs the law internally at 1 kHz.</p>
+
+    <div class="math-block labeled">
+      <span class="lbl">Eq. 1 — drive-side impedance law</span>
+      $$ \tau = K_p\,(q_d - q) + K_d\,(\dot q_d - \dot q) + \tau_{ff} $$
+    </div>
+
+    <p>The host only streams the payload — target position, target velocity, the torque feedforward <code>tau_ff</code>, and the <code>Kp</code>/<code>Kd</code> gains — every cycle over RxPDO <code>0x1601</code>. This mirrors Isaac Lab's <code>ImplicitActuatorCfg</code>. See the EtherCAT guide §23 and §28 for the drive side.</p>
+  </section>
+
+  <section id="matrix">
+    <span class="section-num">§ 02 — drive_side_pd matrix</span>
+    <h2>One controller, <em>two</em> targets.</h2>
+    <p>A single controller, <code>pendulum_pvt_control/PendulumPVTController</code>, covers both targets via the <code>drive_side_pd</code> parameter:</p>
+
+    <table class="ref">
+      <thead><tr><th>drive_side_pd</th><th>Target</th><th>Command interfaces claimed</th><th>PD law runs in</th></tr></thead>
+      <tbody>
+        <tr><td>true (default)</td><td class="v">real hardware</td><td class="v"><code>position, velocity, effort, kp, kd</code></td><td class="v">the X6 drive (firmware, 1 kHz)</td></tr>
+        <tr><td>false</td><td class="v">Gazebo sim</td><td class="v"><code>effort</code> only</td><td class="v">the controller (software)</td></tr>
+      </tbody>
+    </table>
+
+    <p>In both cases the host adds gravity / inertia / viscous feedforward through the torque-feedforward channel (<code>effort</code>), gated by the <code>ff_*</code> flags.</p>
+  </section>
+
+  <section id="launching">
+    <span class="section-num">§ 03 — Building &amp; launching</span>
+    <h2>Sim and real share the same launch — <em>one</em> argument flips the path.</h2>
+
+<pre data-lang="bash"><code><span class="tok-c"># Build</span>
+cd ~/Documents/GitHub/pendulum_test_v2
+colcon build --packages-select pendulum_pvt_control pendulum_description \
+                               pendulum_gazebo pendulum_pd_control
+source install/setup.bash
+</code></pre>
+
+    <p><code>pvt.launch.py</code> takes <code>use_sim</code>:</p>
+
+    <ul class="bullets">
+      <li><code>use_sim:=false</code> (default) — real hardware: parses <code>pendulum_ethercat.urdf.xacro</code> with <code>mode_of_operation:=5 pvt_mode:=true</code>, starts <code>ros2_control_node</code> with the EtherCAT driver and the <code>icube_x6_drive_pvt.yaml</code> slave config. Requires the EtherCAT pre-flight from the EtherCAT guide (RT permissions, <code>ec_master</code> loaded, drive in PREOP).</li>
+      <li><code>use_sim:=true</code> — Gazebo: parses <code>pendulum.urdf.xacro</code>, includes <code>pendulum_gazebo/sim_bringup.launch.py</code>, layers <code>pvt_gains_sim.yaml</code> to flip <code>drive_side_pd</code> to false.</li>
+    </ul>
+
+<pre data-lang="bash"><code>ros2 launch pendulum_pvt_control pvt.launch.py use_sim:=true
+ros2 launch pendulum_pvt_control pvt.launch.py            <span class="tok-c"># real</span>
+</code></pre>
+
+    <p>Both paths spawn <code>joint_state_broadcaster</code> first, then <code>pendulum_pvt_controller</code>. On real hardware a <code>drive_status_broadcaster</code> is also spawned — see <a href="#telemetry">§10 Drive telemetry hook</a>.</p>
+  </section>
+
+  <section id="setpoint">
+    <span class="section-num">§ 04 — Streaming setpoint</span>
+    <h2>One <em>JointTrajectoryPoint</em> at a time. Held until replaced.</h2>
+    <p>Controller name: <code>pendulum_pvt_controller</code>. Modes: <strong>FREE</strong> (neutral output — zero drive torque) and <strong>PVT</strong> (track the streaming setpoint). Starts in FREE so a stale setpoint can't kick the joint.</p>
+
+    <p>The controller takes a <strong>streaming</strong> setpoint on <code>~/setpoint</code> — one <code>trajectory_msgs/JointTrajectoryPoint</code> at a time (index <code>[0]</code>, single joint). Publishing any setpoint automatically switches the controller into PVT mode.</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># Step to 1.0 rad (no velocity profile — abrupt, expect overshoot)</span>
+ros2 topic pub --once /pendulum_pvt_controller/setpoint \
+  trajectory_msgs/msg/JointTrajectoryPoint \
+  '{positions: [1.0], velocities: [0.0], accelerations: [0.0]}'
+</code></pre>
+
+    <p>The controller keeps the last setpoint in its buffer, so a single <code>--once</code> publish is held until the next one arrives.</p>
+
+    <h4>What the three fields do</h4>
+    <table class="ref">
+      <thead><tr><th>Field</th><th>Symbol</th><th>Role</th><th>Sent to drive?</th></tr></thead>
+      <tbody>
+        <tr><td>positions[0]</td><td class="v">q_d</td><td class="v">proportional term <code>Kp*(q_d - q)</code></td><td class="v">yes — <code>0x607A</code> target_position</td></tr>
+        <tr><td>velocities[0]</td><td class="v">qd_d</td><td class="v">derivative term <code>Kd*(qd_d - qd)</code></td><td class="v">yes — <code>0x60FF</code> target_velocity</td></tr>
+        <tr><td>accelerations[0]</td><td class="v">qdd_d</td><td class="v">inertia feedforward <code>J*qdd_d</code> only</td><td class="v">no — folded into <code>tau_ff</code></td></tr>
+      </tbody>
+    </table>
+
+    <ul class="bullets">
+      <li><strong>positions</strong> — where you want the joint to be. The dominant term.</li>
+      <li><strong>velocities</strong> — the reference rate for the <code>Kd</code> term. For a <strong>static hold</strong> set it to <code>0</code> (then <code>Kd*(0 - qd)</code> is pure damping that resists motion). When <strong>tracking a moving trajectory</strong> set it to the trajectory's actual velocity, or the <code>Kd</code> term fights the motion you intend.</li>
+      <li><strong>accelerations</strong> — feeds <em>only</em> the inertia feedforward (<code>tau_J = J * qdd_d</code>, gated by <code>ff_inertia</code>); it is not a PD term and is not a separate drive channel. Leave it <code>0</code> for a static hold.</li>
+    </ul>
+
+    <p>Omitting a field is allowed: empty <code>positions</code> falls back to <code>hold_position</code>; empty <code>velocities</code> / <code>accelerations</code> default to <code>0.0</code>.</p>
+  </section>
+
+  <section id="action">
+    <span class="section-num">§ 05 — FollowJointTrajectory + lag governor</span>
+    <h2>Cubic-Hermite per segment, sampled in the <em>1 kHz</em> update loop.</h2>
+    <p>The controller exposes a <code>control_msgs/action/FollowJointTrajectory</code> server at <code>/pendulum_pvt_controller/follow_joint_trajectory</code>. The trajectory is sampled <em>inside</em> the 1 kHz <code>update()</code> loop with cubic-Hermite per segment (quintic-Hermite when both endpoints of a segment carry <code>accelerations</code>). A single-point goal is automatically prepended with an implicit start knot at the current measured position, so a one-shot goal becomes a smooth move from wherever the joint is — no need to set point A yourself.</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># Move to 1.0 rad over 2 s, starting from the current position.</span>
+ros2 action send_goal -f /pendulum_pvt_controller/follow_joint_trajectory \
+  control_msgs/action/FollowJointTrajectory \
+  '{ trajectory: { joint_names: ["pendulum_joint"],
+       points: [ { positions: [1.0], time_from_start: { sec: 2 } } ] } }'
+
+<span class="tok-c"># Multi-knot trajectory with explicit velocities (cubic-Hermite per segment).</span>
+ros2 action send_goal -f /pendulum_pvt_controller/follow_joint_trajectory \
+  control_msgs/action/FollowJointTrajectory \
+  '{ trajectory: { joint_names: ["pendulum_joint"],
+       points: [
+         { positions: [0.5], velocities: [1.0], time_from_start: { sec: 1 } },
+         { positions: [1.5], velocities: [0.0], time_from_start: { sec: 3 } }
+       ] } }'
+</code></pre>
+
+    <div class="callout">
+      The same closed-loop lag governor that <code>pvt_goto.py</code> implements is ported into the in-RT sampler: if the joint lags behind the reference (e.g. someone grabs it), the virtual trajectory clock is smoothly time-scaled down; on release it ramps back up and the trajectory continues from where it paused — no position jump, no velocity spike.
+    </div>
+
+    <table class="ref">
+      <thead><tr><th>Param</th><th>Meaning</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>lag_free</td><td class="v">lead (rad) below which the trajectory clock runs full speed</td><td>0.04</td></tr>
+        <tr><td>lag_pause</td><td class="v">lead (rad) at which the clock is fully paused</td><td>0.14</td></tr>
+        <tr><td>alpha_slew</td><td class="v">max rate of change of the time-scale factor (1/s); smaller = gentler resume</td><td>2.0</td></tr>
+      </tbody>
+    </table>
+
+    <div class="panel" data-label="Pre-emption">
+      <p>Publishing to <code>~/setpoint</code>, calling <code>~/hold</code>, or calling <code>~/free</code> aborts any in-flight action goal (last-writer-wins). Sending a new action goal while another is running aborts the previous one. An e-stop also aborts the goal — on reset the controller waits for a fresh setpoint or goal as today, <strong>no auto-resume</strong>.</p>
+    </div>
+
+    <p>When the goal completes the controller holds the final commanded position via the same <code>~/setpoint</code> buffer, so no further publishing is required.</p>
+  </section>
+
+  <section id="goto">
+    <span class="section-num">§ 06 — pvt_goto CLI</span>
+    <h2>The <em>quick</em> way to move A → B.</h2>
+
+    <div class="panel" data-label="Note">
+      <p><code>pvt_goto.py</code> predates the action server above and now duplicates its behavior (same quintic-style shape, same lag governor). It is retained as a quick CLI for users who don't want to send actions; <strong>the action server is the recommended interface for scripted / automated callers.</strong></p>
+    </div>
+
+    <p>For an actual move from A to B over a time <code>T</code>, stream a smooth profile rather than stepping. <code>pvt_goto.py</code> generates a <strong>quintic</strong> trajectory (zero velocity and acceleration at both endpoints) and streams mutually-consistent position/velocity/acceleration points:</p>
+
+<pre data-lang="bash"><code><span class="tok-c"># move to 1.5 rad over 2.0 s (start = current position, default 200 Hz stream)</span>
+ros2 run pendulum_pvt_control pvt_goto.py 1.5 2.0
+
+<span class="tok-c"># slower move, finer stream rate</span>
+ros2 run pendulum_pvt_control pvt_goto.py 0.0 4.0 500
+</code></pre>
+
+    <p><code>ros2 run pendulum_pvt_control pvt_goto.py &lt;goal_rad&gt; &lt;duration_s&gt; [rate_hz]</code></p>
+
+    <ul class="bullets">
+      <li>Point A is read once from <code>/joint_states</code> — the move starts wherever the joint currently is. Point B and <code>T</code> are the arguments.</li>
+      <li>When the stream ends the controller holds the final point (B, zero velocity) automatically — no need to keep publishing.</li>
+      <li><code>rate_hz</code> (default 200) only sets stream granularity; the controller still runs its loop at 1 kHz and holds each setpoint between updates. 500–1000 Hz is smoother.</li>
+    </ul>
+  </section>
+
+  <section id="simgui">
+    <span class="section-num">§ 07 — Offline validation — pvt_sim_gui</span>
+    <h2>See what a set of gains <em>looks like</em> before touching the drive.</h2>
+    <p class="lead">Before touching hardware, <code>pvt_sim_gui.py</code> lets you see what a given set of trajectory parameters and gains produces. It is a self-contained desktop app (numpy + matplotlib + tkinter, <strong>no ROS, no hardware</strong>): it embeds the same quintic generator as <code>pvt_goto</code>, runs a forward physics simulation of the pendulum under the drive's law <code>tau = Kp*(q_d-q) + Kd*(qd_d-qd) + tau_ff</code>, and plots the commanded setpoint against the predicted response.</p>
+
+<pre data-lang="bash"><code>python3 src/pendulum_pvt_control/scripts/pvt_sim_gui.py   <span class="tok-c"># standalone</span>
+ros2 run pendulum_pvt_control pvt_sim_gui.py              <span class="tok-c"># after colcon build</span>
+</code></pre>
+
+    <p>Edit the trajectory (<code>q0</code>, <code>goal</code>, <code>duration</code>, stream <code>rate</code>), the gains (<code>Kp</code>, <code>Kd</code>, <code>tau_limit</code>), the feedforward model (<code>mgl</code>, <code>J</code>, <code>Fv</code> + the <code>ff_*</code> toggles), the plant physics and an optional external position block, then hit <strong>Run</strong>. The four stacked plots show position, velocity, the torque breakdown (<code>Kp</code>/<code>Kd</code>/<code>tau_ff</code>/total, with the <code>tau_limit</code> and <code>0x6072</code> ceiling lines) and tracking error; the metrics panel reports peak speed, steady-state error, overshoot, settling time, peak torque and whether the ceiling / FF clamp were hit. The gains are pre-seeded from <code>config/pvt_gains.yaml</code>; the drive loop is modelled at 1 kHz with the streamed setpoint zero-order-held, so a low stream rate visibly tracks worse.</p>
+
+    <h4>Things to try</h4>
+    <ul class="bullets">
+      <li>Turn off <code>ff_gravity</code> and watch the steady-state droop appear.</li>
+      <li>On a fast move (<code>duration</code> ~0.3 s) drop <code>Kd</code> to ~0.2 and watch the overshoot/ringing.</li>
+      <li>Run a fast move at <code>rate</code> 10 Hz then 1000 Hz (tick <em>keep previous run as ghost</em>) to compare the stair-step tracking. The gentle 2 s default move is deliberately well-damped — push <code>duration</code> down to excite the gain/rate effects.</li>
+      <li>Tick <em>external position block</em> to pin the joint for a window (<code>block start</code> / <code>block duration</code>) and watch the drive torque saturate against the stall, then snap to catch up on release. Then press <em>pvt_goto hold fix</em> and Run again — a following-error governor pauses the trajectory whenever the joint lags past <code>lag limit</code>, so the setpoint can't run away and the violent catch-up collapses; the ghost overlays the un-mitigated run.</li>
+    </ul>
+  </section>
+
+  <section id="services">
+    <span class="section-num">§ 08 — Mode services &amp; runtime tuning</span>
+    <h2>Two triggers, three gains, all <em>hot</em>.</h2>
+
+<pre data-lang="bash"><code><span class="tok-c"># Snapshot current position and hold it (enters PVT mode)</span>
+ros2 service call /pendulum_pvt_controller/hold std_srvs/srv/Trigger
+
+<span class="tok-c"># Drop to zero drive torque (enters FREE mode)</span>
+ros2 service call /pendulum_pvt_controller/free std_srvs/srv/Trigger
+</code></pre>
+
+    <p><code>Kp</code>, <code>Kd</code> and the FF flags are re-read every <code>update()</code>, so <code>ros2 param set</code> takes effect immediately — no re-spawn needed. On real hardware the new <code>Kp</code>/<code>Kd</code> are streamed to the drive's <code>PVT_KP</code>/<code>PVT_KD</code> objects on the next cycle.</p>
+
+<pre data-lang="bash"><code>ros2 param set /pendulum_pvt_controller Kp 30.0
+ros2 param set /pendulum_pvt_controller Kd 2.5
+
+<span class="tok-c"># Compare "with gravity FF" vs "without" — watch the steady-state error grow</span>
+ros2 param set /pendulum_pvt_controller ff_gravity false
+</code></pre>
+  </section>
+
+  <section id="params">
+    <span class="section-num">§ 09 — Parameters reference</span>
+    <h2>Everything from <em>pvt_gains.yaml</em>.</h2>
+    <table class="ref">
+      <thead><tr><th>Param</th><th>Meaning</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>joint</td><td class="v">joint name</td><td>pendulum_joint</td></tr>
+        <tr><td>drive_side_pd</td><td class="v"><code>true</code> = drive runs the PD law (real); <code>false</code> = software (sim)</td><td>true</td></tr>
+        <tr><td>Kp</td><td class="v">stiffness (N·m/rad) — streamed to <code>PVT_KP</code></td><td>22.95</td></tr>
+        <tr><td>Kd</td><td class="v">damping (N·m·s/rad) — streamed to <code>PVT_KD</code></td><td>2.14</td></tr>
+        <tr><td>tau_limit</td><td class="v">symmetric clamp on the host feedforward (N·m); <code>&lt;=0</code> disables</td><td>20.0</td></tr>
+        <tr><td>mgl</td><td class="v">gravity torque amplitude (N·m) — <strong>placeholder, remeasure per rig</strong></td><td>4.10</td></tr>
+        <tr><td>J</td><td class="v">rotating inertia (kg·m²)</td><td>0.102</td></tr>
+        <tr><td>Fv</td><td class="v">viscous friction coeff (N·m·s/rad)</td><td>0.05</td></tr>
+        <tr><td>comp_sign</td><td class="v">±1 motor-mounting flip applied to feedforward (sim-only — see Caveats)</td><td>1.0</td></tr>
+        <tr><td>ff_gravity / ff_inertia / ff_viscous</td><td class="v">feedforward term toggles</td><td>true / true / false</td></tr>
+        <tr><td>hold_position</td><td class="v">default setpoint before any command arrives</td><td>0.0</td></tr>
+        <tr><td>lag_free / lag_pause / alpha_slew</td><td class="v">action-server lag governor — see <a href="#action">§05</a></td><td>0.04 / 0.14 / 2.0</td></tr>
+      </tbody>
+    </table>
+
+    <p>Changing <code>drive_side_pd</code> at runtime has no effect — the claimed command-interface set is fixed when the controller is configured. Re-spawn to switch.</p>
+
+    <h4>Verifying</h4>
+<pre data-lang="bash"><code>ros2 control list_controllers          <span class="tok-c"># pendulum_pvt_controller is active</span>
+ros2 param get /pendulum_pvt_controller drive_side_pd   <span class="tok-c"># false in sim, true on real</span>
+ros2 control list_hardware_interfaces  <span class="tok-c"># sim: only .../effort claimed</span>
+                                       <span class="tok-c"># real: position/velocity/effort/kp/kd claimed</span>
+ros2 topic hz /joint_states            <span class="tok-c"># ~1000 Hz real; handled by gz in sim</span>
+ros2 topic echo /joint_states          <span class="tok-c"># position converges to your setpoint</span>
+</code></pre>
+
+    <h4>Suggested bring-up order (lowest risk first)</h4>
+    <ul class="steps">
+      <li><strong>Sim</strong> — confirm the software PD law tracks, gain ramping works, and the mode services behave. Toggle <code>ff_gravity:=false</code> and watch the steady-state error grow (confirms the gravity FF path runs).</li>
+      <li><strong>Real, near-zero gains</strong> — run the EtherCAT pre-flight from the EtherCAT guide, launch with <code>use_sim:=false</code>, confirm the drive accepts mode 5 and reaches OP. With <code>Kp</code>/<code>Kd</code> low the joint should be nearly limp; raise <code>Kp</code> slightly and confirm it starts to hold.</li>
+      <li><strong>Real, production gains</strong> — <code>~/hold</code> at the current position, then command small steps (±0.1 rad). Ramp <code>Kd</code> first, then <code>Kp</code>, watching for oscillation. <code>~/free</code> drops to zero drive torque if anything misbehaves.</li>
+    </ul>
+
+    <div class="warn">
+      <strong>AL status 0x001E.</strong> If the drive refuses PREOP→SAFEOP with AL status <code>0x001E</code> ("Invalid input configuration"), the RxPDO <code>0x1601</code> layout does not match the firmware ESI — recheck the channel order / byte count in <code>config/ethercat/icube_x6_drive_pvt.yaml</code> against <code>MT-Device_260424.xml</code>.
+    </div>
+  </section>
+
+  <section id="telemetry">
+    <span class="section-num">§ 10 — Drive telemetry hook</span>
+    <h2>The same <em>drive_status_broadcaster</em> the PD path uses.</h2>
+    <p>On real hardware the launch also spawns a <code>drive_status_broadcaster</code> (<code>pendulum_pd_control/DriveStatusBroadcaster</code>, reused) that republishes the drive's TxPDO <code>0x1A02</code> telemetry. <strong>Real hardware only</strong> — the Gazebo URDF has no telemetry interfaces, so the spawner is skipped when <code>use_sim:=true</code>.</p>
+
+    <table class="ref">
+      <thead><tr><th>Topic</th><th>Type</th><th>Source</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>/drive_status_broadcaster/error_code</td><td class="v">std_msgs/Float64</td><td class="v">CiA-402 <code>0x603F</code></td><td class="v"><code>0</code> = no fault; non-zero = fault code (e.g. <code>0x4110</code> = temperature)</td></tr>
+        <tr><td>/drive_status_broadcaster/bus_voltage</td><td class="v">std_msgs/Float64</td><td class="v"><code>0x200A</code></td><td class="v">V — graded in <code>/diagnostics</code></td></tr>
+        <tr><td>/drive_status_broadcaster/motor_temperature</td><td class="v">std_msgs/Float64</td><td class="v"><code>0x2009</code></td><td class="v">°C — graded in <code>/diagnostics</code></td></tr>
+        <tr><td>/drive_status_broadcaster/drive_temperature</td><td class="v">std_msgs/Float64</td><td class="v"><code>0x200C</code></td><td class="v">°C — graded in <code>/diagnostics</code></td></tr>
+        <tr><td>/diagnostics</td><td class="v">diagnostic_msgs/DiagnosticArray</td><td class="v">all four</td><td class="v">thresholded health bundle (<code>error_code</code> passed through ungraded)</td></tr>
+      </tbody>
+    </table>
+
+    <p>The supervisor in the <a href="../strategy/safety_supervisor_guide.html">safety field note</a> consumes the same temperature and bus-voltage topics for its thermal-derate and bus-window predicates — that is the single point at which they act.</p>
+  </section>
+
+  <section id="caveats">
+    <span class="section-num">§ 11 — Caveats</span>
+    <h2>The gotchas that bite in <em>drive_side_pd=true</em>.</h2>
+
+    <div class="warn">
+      <strong>tau_limit clamps the feedforward only on real hardware.</strong> In <code>drive_side_pd:true</code> the drive adds <code>Kp*(q_d - q) + Kd*(qd_d - qd)</code> on top of the streamed <code>tau_ff</code>, and that term cannot be bounded from the host. The hard torque ceiling is the <strong><code>0x6072</code> max_torque SDO</strong> in <code>config/ethercat/icube_x6_drive_pvt.yaml</code> (default 800 = 80 % rated current).
+    </div>
+
+    <ul class="bullets">
+      <li><strong>comp_sign is effective in sim only.</strong> In <code>drive_side_pd:true</code> it negates the host feedforward but <em>not</em> the drive's internal <code>Kp</code>/<code>Kd</code> term, which runs in the encoder's own sign. A flipped motor mounting must be corrected with <strong>negative EtherCAT factors</strong> in the slave config (<code>motor_specs.md</code>), not <code>comp_sign</code>. The controller logs a warning if <code>comp_sign != 1.0</code> while <code>drive_side_pd:true</code>.</li>
+      <li><strong>PVT_KP / PVT_KD scaling.</strong> The drive applies the written gain value <code>× 0.001</code>. <code>icube_x6_drive_pvt.yaml</code> bakes the <code>×1000</code> into the channel <code>factor</code>, so <code>Kp</code> / <code>Kd</code> are commanded in engineering units (N·m/rad, N·m·s/rad) — do not pre-scale them. See EtherCAT guide §13.</li>
+      <li><strong>mgl is a placeholder.</strong> The default <code>4.10 N·m</code> comes from the PD tuning guide's bench rig. Measure <code>mgl</code> and <code>J</code> on this rig before trusting the feedforward.</li>
+      <li><strong>EtherCAT effort factors are rig-specific.</strong> <code>icube_x6_drive_pvt.yaml</code> uses the X6 drive #0 calibration from <code>motor_specs.md</code>. Recalibrate <code>I_rated</code> / <code>K_t</code> for a different drive.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Field notes · pendulum testbed · PVT tuning</span>
+    <span>v.26.05</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY  = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn  = document.querySelector('.theme-toggle');
+  const lbl  = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>
