@@ -252,7 +252,7 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
   <p class="subtitle">You have a tuned pendulum. A policy that "kinda works." Identified parameters. This is how you turn that into a reliable sim-to-real pipeline — and then multiply it by 25 joints.</p>
 
   <div class="meta">
-    <div><span class="k">Stage now</span><span class="v">PD tuned · <em>one joint</em></span></div>
+    <div><span class="k">Stage now</span><span class="v">PVT bench loop · <em>safety supervisor live</em></span></div>
     <div><span class="k">Stage next</span><span class="v">Isaac → <em>Gazebo → real</em></span></div>
     <div><span class="k">Stage final</span><span class="v">Humanoid <em>bring-up</em></span></div>
     <div><span class="k">Horizon</span><span class="v">~4 weeks for <em>pipeline</em></span></div>
@@ -363,6 +363,11 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
 <div class="callout">
   Domain randomization alone is a blunt tool. Parameter identification plus targeted randomization is a scalpel. You have the identified parameters — use them.
 </div>
+
+<div class="panel" data-label="Safety events">
+  <p style="margin:0">"Safety events" — e-stops, torque trips, velocity overshoot, stale telemetry — used to be the last bullet under hand-wavy "real-world stuff that breaks transfer." As of 2026-05 they are detected and latched centrally by <a href="safety_supervisor_guide.html"><code>pendulum_safety_supervisor</code></a>; the limiter library applies the corresponding clamp inline in each controller's <code>update()</code>. Sim and real share the same predicate code, so a sim that survives the supervisor is a stronger transfer guarantee than one that doesn't run it at all.</p>
+</div>
+
 </section>
 
 
@@ -666,6 +671,15 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
   <text x="805" y="248" text-anchor="middle" fill="#8fa968" font-size="11">Gazebo joint</text>
 </svg>
 <div class="flow-caption">Default (top row) leaves the torque command unchanged. Opt 2 and Opt 3 insert the actuator model at different points. Opt 3 mirrors the structure of your real-hardware interface — swap one plugin for another at deployment.</div>
+</div>
+
+<div class="panel" data-label="Where safety sits in the flow">
+  <p>On the pendulum bench every Option above is now wrapped by the <a href="safety_supervisor_guide.html"><code>pendulum_safety_supervisor</code></a>. The supervisor runs as a separate node and broadcasts two <strong>latched</strong> <code>std_msgs</code> topics that every controller reads with lock-free atomics:</p>
+  <ul class="bullets">
+    <li><code>/pendulum/safety/estop_state</code> (Int8) — <code>0</code> clear / <code>1</code> e-stop+FREE / <code>2</code> e-stop+HOLD. A HOLD overrides whatever mode the operator asked for.</li>
+    <li><code>/pendulum/safety/kp_scale</code> (Float64) — thermal multiplier on <code>Kp</code>, <code>[kp_scale_floor, 1.0]</code>. Defaults to <code>1.0</code> when no supervisor is running, so the dependency is opt-in by construction.</li>
+  </ul>
+  <p style="margin:0">The same <code>safety_limits.yaml</code> drives the supervisor's predicates and the inline limiter library on every controller — position, velocity, effort, slew, accel, thermal. Adding a third arrow in the flow diagram would be misleading; the supervisor is <em>above</em> the flow, not in series with it.</p>
 </div>
 </section>
 
