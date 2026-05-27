@@ -312,7 +312,7 @@ ros2 launch pendulum_pvt_control pvt.launch.py            <span class="tok-c"># 
   <section id="setpoint">
     <span class="section-num">§ 04 — Streaming setpoint</span>
     <h2>One <em>JointTrajectoryPoint</em> at a time. Held until replaced.</h2>
-    <p>Controller name: <code>pendulum_pvt_controller</code>. Modes: <strong>FREE</strong> (neutral output — zero drive torque) and <strong>PVT</strong> (track the streaming setpoint). Starts in FREE so a stale setpoint can't kick the joint.</p>
+    <p>Controller name: <code>pendulum_pvt_controller</code>. Modes: <strong>FREE</strong> (neutral output — zero drive torque), <strong>PVT</strong> (track the streaming setpoint), and <strong>DAMPING</strong> (viscous brake — <code>τ = −Kd_damp · qd</code>, no position regulation). Starts in FREE so a stale setpoint can't kick the joint.</p>
 
     <p>The controller takes a <strong>streaming</strong> setpoint on <code>~/setpoint</code> — one <code>trajectory_msgs/JointTrajectoryPoint</code> at a time (index <code>[0]</code>, single joint). Publishing any setpoint automatically switches the controller into PVT mode.</p>
 
@@ -378,7 +378,7 @@ ros2 action send_goal -f /pendulum_pvt_controller/follow_joint_trajectory \
     </table>
 
     <div class="panel" data-label="Pre-emption">
-      <p>Publishing to <code>~/setpoint</code>, calling <code>~/hold</code>, or calling <code>~/free</code> aborts any in-flight action goal (last-writer-wins). Sending a new action goal while another is running aborts the previous one. An e-stop also aborts the goal — on reset the controller waits for a fresh setpoint or goal as today, <strong>no auto-resume</strong>.</p>
+      <p>Publishing to <code>~/setpoint</code>, or calling <code>~/hold</code> / <code>~/free</code> / <code>~/damp</code> aborts any in-flight action goal (last-writer-wins). Sending a new action goal while another is running aborts the previous one. An e-stop also aborts the goal — on reset the controller waits for a fresh setpoint or goal as today, <strong>no auto-resume</strong>.</p>
     </div>
 
     <p>When the goal completes the controller holds the final commanded position via the same <code>~/setpoint</code> buffer, so no further publishing is required.</p>
@@ -439,9 +439,13 @@ ros2 service call /pendulum_pvt_controller/hold std_srvs/srv/Trigger
 
 <span class="tok-c"># Drop to zero drive torque (enters FREE mode)</span>
 ros2 service call /pendulum_pvt_controller/free std_srvs/srv/Trigger
+
+<span class="tok-c"># Viscous brake — Kp=0, Kd=Kd_damp on the drive (or τ = −Kd_damp·qd in sim).</span>
+<span class="tok-c"># The joint decelerates and settles wherever it stops; no spring-back.</span>
+ros2 service call /pendulum_pvt_controller/damp std_srvs/srv/Trigger
 </code></pre>
 
-    <p><code>Kp</code>, <code>Kd</code> and the FF flags are re-read every <code>update()</code>, so <code>ros2 param set</code> takes effect immediately — no re-spawn needed. On real hardware the new <code>Kp</code>/<code>Kd</code> are streamed to the drive's <code>PVT_KP</code>/<code>PVT_KD</code> objects on the next cycle.</p>
+    <p><code>Kp</code>, <code>Kd</code>, <code>Kd_damp</code>, the FF flags, and every <code>safety.*</code> limit are re-read every <code>update()</code>, so <code>ros2 param set</code> takes effect immediately — no re-spawn needed. On real hardware the new <code>Kp</code>/<code>Kd</code> are streamed to the drive's <code>PVT_KP</code>/<code>PVT_KD</code> objects on the next cycle. The PVT controller uses a <code>post_set_parameters</code> callback that snapshots into a <code>RealtimeBuffer&lt;Params&gt;</code> / <code>RealtimeBuffer&lt;SafetyLimits&gt;</code>, so the RT loop reads new values without ever touching the rclcpp parameter mutex.</p>
 
 <pre data-lang="bash"><code>ros2 param set /pendulum_pvt_controller Kp 30.0
 ros2 param set /pendulum_pvt_controller Kd 2.5
@@ -461,6 +465,7 @@ ros2 param set /pendulum_pvt_controller ff_gravity false
         <tr><td>drive_side_pd</td><td class="v"><code>true</code> = drive runs the PD law (real); <code>false</code> = software (sim)</td><td>true</td></tr>
         <tr><td>Kp</td><td class="v">stiffness (N·m/rad) — streamed to <code>PVT_KP</code></td><td>22.95</td></tr>
         <tr><td>Kd</td><td class="v">damping (N·m·s/rad) — streamed to <code>PVT_KD</code></td><td>2.14</td></tr>
+        <tr><td>Kd_damp</td><td class="v">DAMPING-mode damping (N·m·s/rad) — used by <code>~/damp</code> and by e-stop <code>action: damp</code>. Independent of <code>Kd</code> so the brake tunes separately from tracking.</td><td>1.0</td></tr>
         <tr><td>tau_limit</td><td class="v">symmetric clamp on the host feedforward (N·m); <code>&lt;=0</code> disables</td><td>20.0</td></tr>
         <tr><td>mgl</td><td class="v">gravity torque amplitude (N·m) — <strong>placeholder, remeasure per rig</strong></td><td>4.10</td></tr>
         <tr><td>J</td><td class="v">rotating inertia (kg·m²)</td><td>0.102</td></tr>
