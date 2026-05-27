@@ -246,7 +246,7 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
       <a href="#limiter"><span class="n">03</span>The limiter library</a>
       <a href="#supervisor"><span class="n">04</span>The supervisor node</a>
       <a href="#estop"><span class="n">05</span>The e-stop signalling contract</a>
-      <a href="#actions"><span class="n">06</span>Per-trigger FREE / HOLD</a>
+      <a href="#actions"><span class="n">06</span>Per-trigger FREE / HOLD / DAMPING</a>
       <a href="#config"><span class="n">07</span>Configuration</a>
       <a href="#consumers"><span class="n">08</span>How each controller consumes it</a>
       <a href="#caveats"><span class="n">09</span>Caveats &amp; extension points</a>
@@ -321,7 +321,7 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
     <table class="ref">
       <thead><tr><th>Topic</th><th>Type</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr><td>/pendulum/safety/estop_state</td><td>std_msgs/Int8</td><td class="v"><strong>latched</strong> — <code>0</code> clear / <code>1</code> e-stop+FREE / <code>2</code> e-stop+HOLD</td></tr>
+        <tr><td>/pendulum/safety/estop_state</td><td>std_msgs/Int8</td><td class="v"><strong>latched</strong> — <code>0</code> clear / <code>1</code> e-stop+FREE / <code>2</code> e-stop+HOLD / <code>3</code> e-stop+DAMPING</td></tr>
         <tr><td>/pendulum/safety/kp_scale</td><td>std_msgs/Float64</td><td class="v"><strong>latched</strong> — thermal <code>Kp</code> multiplier <code>[kp_scale_floor, 1.0]</code></td></tr>
         <tr><td>/pendulum/safety/breach_reason</td><td>std_msgs/String</td><td class="v"><strong>latched</strong> — operator-facing latched breach name</td></tr>
         <tr><td>/diagnostics</td><td>diagnostic_msgs/DiagnosticArray</td><td class="v">live telemetry + state, ~10 Hz</td></tr>
@@ -347,7 +347,7 @@ ros2 service call /pendulum_safety_supervisor/reset std_srvs/srv/Trigger
     <p>The supervisor → controller link is two latched <code>std_msgs</code> topics — no custom messages. Controllers consume them via <code>EstopSubscriber</code>, which stores the values in lock-free atomics so <code>update()</code> reads them with no blocking.</p>
 
     <ul class="bullets">
-      <li><code>/pendulum/safety/estop_state</code> (<code>Int8</code>): <code>0</code> = clear, <code>1</code> = e-stop + FREE, <code>2</code> = e-stop + HOLD.</li>
+      <li><code>/pendulum/safety/estop_state</code> (<code>Int8</code>): <code>0</code> = clear, <code>1</code> = e-stop + FREE, <code>2</code> = e-stop + HOLD, <code>3</code> = e-stop + DAMPING.</li>
       <li><code>/pendulum/safety/kp_scale</code> (<code>Float64</code>): <code>Kp</code> is multiplied by this every cycle — <code>1.0</code> when cool or when no supervisor is running.</li>
     </ul>
 
@@ -361,25 +361,33 @@ ros2 service call /pendulum_safety_supervisor/reset std_srvs/srv/Trigger
   </section>
 
   <section id="actions">
-    <span class="section-num">§ 06 — Per-trigger FREE / HOLD</span>
+    <span class="section-num">§ 06 — Per-trigger FREE / HOLD / DAMPING</span>
     <h2>Each breach picks its <em>own</em> reaction.</h2>
-    <p>Each breach category resolves to an action — <strong>FREE</strong> (zero torque, the joint coasts) or <strong>HOLD</strong> (lock at the position latched when the e-stop fired) — set in <code>config/safety_limits.yaml</code>:</p>
+    <p>Each breach category resolves to an action — <strong>FREE</strong> (zero torque, the joint coasts), <strong>HOLD</strong> (lock at the position latched when the e-stop fired), or <strong>DAMPING</strong> (viscous brake — <code>τ = −Kd_damp · qd</code>, no position regulation; the joint decelerates and settles wherever it stops) — set in <code>config/safety_limits.yaml</code>:</p>
 
 <pre data-lang="yaml"><code>    action.temperature: free        <span class="tok-c"># over-temp / bus voltage</span>
     action.overspeed: hold
     action.position: hold           <span class="tok-c"># out-of-range position</span>
     action.manual: free
     action.stale_joint_state: hold  <span class="tok-c"># lost /joint_states</span>
-    action.sustained_effort: free
+    action.sustained_effort: hold   <span class="tok-c"># also: "damp" for a viscous brake</span>
 </code></pre>
 
-    <p>An e-stop <strong>HOLD</strong> overrides the controller's own FREE mode — safety must hold the joint regardless of what the operator asked for.</p>
+    <p>An e-stop <strong>HOLD</strong> or <strong>DAMPING</strong> overrides the controller's own FREE mode — safety must apply its chosen response regardless of what the operator asked for.</p>
+
+    <div class="panel" data-label="DAMPING is PVT-only for now">
+      <p>Only the PVT controller currently honours <code>action: damp</code> (via <code>write_damping_outputs()</code> using its <code>Kd_damp</code> parameter). The PD controller treats <code>damp</code> like <code>hold</code> — a damping path on the PD side hasn't been wired up yet.</p>
+    </div>
   </section>
 
   <section id="config">
     <span class="section-num">§ 07 — Configuration</span>
     <h2>One source of truth — <em>safety_limits.yaml</em>.</h2>
     <p><code>config/safety_limits.yaml</code> is the <strong>only</strong> place limit numbers are edited. Its <code>/**:</code> wildcard block means the same file applies to whatever node it is passed to — the supervisor, all three controllers (via an extra <code>--param-file</code> on the spawner) and the policy node all read the same <code>safety.*</code> values.</p>
+
+    <div class="callout">
+      Every <code>safety.*</code> parameter is hot-reloaded. <code>ros2 param set safety.position_min -1.0</code> takes effect on the supervisor's next 200 Hz watchdog tick and on the next <code>update()</code> cycle of every active controller — no relaunch. The catch: each node has its own parameter store, so a CLI <code>param set</code> on the supervisor doesn't fan out to the controllers (or vice versa). The <code>pvt_tuner</code>'s <strong>Safety limits</strong> panel does that fan-out in one click.
+    </div>
 
     <table class="ref">
       <thead><tr><th>Param (safety.*)</th><th>Meaning</th><th>Default</th></tr></thead>
@@ -420,8 +428,8 @@ ros2 launch pendulum_safety safety.launch.py use_sim:=true   <span class="tok-c"
     <table class="ref">
       <thead><tr><th>Path</th><th>Position</th><th>Velocity</th><th>Effort</th><th>Slew / accel</th><th>Kp derate</th><th>E-stop reaction</th></tr></thead>
       <tbody>
-        <tr><td>PD controller</td><td class="v">clampPosition</td><td class="v">clampVelocity</td><td class="v">clampEffort</td><td class="v">—</td><td class="v">yes</td><td class="v">FREE → 0 τ · HOLD → active PD hold</td></tr>
-        <tr><td>PVT controller</td><td class="v">clampPosition</td><td class="v">clampVelocity</td><td class="v">clampEffort</td><td class="v">RateLimiter</td><td class="v">yes</td><td class="v">FREE → write_free_outputs() · HOLD → static PVT hold</td></tr>
+        <tr><td>PD controller</td><td class="v">clampPosition</td><td class="v">clampVelocity</td><td class="v">clampEffort</td><td class="v">—</td><td class="v">yes</td><td class="v">FREE → 0 τ · HOLD / DAMPING → active PD hold</td></tr>
+        <tr><td>PVT controller</td><td class="v">clampPosition</td><td class="v">clampVelocity</td><td class="v">clampEffort</td><td class="v">RateLimiter</td><td class="v">yes</td><td class="v">FREE → write_free_outputs() · HOLD → static PVT hold · DAMPING → write_damping_outputs()</td></tr>
         <tr><td>policy node</td><td class="v">clampPosition on the published setpoint</td><td class="v">overspeed → fall-latch</td><td class="v">—</td><td class="v">RateLimiter</td><td class="v">—</td><td class="v">e-stop latches the fall-hold</td></tr>
       </tbody>
     </table>
