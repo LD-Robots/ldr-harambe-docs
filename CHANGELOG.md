@@ -2,6 +2,23 @@
 
 All notable changes to the LDR Harambe docs repository.
 
+## 2026-05-27 — DAMPING mode & live safety reload
+
+Documents the third controller mode and the runtime-mutable safety
+limits added to `pendulum_pvt_control` and `pendulum_safety`.
+
+### Changed
+
+- `strategy/safety_supervisor_guide.html` §05–§08 — `EstopAction` gains
+  `DAMPING` (estop_state code `3`); §06 covers all three actions and
+  notes the PD path still aliases DAMPING to HOLD; §07 callout that
+  every `safety.*` parameter is now hot-reloaded; §08 consumer table
+  reflects the new per-controller behaviour.
+- `tuning/pvt_tuning_guide.html` §04 / §05 / §08 / §09 — `Mode::DAMPING`
+  documented, `~/damp` service example added, live-tuning paragraph
+  extended to cover `Kd_damp` and every `safety.*` limit, params table
+  gains a `Kd_damp` row.
+
 ## 2026-05-26 — pendulum_test_v2 sync
 
 Whole-repo sync after the `pendulum_test_v2` bench rig landed an
