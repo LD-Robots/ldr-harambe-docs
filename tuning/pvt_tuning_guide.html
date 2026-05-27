@@ -412,8 +412,12 @@ ros2 run pendulum_pvt_control pvt_goto.py 0.0 4.0 500
 
   <section id="simgui">
     <span class="section-num">§ 07 — Offline validation — pvt_sim_gui</span>
-    <h2>See what a set of gains <em>looks like</em> before touching the drive.</h2>
-    <p class="lead">Before touching hardware, <code>pvt_sim_gui.py</code> lets you see what a given set of trajectory parameters and gains produces. It is a self-contained desktop app (numpy + matplotlib + tkinter, <strong>no ROS, no hardware</strong>): it embeds the same quintic generator as <code>pvt_goto</code>, runs a forward physics simulation of the pendulum under the drive's law <code>tau = Kp*(q_d-q) + Kd*(qd_d-qd) + tau_ff</code>, and plots the commanded setpoint against the predicted response.</p>
+    <h2>Validate <em>trajectory shape and tracking</em> before touching the drive.</h2>
+    <p class="lead">A standalone visualiser for the streamed-setpoint path. <code>pvt_sim_gui.py</code> runs the same quintic generator as <code>pvt_goto</code>, samples it at the chosen stream rate, and forward-simulates the pendulum under the drive's law <code>tau = Kp*(q_d-q) + Kd*(qd_d-qd) + tau_ff</code> at 1 kHz with zero-order-hold between stream points. The plots reveal what a given <em>(trajectory shape, stream rate, gain set)</em> triple actually produces — interpolation step-stairs at low stream rates, overshoot from under-damped <code>Kd</code>, droop from missing gravity FF, torque saturation against an external block — before any of it reaches hardware. Self-contained desktop app (numpy + matplotlib + tkinter, <strong>no ROS, no hardware</strong>).</p>
+
+    <div class="panel" data-label="Scope">
+      <p>The sim models the <strong>streamed quintic <code>~/setpoint</code> path</strong> only. It does <em>not</em> cover the FollowJointTrajectory action server's in-RT cubic / quintic-Hermite <em>per-segment</em> sampling (§05), nor the in-RT lag governor that ports the <code>pvt_goto</code> hold-fix into the controller — only the older <code>pvt_goto</code>-side following-error governor is modelled here as a checkbox. The DAMPING mode (<code>Kp=0</code>, <code>Kd=Kd_damp</code>) is also outside the sim's scope; validate it on hardware via <code>~/damp</code>.</p>
+    </div>
 
 <pre data-lang="bash"><code>python3 src/pendulum_pvt_control/scripts/pvt_sim_gui.py   <span class="tok-c"># standalone</span>
 ros2 run pendulum_pvt_control pvt_sim_gui.py              <span class="tok-c"># after colcon build</span>
@@ -432,7 +436,7 @@ ros2 run pendulum_pvt_control pvt_sim_gui.py              <span class="tok-c"># 
 
   <section id="services">
     <span class="section-num">§ 08 — Mode services &amp; runtime tuning</span>
-    <h2>Two triggers, three gains, all <em>hot</em>.</h2>
+    <h2>Three triggers, four gains, all <em>hot</em>.</h2>
 
 <pre data-lang="bash"><code><span class="tok-c"># Snapshot current position and hold it (enters PVT mode)</span>
 ros2 service call /pendulum_pvt_controller/hold std_srvs/srv/Trigger
