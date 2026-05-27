@@ -523,6 +523,10 @@ footer{
   </nav>
 </header>
 
+<div class="warn">
+  <strong>2026-05-27 — re-verify any previously tuned PD gains.</strong> The EtherCAT torque factor for every drive on the humanoid (50 YAMLs across CSP and PVT trees) was migrated from the legacy <code>±50.0</code> / <code>±0.02</code> placeholder to per-family values derived from <code>1000 / (K<sub>t</sub> · I<sub>rated</sub>)</code> — X4 jumped to 61.022121, X6 to 35.536603, X8 to 16.747053. Any K<sub>p</sub> / K<sub>d</sub> that was tuned against the old factor is now mis-scaled: X4 commands deliver ~22 % more torque than before for the same gain, X6 ~29 % less, X8 ~3× less. <strong>Re-run §05 (or the in-place equivalent for the assembled robot) before trusting any pre-migration effort PD gain on real hardware.</strong> The <a href="motor_id_report.html">as-built motor report</a> has the full per-drive table.
+</div>
+
 <!-- ═══════════════ 01 · PLANT MODEL ═══════════════ -->
 <section id="plant">
 <span class="section-num">§ 01 — Plant model</span>

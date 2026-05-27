@@ -840,6 +840,19 @@ lam = <span class="tok-n">0.99</span>
   </ul>
 </div>
 
+<div class="panel" data-label="Whole-robot rollout (manufacturer-spec K_t, ODS-confirmed I_rated, 2026-05-27)">
+  <p style="margin:0 0 8px 0">The bench-only X6 #0 numbers above are the calibration ground truth. For the assembled humanoid the 25 drives can't currently be bench-identified in place, so the YAML factors are computed from <em>manufacturer-spec K_t</em> with <em>I_rated read from the as-shipped drive flash</em> (<code>All_Updated_Motors_by_Type.ods</code>). Where X6 #0 was measured, K_t came in 4.3% below the 2.1 datasheet spec — well inside the ±5–10% magnet/temperature spread quoted by MyActuator — so the per-family spec values are a safe provisional choice.</p>
+  <table class="od-table" style="margin:8px 0 0 0">
+    <thead><tr><th>family</th><th>K_t (N·m/A)</th><th>I_rated (A)</th><th>rated_torque (N·m)</th><th>factor_cmd (‰/N·m)</th><th>factor_state (N·m/‰)</th></tr></thead>
+    <tbody>
+      <tr><td class="idx">X4</td><td>1.9</td><td>8.625</td><td>16.3875</td><td class="v">61.022121</td><td class="v">0.016388</td></tr>
+      <tr><td class="idx">X6</td><td>2.1</td><td>13.40</td><td>28.14</td><td class="v">35.536603</td><td class="v">0.028140</td></tr>
+      <tr><td class="idx">X8</td><td>2.4</td><td>24.88</td><td>59.712</td><td class="v">16.747053</td><td class="v">0.059712</td></tr>
+    </tbody>
+  </table>
+  <p style="margin:8px 0 0 0">All 50 per-joint YAMLs (CSP and PVT) were on <code>±50.0</code> / <code>±0.02</code> before this rollout — the same legacy assumption that put X6 #0 at 41% over-amplification, and that hits X4 hardest (factor jumps from 50 to ~61, so previously-tuned PD gains under-commanded by ~22% and would have been compensated by gain inflation — the failure mode behind the 2026-04-01 left-wrist-yaw incident). One outlier: <code>right_shoulder_yaw_X4</code> ships with <code>I_rated = 9.625 A</code> in flash; re-flash to 8.625 A via CAN before that drive sees CST. The arithmetic lives in <code>src/tools/ethercat_tools/scripts/recompute_torque_factors.py</code> — never hand-edit these factors.</p>
+</div>
+
 <h3>Deriving the EtherCAT YAML factor</h3>
 
 <p>The forward chain from §10.2 is:</p>

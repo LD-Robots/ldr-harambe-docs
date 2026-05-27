@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Motor identification — as-built report</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:        #0e0c09;  --bg-panel:  #15120d;  --bg-inset:  #0a0806;
+  --ink:       #ece2cf;  --ink-dim:   #a79a82;  --ink-faint: #6b6354;
+  --rule:      #2a2419;  --rule-soft: #1e1a13;
+  --amber:      #e8a33d; --amber-deep: #b87a1e;
+  --cyan: #5fb3b3; --rose: #d97757; --moss: #8fa968;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+}
+:root[data-theme="reactive"]{
+  --bg: var(--vscode-editor-background, #1f1f1f);
+  --bg-panel: var(--vscode-sideBar-background, #181818);
+  --bg-inset: var(--vscode-textCodeBlock-background, #1a1a1a);
+  --ink: var(--vscode-editor-foreground, #cccccc);
+  --ink-dim: var(--vscode-descriptionForeground, #9d9d9d);
+  --ink-faint: var(--vscode-disabledForeground, #6f6f6f);
+  --rule: var(--vscode-panel-border, #2b2b2b);
+  --rule-soft: var(--vscode-editorWidget-border, #252525);
+  --amber: var(--vscode-textLink-foreground, #4ec9b0);
+  --amber-deep: var(--vscode-textLink-activeForeground, #569cd6);
+  --cyan: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --rose: var(--vscode-errorForeground, #f48771);
+  --moss: var(--vscode-debugTokenExpression-string, #ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg: var(--vscode-editor-background, #ffffff);
+    --bg-panel: var(--vscode-sideBar-background, #f8f8f8);
+    --bg-inset: var(--vscode-textCodeBlock-background, #f3f3f3);
+    --ink: var(--vscode-editor-foreground, #3b3b3b);
+    --ink-dim: var(--vscode-descriptionForeground, #616161);
+    --ink-faint: var(--vscode-disabledForeground, #8c8c8c);
+    --rule: var(--vscode-panel-border, #e5e5e5);
+    --rule-soft: var(--vscode-editorWidget-border, #ececec);
+    --amber: var(--vscode-textLink-foreground, #0451a5);
+    --amber-deep: var(--vscode-textLink-activeForeground, #0e639c);
+  }
+}
+:root[data-theme="reactive"] body{ background: var(--bg); }
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+.theme-toggle{position:fixed;top:16px;right:16px;z-index:10;background:var(--bg-panel);color:var(--ink-faint);border:1px solid var(--rule);padding:8px 12px;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;cursor:pointer;transition:color .2s,border-color .2s}
+.theme-toggle:hover{color:var(--amber);border-color:var(--amber-deep)}
+.theme-toggle .dot{color:var(--amber);margin-right:8px}
+
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"DOC/REPORT";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"field notes";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:760px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+p{margin:0 0 18px;max-width:74ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:70ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:12.5px}
+table.ref th,table.ref td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top;white-space:nowrap}
+table.ref th{color:var(--amber);font-weight:500;font-size:10px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td.j{color:var(--amber);font-weight:500}
+table.ref td.bus{color:var(--ink-faint)}
+table.ref td.v{color:var(--ink-dim)}
+table.ref tr.x4{background:rgba(95,179,179,.03)}
+table.ref tr.x6{background:rgba(232,163,61,.03)}
+table.ref tr.x8{background:rgba(143,169,104,.03)}
+table.ref td.warn-cell{color:var(--rose);font-weight:500}
+table.ref td.uncal{color:var(--ink-faint);font-style:italic}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:72ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Tuning · motor identification · as-built</div>
+    <h1 class="title">Motor identification — <em>as-built</em> report.</h1>
+    <p class="subtitle">A per-drive snapshot of the 25 MyActuator V4 actuators on the humanoid: drive-flash parameters from <code>All_Updated_Motors_by_Type.ods</code>, EtherCAT torque factors derived per family, and the current calibration gaps.</p>
+
+    <div class="meta">
+      <div><span class="k">Source</span><span class="v">All_Updated_Motors_by_Type.ods</span></div>
+      <div><span class="k">Drives</span><span class="v">25 — <em>10 X4 + 6 X6 + 9 X8</em></span></div>
+      <div><span class="k">Stage</span><span class="v">Assembled robot</span></div>
+      <div><span class="k">Updated</span><span class="v">2026-05-27</span></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#source"><span class="n">01</span>Source of truth</a>
+      <a href="#family"><span class="n">02</span>Per-family parameters</a>
+      <a href="#joints"><span class="n">03</span>Per-joint table</a>
+      <a href="#gaps"><span class="n">04</span>Outliers & follow-ups</a>
+    </nav>
+  </header>
+
+  <section id="source">
+    <span class="section-num">§ 01 — Source of truth</span>
+    <h2>One spreadsheet, <em>twenty-five rows</em>, one row per drive.</h2>
+    <p class="lead">Every MyActuator V4 drive stores its commissioning parameters in flash, configured over CAN with the MyActuator setup software. None of these parameters are readable over EtherCAT at runtime, so the EtherCAT master has to <em>assume</em> values that match what the drives carry — and if those assumptions drift, the torque chain silently miscalibrates. The ODS is the authoritative record of what is actually in flash.</p>
+
+    <p>What the ODS confirms (and what the ros2_control YAMLs depend on per drive):</p>
+    <ul class="bullets">
+      <li><strong>Rated current</strong> (drive-configured I_rated) — used in the torque conversion <code>T = T<sub>‰</sub> · (factor/1000) · I<sub>rated</sub> · K<sub>t</sub></code>. Differs from the nameplate value on every drive on the robot.</li>
+      <li><strong>Reduction ratio</strong> — 36:1 for X4, 19.61:1 for X6/X8. Drive-internal; not in the YAML.</li>
+      <li><strong>Single-resolution value</strong> — 16384 pulses/rev at the motor encoder; the drive normalizes to ±65535 = ±180° at the output shaft.</li>
+      <li><strong>Inner-loop PID</strong> — Q/D current loops, speed loop, position loop. Drive-internal; not in the YAML.</li>
+      <li><strong>Current/voltage limits</strong> — calibration current, max current, stall current, over/under-voltage thresholds, shutdown/resume temperatures.</li>
+      <li><strong>Motor direction flag</strong> — <code>Change Motor Direction = FALSE</code> on every row. Direction reversal is handled in the YAML by negating the factor, not by the drive.</li>
+    </ul>
+
+    <p>What the ODS does <em>not</em> give reliably:</p>
+    <ul class="bullets">
+      <li>K_t — the <code>KT_OUT</code> column (X4=1.2, X6=1.5, X8=2.0) is a setup-software current-loop slider, not the physical torque constant. It equals the <code>Max Torque</code> column on every row, which is the tell. Bench measurement on X6 #0 returned K<sub>t</sub> = 2.0095 (4.3 % under the 2.1 datasheet spec), so the datasheet is the right ballpark. The other 24 motors are mounted and have not been bench-identified.</li>
+      <li>Position zero offsets — calibrated empirically with <code>demo_joint_offset</code> against the physical robot pose, then written into each per-joint YAML's <code>offset:</code> fields. The ODS doesn't track this.</li>
+    </ul>
+  </section>
+
+  <section id="family">
+    <span class="section-num">§ 02 — Per-family parameters</span>
+    <h2>The arithmetic in <em>one table</em>.</h2>
+    <p class="lead">All EtherCAT torque factors collapse to three rows because every drive in a family shares the same K_t and the same I_rated. <code>src/tools/ethercat_tools/scripts/recompute_torque_factors.py</code> is the single source for the math; never copy these numbers into other configs by hand.</p>
+
+    <table class="ref">
+      <thead>
+        <tr><th>family</th><th>gear</th><th>K_t (N·m/A)</th><th>I_rated (A)</th><th>rated_torque (N·m)</th><th>factor_cmd (‰/N·m)</th><th>factor_state (N·m/‰)</th></tr>
+      </thead>
+      <tbody>
+        <tr class="x4"><td class="j">X4</td><td class="v">36:1</td><td class="v">1.9 (spec)</td><td class="v">8.625</td><td class="v">16.3875</td><td>61.022121</td><td>0.016388</td></tr>
+        <tr class="x6"><td class="j">X6</td><td class="v">19.61:1</td><td class="v">2.1 (spec); 2.0095 (X6 #0 measured)</td><td class="v">13.40</td><td class="v">28.14 (spec); 26.93 (X6 #0)</td><td>35.536603 (spec); 37.14 (X6 #0)</td><td>0.028140</td></tr>
+        <tr class="x8"><td class="j">X8</td><td class="v">19.61:1</td><td class="v">2.4 (spec)</td><td class="v">24.88</td><td class="v">59.712</td><td>16.747053</td><td>0.059712</td></tr>
+      </tbody>
+    </table>
+
+    <p>The X6 row carries both the manufacturer-spec value and the bench-identified value for X6 #0 (<a href="motor_id_protocol.html#feedback">motor_id_protocol §12</a>). The 4.3 % spread is well inside the magnet/temperature tolerance MyActuator quotes, so the spec value is what the YAML uses across all six X6 drives. The same will be done for X4 and X8 once in-place identification on the assembled robot is possible — see <a href="#gaps">§ 04</a>.</p>
+  </section>
+
+  <section id="joints">
+    <span class="section-num">§ 03 — Per-joint table</span>
+    <h2>Twenty-five drives, in <em>bus order</em>.</h2>
+    <p class="lead">Bus position matches the physical EtherCAT chain order, left-arm first. <code>cmd_offset</code> and <code>state_offset</code> are the calibrated zero offsets from <code>demo_joint_offset</code> (raw encoder counts on the command side, radians on the feedback side). Rows marked <em>uncalibrated</em> currently have offset = 0 and need calibration before that joint is commanded to a non-zero pose.</p>
+
+    <table class="ref">
+      <thead>
+        <tr><th>bus</th><th>joint</th><th>family</th><th>I_rated (A)</th><th>cmd offset</th><th>state offset (rad)</th><th>direction</th></tr>
+      </thead>
+      <tbody>
+        <tr class="x6"><td class="bus">0</td><td class="j">left_shoulder_pitch_X6</td><td>X6</td><td>13.40</td><td>2704</td><td>0.129621</td><td class="v">−1</td></tr>
+        <tr class="x6"><td class="bus">1</td><td class="j">left_shoulder_roll_X6</td><td>X6</td><td>13.40</td><td>25684</td><td>1.231211</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">2</td><td class="j">left_shoulder_yaw_X4</td><td>X4</td><td>8.625</td><td>28602</td><td>0.685550</td><td class="v">−1</td></tr>
+        <tr class="x6"><td class="bus">3</td><td class="j">left_elbow_pitch_X6</td><td>X6</td><td>13.40</td><td>6058</td><td>0.290400</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">4</td><td class="j">left_wrist_yaw_X4</td><td>X4</td><td>8.625</td><td>−1232</td><td>−0.029530</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">5</td><td class="j">left_wrist_roll_X4</td><td>X4</td><td>8.625</td><td>1520</td><td>−0.036432</td><td class="v">+1</td></tr>
+        <tr class="x6"><td class="bus">6</td><td class="j">right_shoulder_pitch_X6</td><td>X6</td><td>13.40</td><td>−2040</td><td>0.097791</td><td class="v">+1</td></tr>
+        <tr class="x6"><td class="bus">7</td><td class="j">right_shoulder_roll_X6</td><td>X6</td><td>13.40</td><td>−23723</td><td>−1.137207</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">8</td><td class="j">right_shoulder_yaw_X4</td><td>X4</td><td class="warn-cell">9.625 ⚠</td><td>−24740</td><td>−0.592979</td><td class="v">−1</td></tr>
+        <tr class="x6"><td class="bus">9</td><td class="j">right_elbow_pitch_X6</td><td>X6</td><td>13.40</td><td>−5456</td><td>0.261544</td><td class="v">+1</td></tr>
+        <tr class="x4"><td class="bus">10</td><td class="j">right_wrist_yaw_X4</td><td>X4</td><td>8.625</td><td>418</td><td>0.010020</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">11</td><td class="j">right_wrist_roll_X4</td><td>X4</td><td>8.625</td><td>1497</td><td>−0.035881</td><td class="v">+1</td></tr>
+        <tr class="x8"><td class="bus">12</td><td class="j">waist_yaw_X8</td><td>X8</td><td>24.88</td><td>46</td><td>0.002205</td><td class="v">−1</td></tr>
+        <tr class="x8"><td class="bus">13</td><td class="j">left_hip_pitch_X8</td><td>X8</td><td>24.88</td><td>8</td><td>0.000383</td><td class="v">−1</td></tr>
+        <tr class="x8"><td class="bus">14</td><td class="j">left_hip_roll_X8</td><td>X8</td><td>24.88</td><td>−350</td><td>−0.016778</td><td class="v">−1</td></tr>
+        <tr class="x8"><td class="bus">15</td><td class="j">left_hip_yaw_X8</td><td>X8</td><td>24.88</td><td>−447</td><td>0.02142</td><td class="v">+1</td></tr>
+        <tr class="x8"><td class="bus">16</td><td class="j">left_knee_X8</td><td>X8</td><td>24.88</td><td>2876</td><td>0.137870</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">17</td><td class="j">left_ankle_pitch_X4</td><td>X4</td><td>8.625</td><td class="uncal">0 (uncal)</td><td class="uncal">0.000000</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">18</td><td class="j">left_ankle_roll_X4</td><td>X4</td><td>8.625</td><td class="uncal">0 (uncal)</td><td class="uncal">0.000000</td><td class="v">−1</td></tr>
+        <tr class="x8"><td class="bus">19</td><td class="j">right_hip_pitch_X8</td><td>X8</td><td>24.88</td><td>−349</td><td>0.016730</td><td class="v">+1</td></tr>
+        <tr class="x8"><td class="bus">20</td><td class="j">right_hip_roll_X8</td><td>X8</td><td>24.88</td><td>536</td><td>0.025694</td><td class="v">−1</td></tr>
+        <tr class="x8"><td class="bus">21</td><td class="j">right_hip_yaw_X8</td><td>X8</td><td>24.88</td><td>109</td><td>−0.005230</td><td class="v">+1</td></tr>
+        <tr class="x8"><td class="bus">22</td><td class="j">right_knee_X8</td><td>X8</td><td>24.88</td><td>−1901</td><td>0.091130</td><td class="v">+1</td></tr>
+        <tr class="x4"><td class="bus">23</td><td class="j">right_ankle_roll_X4</td><td>X4</td><td>8.625</td><td class="uncal">0 (uncal)</td><td class="uncal">0.000000</td><td class="v">−1</td></tr>
+        <tr class="x4"><td class="bus">24</td><td class="j">right_ankle_pitch_X4</td><td>X4</td><td>8.625</td><td class="uncal">0 (uncal)</td><td class="uncal">0.000000</td><td class="v">−1</td></tr>
+      </tbody>
+    </table>
+
+    <p>Direction sign is whatever makes the joint move in the URDF-defined positive sense; it is encoded as the sign of the position/velocity/torque factors in each per-joint YAML, not as a drive-side flag (all 25 drives have <code>Change Motor Direction = FALSE</code> in the ODS). Out of the 25 drives, 14 have negative factors and 11 have positive factors — the mix is determined by motor orientation in the assembly, not by any pattern in the kinematics.</p>
+  </section>
+
+  <section id="gaps">
+    <span class="section-num">§ 04 — Outliers & follow-ups</span>
+    <h2>Three loose ends, in <em>priority order</em>.</h2>
+
+    <div class="warn">
+      <strong>right_shoulder_yaw_X4 I_rated is wrong in flash.</strong> The drive at bus position 8 carries <code>I_rated = 9.625 A</code>; every other X4 carries 8.625 A. Confirmed typo on the bench-tech side. The YAML's torque factor is derived for 8.625 A — until the drive is re-flashed via the MyActuator CAN setup tool, this joint under-commands by 10.4 % vs the rest. Do this <em>before</em> the joint is run in CST.
+    </div>
+
+    <p><strong>Ankle position offsets are still zero.</strong> All four ankle X4 drives (bus 17, 18, 23, 24) have <code>offset: 0</code> on both the command and state position channels. They were never calibrated. Run <code>ros2 run ethercat_tools demo_joint_offset</code> against each ankle at a known reference pose (URDF zero) and write the resulting offsets into the YAML before commanding any non-zero leg pose. The <code>demo_joint_offset</code> tool is the canonical procedure — see <a href="../hardware/ethercat_control_guide.html">ethercat_control_guide</a>.</p>
+
+    <p><strong>X4 and X8 K_t are still on datasheet spec.</strong> Only X6 #0 has been bench-identified (<a href="motor_id_protocol.html">motor_id_protocol §10</a>, three-payload static-hold). X6 #0 came in 4.3 % under the 2.1 spec — well inside the ±5–10 % magnet/temperature spread, so spec is a safe provisional choice for the assembly, but the same in-place ID is the right follow-up for X4 and X8 once a procedure exists for measuring K_t with the motor mounted. Until then, expect ±5–10 % torque-magnitude error on X4 and X8 joints; the safety supervisor's effort thresholds in <code>arm_ethercat_safety/config/safety_limits.yaml</code> are the backstop.</p>
+  </section>
+
+  <footer>
+    <span>Field notes · humanoid project · motor identification</span>
+    <span>v.26.05</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn = document.querySelector('.theme-toggle');
+  const lbl = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>
