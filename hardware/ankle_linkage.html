@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ankle linkage — Field Notes</title>
+
+<!-- KaTeX (math). Drop if no equations. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<!-- Chart.js (graphs). Drop if no charts. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   FIELD NOTES — design tokens.
+   See design_guide.md for the full system reference.
+   ═══════════════════════════════════════════════════ */
+:root{
+  --bg:        #0e0c09;
+  --bg-panel:  #15120d;
+  --bg-inset:  #0a0806;
+
+  --ink:       #ece2cf;
+  --ink-dim:   #a79a82;
+  --ink-faint: #6b6354;
+
+  --rule:      #2a2419;
+  --rule-soft: #1e1a13;
+
+  --amber:      #e8a33d;
+  --amber-deep: #b87a1e;
+
+  --cyan: #5fb3b3;
+  --rose: #d97757;
+  --moss: #8fa968;
+
+  --mono:  'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --sans:  'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+}
+
+/* ─────── Reactive palette (toggle) ─────────────────────
+   When data-theme="reactive" is set on <html>, tokens
+   resolve to VSCode webview CSS variables, falling back
+   to VSCode Dark/Light Modern hexes when those aren't
+   injected (i.e. doc opened in a regular browser).
+   prefers-color-scheme handles light vs dark fallback. */
+:root[data-theme="reactive"]{
+  --bg:        var(--vscode-editor-background, #1f1f1f);
+  --bg-panel:  var(--vscode-sideBar-background, #181818);
+  --bg-inset:  var(--vscode-textCodeBlock-background, #1a1a1a);
+  --ink:       var(--vscode-editor-foreground, #cccccc);
+  --ink-dim:   var(--vscode-descriptionForeground, #9d9d9d);
+  --ink-faint: var(--vscode-disabledForeground, #6f6f6f);
+  --rule:      var(--vscode-panel-border, #2b2b2b);
+  --rule-soft: var(--vscode-editorWidget-border, #252525);
+  --amber:      var(--vscode-textLink-foreground, #4ec9b0);
+  --amber-deep: var(--vscode-textLink-activeForeground, #569cd6);
+  --cyan: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --rose: var(--vscode-errorForeground,              #f48771);
+  --moss: var(--vscode-debugTokenExpression-string,  #ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg:        var(--vscode-editor-background, #ffffff);
+    --bg-panel:  var(--vscode-sideBar-background, #f8f8f8);
+    --bg-inset:  var(--vscode-textCodeBlock-background, #f3f3f3);
+    --ink:       var(--vscode-editor-foreground, #3b3b3b);
+    --ink-dim:   var(--vscode-descriptionForeground, #616161);
+    --ink-faint: var(--vscode-disabledForeground, #8c8c8c);
+    --rule:      var(--vscode-panel-border, #e5e5e5);
+    --rule-soft: var(--vscode-editorWidget-border, #ececec);
+    --amber:      var(--vscode-textLink-foreground, #0451a5);
+    --amber-deep: var(--vscode-textLink-activeForeground, #0e639c);
+  }
+}
+:root[data-theme="reactive"] body{ background: var(--bg); }
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"] body::before{ opacity:.025; }
+}
+
+/* ─────── Base ───────────────────────────────────────── */
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+/* ─────── Theme toggle ───────────────────────────────── */
+.theme-toggle{
+  position:fixed; top:16px; right:16px; z-index:10;
+  background:var(--bg-panel); color:var(--ink-faint);
+  border:1px solid var(--rule); padding:8px 12px;
+  font-family:var(--mono); font-size:10px; font-weight:500;
+  letter-spacing:.22em; text-transform:uppercase;
+  cursor:pointer; transition:color .2s, border-color .2s;
+}
+.theme-toggle:hover{ color:var(--amber); border-color:var(--amber-deep); }
+.theme-toggle .dot{ color:var(--amber); margin-right:8px; }
+
+/* ─────── Hero ───────────────────────────────────────── */
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"DOC/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"field notes";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+/* ─────── Sections + prose ───────────────────────────── */
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+hr.divider{border:none;border-top:1px solid var(--rule);margin:72px 0}
+hr.divider-soft{border:none;border-top:1px dashed var(--rule-soft);margin:32px 0}
+
+/* ─────── Components ─────────────────────────────────── */
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.panel.inset{background:var(--bg-inset)}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+.math-block .katex-display{margin:.4em 0}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+.graph-wrap{background:var(--bg-panel);border:1px solid var(--rule);margin:28px 0;padding:24px 28px 28px;position:relative}
+.graph-wrap .g-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:12px}
+.graph-wrap .g-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink)}
+.graph-wrap .g-sub{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase}
+.graph-wrap .g-desc{color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px}
+.graph-canvas{position:relative;height:340px;width:100%}
+
+.readouts{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:12px}
+.readouts .ro{display:flex;flex-direction:column;gap:2px}
+.readouts .ro .k{font-size:10px;letter-spacing:.2em;color:var(--ink-faint);text-transform:uppercase}
+.readouts .ro .v{color:var(--amber);font-size:14px;font-weight:500}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Hardware · ankle · parallel linkage</div>
+    <h1 class="title">Two motors, <em>one</em> ankle.</h1>
+    <p class="subtitle">The eccentric-pushrod linkage that turns a pair of X4 drives into a 2-DOF ankle — and the forward / inverse transforms <code>HarambePvtDriver</code> runs every cycle to control it in joint space.</p>
+
+    <div class="meta">
+      <div><span class="k">Status</span><span class="v">On robot</span></div>
+      <div><span class="k">Owner</span><span class="v">Andrei</span></div>
+      <div><span class="k">Stage</span><span class="v"><em>calibrating</em></span></div>
+      <div><span class="k">Updated</span><span class="v">2026-06-03</span></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#mechanism"><span class="n">01</span>The mechanism</a>
+      <a href="#geometry"><span class="n">02</span>Geometry &amp; parameters</a>
+      <a href="#forward"><span class="n">03</span>Forward — motor → joint</a>
+      <a href="#inverse"><span class="n">04</span>Inverse — joint → motor</a>
+      <a href="#jacobian"><span class="n">05</span>Velocity &amp; effort</a>
+      <a href="#wiring"><span class="n">06</span>Driver &amp; config wiring</a>
+      <a href="#swap"><span class="n">07</span>The right-ankle name swap</a>
+      <a href="#safety"><span class="n">08</span>Safety limits</a>
+    </nav>
+  </header>
+
+  <section id="mechanism">
+    <span class="section-num">§ 01 — The mechanism</span>
+    <h2>A pair of X4 drives, <em>coupled</em> through cams.</h2>
+    <p class="lead">Each foot carries two MyActuator X4 drives — call them motor A and motor B — mounted above the ankle. Neither one owns a joint axis. Instead each turns an eccentric cam of radius <code>r_exc</code> that drives a pushrod down to the foot; the two pushrods together produce both ankle <strong>pitch</strong> and ankle <strong>roll</strong>.</p>
+
+    <p>The coupling is the whole point: <strong>both</strong> motors move for <strong>either</strong> joint. Symmetric motion (A and B turn the same way) pitches the foot; antisymmetric motion (A and B turn opposite ways) rolls it. So the controller cannot command a motor directly — it commands a <em>joint</em> (pitch, roll) and a transform splits that onto the two motors. That transform is the subject of this note.</p>
+
+    <div class="callout">
+      Pitch is the <em>sum</em> of the two cam contributions; roll is the <em>difference</em>. Everything downstream falls out of that one fact.
+    </div>
+
+    <p>The transform lives in <code>harambe_ethercat_driver</code> — <code>ankle_linkage.cpp</code> holds the pure kinematics, <code>AnkleLinkageDriver</code> wraps it, and <code>HarambePvtDriver</code> (the PVT system-interface plugin, <a href="../tuning/robot_pvt_guide.html">robot PVT guide</a>) calls it inside <code>read()</code> / <code>write()</code>. Read converts the two motor states to joint state; write converts the two joint commands back to motor targets.</p>
+  </section>
+
+  <section id="geometry">
+    <span class="section-num">§ 02 — Geometry &amp; parameters</span>
+    <h2>Five numbers describe the <em>whole</em> linkage.</h2>
+    <p>The geometry is passed to the driver as ros2_control hardware parameters in <code>ros2_control_real_pvt.xacro</code>. These are the exact values on the robot — do not round them:</p>
+
+    <table class="ref">
+      <thead><tr><th>Param</th><th>Value</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>r_exc</td><td>0.025</td><td class="v">eccentricity radius — the cam offset (m)</td></tr>
+        <tr><td>d_pitch</td><td>0.03</td><td class="v">pitch lever arm (m)</td></tr>
+        <tr><td>d_roll</td><td>0.056</td><td class="v">roll lever arm (m)</td></tr>
+        <tr><td>pitch_sign</td><td>-1</td><td class="v">URDF sign correction applied to the pitch output</td></tr>
+        <tr><td>roll_sign</td><td>1</td><td class="v">URDF sign correction applied to the roll output</td></tr>
+      </tbody>
+    </table>
+
+    <p>Symbols used below: <span class="inline-eq">θ_A</span>, <span class="inline-eq">θ_B</span> are the two motor positions; <span class="inline-eq">p</span>, <span class="inline-eq">r</span> are the URDF-frame ankle pitch and roll. The <em>linkage-frame</em> angles <span class="inline-eq">p_lk = pitch_sign·p</span> and <span class="inline-eq">r_lk = roll_sign·r</span> strip the sign correction so the cam math is sign-agnostic.</p>
+  </section>
+
+  <section id="forward">
+    <span class="section-num">§ 03 — Forward — motor → joint</span>
+    <h2>Sum for pitch, <em>difference</em> for roll.</h2>
+    <p>Given the two measured motor angles, the foot pose in the linkage frame is an arcsine of the cam-projected sum and difference, scaled by the lever arms:</p>
+
+    <div class="math-block labeled">
+      <span class="lbl">Eq. 1 — forward position</span>
+      $$ p = \texttt{pitch\_sign}\cdot\arcsin\!\left(\frac{r_{exc}\,(\sin\theta_A + \sin\theta_B)}{2\,d_{pitch}}\right) $$
+      $$ r = \texttt{roll\_sign}\cdot\arcsin\!\left(\frac{r_{exc}\,(\sin\theta_A - \sin\theta_B)}{2\,d_{roll}}\right) $$
+    </div>
+
+    <p>The <code>arcsin</code> argument is clamped to <span class="inline-eq">[-1, 1]</span> by a <code>safe_asin</code> helper that logs (throttled) when it has to clamp — a clamp at runtime means the measured motor angles imply a foot pose the linkage geometry can't reach, i.e. a calibration or limit error worth investigating.</p>
+  </section>
+
+  <section id="inverse">
+    <span class="section-num">§ 04 — Inverse — joint → motor</span>
+    <h2>The write path runs the <em>same</em> math backwards.</h2>
+    <p>To command a joint pose, the driver projects the desired pitch / roll onto each cam, then inverts the arcsine. With <span class="inline-eq">p_lk = pitch_sign·p</span> and <span class="inline-eq">r_lk = roll_sign·r</span>:</p>
+
+    <div class="math-block labeled">
+      <span class="lbl">Eq. 2 — inverse position</span>
+      $$ d_A = d_{pitch}\sin p_{lk} + d_{roll}\sin r_{lk}, \qquad d_B = d_{pitch}\sin p_{lk} - d_{roll}\sin r_{lk} $$
+      $$ \theta_A = \arcsin\!\left(\frac{d_A}{r_{exc}}\right), \qquad \theta_B = \arcsin\!\left(\frac{d_B}{r_{exc}}\right) $$
+    </div>
+
+    <p>Same <code>safe_asin</code> clamp guards both motor solutions. Note the structural symmetry with Eq. 1: pitch enters both <span class="inline-eq">d_A</span> and <span class="inline-eq">d_B</span> with the same sign (the sum), roll enters with opposite signs (the difference).</p>
+  </section>
+
+  <section id="jacobian">
+    <span class="section-num">§ 05 — Velocity &amp; effort</span>
+    <h2>Differentiate the position map; <em>transpose</em> it for torque.</h2>
+    <p>Velocity is the position map differentiated — the cosines of the motor and linkage angles appear because <span class="inline-eq">\frac{d}{dx}\arcsin</span> and <span class="inline-eq">\frac{d}{dx}\sin</span> bring them in:</p>
+
+    <div class="math-block labeled">
+      <span class="lbl">Eq. 3 — forward velocity</span>
+      $$ \dot p = \texttt{pitch\_sign}\cdot\frac{r_{exc}\,(\cos\theta_A\,\dot\theta_A + \cos\theta_B\,\dot\theta_B)}{2\,d_{pitch}\cos p_{lk}} $$
+      $$ \dot r = \texttt{roll\_sign}\cdot\frac{r_{exc}\,(\cos\theta_A\,\dot\theta_A - \cos\theta_B\,\dot\theta_B)}{2\,d_{roll}\cos r_{lk}} $$
+    </div>
+
+    <p>Effort maps through the <em>transpose</em> of the velocity Jacobian — the standard duality between a velocity map and the force map across the same linkage. Motor torques <span class="inline-eq">τ_A</span>, <span class="inline-eq">τ_B</span> become joint torques:</p>
+
+    <div class="math-block labeled">
+      <span class="lbl">Eq. 4 — forward effort (motor → joint)</span>
+      $$ \tau_p = \texttt{pitch\_sign}\cdot\frac{d_{pitch}\cos p_{lk}}{r_{exc}}\left(\frac{\tau_A}{\cos\theta_A} + \frac{\tau_B}{\cos\theta_B}\right) $$
+      $$ \tau_r = \texttt{roll\_sign}\cdot\frac{d_{roll}\cos r_{lk}}{r_{exc}}\left(\frac{\tau_A}{\cos\theta_A} - \frac{\tau_B}{\cos\theta_B}\right) $$
+    </div>
+
+    <div class="warn">
+      <strong>Singularities at the cam quarter-turn.</strong> Every transform divides by a cosine. When <span class="inline-eq">|\cos\theta_A|</span>, <span class="inline-eq">|\cos\theta_B|</span>, <span class="inline-eq">|\cos p_{lk}|</span> or <span class="inline-eq">|\cos r_{lk}|</span> drops below <code>1e-6</code> the code falls back to the un-projected mid-point form (e.g. <span class="inline-eq">\tau_p = (\tau_A + \tau_B)/2</span>) rather than dividing by zero. Keep the ankle well inside its travel; the <a href="#safety">±π/4 position limit</a> exists partly to stay clear of these.
+    </div>
+  </section>
+
+  <section id="wiring">
+    <span class="section-num">§ 06 — Driver &amp; config wiring</span>
+    <h2>One param pairs the joints; the slave configs do the rest.</h2>
+    <p>The driver learns which two joints form an ankle from a single hardware parameter, semicolon-separated pairs of <code>roll,pitch</code> joint names:</p>
+
+<pre data-lang="xml"><code>&lt;param name=<span class="tok-s">"ankle_linkage_pairs"</span>&gt;left_ankle_roll_joint_X4,left_ankle_pitch_joint_X4;right_ankle_roll_joint_X4,right_ankle_pitch_joint_X4&lt;/param&gt;
+&lt;param name=<span class="tok-s">"r_exc"</span>&gt;0.025&lt;/param&gt;
+&lt;param name=<span class="tok-s">"d_pitch"</span>&gt;0.03&lt;/param&gt;
+&lt;param name=<span class="tok-s">"d_roll"</span>&gt;0.056&lt;/param&gt;
+&lt;param name=<span class="tok-s">"pitch_sign"</span>&gt;-1&lt;/param&gt;
+&lt;param name=<span class="tok-s">"roll_sign"</span>&gt;1&lt;/param&gt;</code></pre>
+
+    <p>Each of the four ankle joints still has its own per-joint EtherCAT slave config in <code>robot_bringup/config/ethercat_pvt/</code> (<code>left_ankle_pitch_X4.yaml</code>, <code>left_ankle_roll_X4.yaml</code>, and the two right-side files) — the PVT PDO layout, factors and calibration offsets are per-<em>motor</em> as for every other joint. The linkage transform sits <em>above</em> the slave configs: it runs in <code>read()</code>/<code>write()</code> after the raw motor counts are converted to SI, so the per-joint factors/offsets are unchanged by the coupling.</p>
+
+    <div class="panel" data-label="kp / kd pass straight through">
+      <p>Position, velocity and effort are transformed joint↔motor. The drive-side PD gains <code>kp</code> / <code>kd</code> are <strong>not</strong> — they pass through per-motor untouched, because the drive runs its PD law in <em>motor</em> space (each X4 regulates its own shaft). So the pitch joint's gains land on motor A and the roll joint's on motor B. Tune ankle gains with that in mind: a "pitch" gain change is really a per-motor change shared across the coupling.</p>
+    </div>
+  </section>
+
+  <section id="swap">
+    <span class="section-num">§ 07 — The right-ankle name swap</span>
+    <h2>The names were on the <em>wrong</em> axes.</h2>
+    <p>Commit <code>c590020</code> ("swap right ankle pitch and roll") fixed a labelling bug in <code>right_foot_joints.xacro</code>: the <code>right_ankle_pitch_joint_X4</code> and <code>right_ankle_roll_joint_X4</code> names were attached to the wrong axes — the joint named "pitch" carried the roll axis origin and vice-versa.</p>
+
+    <ul class="bullets">
+      <li>The <strong>EtherCAT bus enumeration was already correct</strong> — the fix only renamed joints in the URDF kinematic tree to line up names with axes.</li>
+      <li>Because <code>ankle_linkage_pairs</code> references joints <em>by name</em>, the names must match the axes the linkage math assumes (pitch = sum, roll = difference). A swapped name would have fed the roll command into the pitch term.</li>
+      <li>The left ankle was correct already; only the right side needed the swap.</li>
+    </ul>
+  </section>
+
+  <section id="safety">
+    <span class="section-num">§ 08 — Safety limits</span>
+    <h2>±45° of travel, two effort ceilings.</h2>
+    <p>The four ankle joints carry per-joint overrides in <code>robot_safety/config/safety_limits.yaml</code> (the <code>robot_safety</code> supervisor and <code>robot_pvt_controller</code> both read them — see the <a href="../tuning/robot_pvt_guide.html#safety">robot PVT guide §08</a>). Exact values on the robot:</p>
+
+    <table class="ref">
+      <thead><tr><th>Joint</th><th>effort_limit (N·m)</th><th>sustained (N·m)</th><th>position (rad)</th><th>bus (V)</th></tr></thead>
+      <tbody>
+        <tr><td>ankle_pitch (L/R)</td><td>20.0</td><td>16.0</td><td class="v">±0.785398</td><td class="v">20.0 – 28.0</td></tr>
+        <tr><td>ankle_roll (L/R)</td><td>15.0</td><td>12.0</td><td class="v">±0.785398</td><td class="v">20.0 – 28.0</td></tr>
+      </tbody>
+    </table>
+
+    <ul class="bullets">
+      <li><strong>±0.785398 rad = ±45°</strong> — the URDF ankle travel limit. Also keeps the linkage clear of the cosine singularities in <a href="#jacobian">§05</a>.</li>
+      <li><strong>Roll is held tighter than pitch</strong> (15 vs 20 N·m): the roll lever arm <code>d_roll</code> is larger, so the same motor torque produces a different joint torque — and roll is the less-loaded axis in stance.</li>
+      <li><strong>24 V rail.</strong> The X4 ankle drives run from the 24 V rail (envelope 20.0 – 28.0 V), unlike the X6/X8 joints on 48 V (40.0 – 54.0 V). See <a href="../tuning/motor_id_report.html">motor identification report</a>.</li>
+    </ul>
+
+    <div class="warn">
+      <strong>These envelopes are first-pass and unvalidated.</strong> Like every limit in <code>safety_limits.yaml</code>, the ankle numbers are derived from the EtherCAT <code>max_torque</code> SDO and policy gains, not measured to failure. Validate on hardware before trusting — a wrist X4 broke once at its mechanical limit during a torque test.
+    </div>
+  </section>
+
+  <footer>
+    <span>Field notes · harambe robot · ankle linkage</span>
+    <span>v.26.06</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY  = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn  = document.querySelector('.theme-toggle');
+  const lbl  = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>

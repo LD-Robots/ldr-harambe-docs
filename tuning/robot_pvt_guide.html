@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Robot PVT control — Field Notes</title>
+
+<!-- KaTeX (math). Drop if no equations. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+ onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+
+<!-- Chart.js (graphs). Drop if no charts. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   FIELD NOTES — design tokens.
+   See design_guide.md for the full system reference.
+   ═══════════════════════════════════════════════════ */
+:root{
+  --bg:        #0e0c09;
+  --bg-panel:  #15120d;
+  --bg-inset:  #0a0806;
+
+  --ink:       #ece2cf;
+  --ink-dim:   #a79a82;
+  --ink-faint: #6b6354;
+
+  --rule:      #2a2419;
+  --rule-soft: #1e1a13;
+
+  --amber:      #e8a33d;
+  --amber-deep: #b87a1e;
+
+  --cyan: #5fb3b3;
+  --rose: #d97757;
+  --moss: #8fa968;
+
+  --mono:  'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --sans:  'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+}
+
+/* ─────── Reactive palette (toggle) ─────────────────────
+   When data-theme="reactive" is set on <html>, tokens
+   resolve to VSCode webview CSS variables, falling back
+   to VSCode Dark/Light Modern hexes when those aren't
+   injected (i.e. doc opened in a regular browser).
+   prefers-color-scheme handles light vs dark fallback. */
+:root[data-theme="reactive"]{
+  --bg:        var(--vscode-editor-background, #1f1f1f);
+  --bg-panel:  var(--vscode-sideBar-background, #181818);
+  --bg-inset:  var(--vscode-textCodeBlock-background, #1a1a1a);
+  --ink:       var(--vscode-editor-foreground, #cccccc);
+  --ink-dim:   var(--vscode-descriptionForeground, #9d9d9d);
+  --ink-faint: var(--vscode-disabledForeground, #6f6f6f);
+  --rule:      var(--vscode-panel-border, #2b2b2b);
+  --rule-soft: var(--vscode-editorWidget-border, #252525);
+  --amber:      var(--vscode-textLink-foreground, #4ec9b0);
+  --amber-deep: var(--vscode-textLink-activeForeground, #569cd6);
+  --cyan: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --rose: var(--vscode-errorForeground,              #f48771);
+  --moss: var(--vscode-debugTokenExpression-string,  #ce9178);
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"]{
+    --bg:        var(--vscode-editor-background, #ffffff);
+    --bg-panel:  var(--vscode-sideBar-background, #f8f8f8);
+    --bg-inset:  var(--vscode-textCodeBlock-background, #f3f3f3);
+    --ink:       var(--vscode-editor-foreground, #3b3b3b);
+    --ink-dim:   var(--vscode-descriptionForeground, #616161);
+    --ink-faint: var(--vscode-disabledForeground, #8c8c8c);
+    --rule:      var(--vscode-panel-border, #e5e5e5);
+    --rule-soft: var(--vscode-editorWidget-border, #ececec);
+    --amber:      var(--vscode-textLink-foreground, #0451a5);
+    --amber-deep: var(--vscode-textLink-activeForeground, #0e639c);
+  }
+}
+:root[data-theme="reactive"] body{ background: var(--bg); }
+@media (prefers-color-scheme: light){
+  :root[data-theme="reactive"] body::before{ opacity:.025; }
+}
+
+/* ─────── Base ───────────────────────────────────────── */
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0;padding:0}
+body{
+  font-family:var(--sans);font-weight:300;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #1a1409 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 20%, #120f08 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:64px 32px 120px;position:relative;z-index:2}
+
+/* ─────── Theme toggle ───────────────────────────────── */
+.theme-toggle{
+  position:fixed; top:16px; right:16px; z-index:10;
+  background:var(--bg-panel); color:var(--ink-faint);
+  border:1px solid var(--rule); padding:8px 12px;
+  font-family:var(--mono); font-size:10px; font-weight:500;
+  letter-spacing:.22em; text-transform:uppercase;
+  cursor:pointer; transition:color .2s, border-color .2s;
+}
+.theme-toggle:hover{ color:var(--amber); border-color:var(--amber-deep); }
+.theme-toggle .dot{ color:var(--amber); margin-right:8px; }
+
+/* ─────── Hero ───────────────────────────────────────── */
+header.hero{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:56px 0 64px;margin-bottom:72px;position:relative}
+header.hero::before{content:"DOC/01";position:absolute;top:-11px;left:0;background:var(--bg);padding:0 12px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber)}
+header.hero::after{content:"field notes";position:absolute;top:-11px;right:0;background:var(--bg);padding:0 0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--ink-faint)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);margin-bottom:28px}
+h1.title{font-family:var(--serif);font-weight:300;font-style:italic;font-size:clamp(44px,7vw,88px);line-height:.98;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink)}
+h1.title em{font-style:normal;font-weight:600;color:var(--amber)}
+.subtitle{font-family:var(--serif);font-weight:300;font-size:clamp(20px,2.4vw,28px);line-height:1.35;color:var(--ink-dim);max-width:720px;margin:24px 0 0}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px;padding-top:24px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.meta .k{color:var(--ink-faint);text-transform:uppercase;display:block;margin-bottom:6px;font-size:10px;letter-spacing:.2em}
+.meta .v{color:var(--ink);font-size:13px;font-weight:500}
+.meta .v em{color:var(--amber);font-style:normal}
+
+/* ─────── Sections + prose ───────────────────────────── */
+section{margin:96px 0 0;position:relative}
+.section-num{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:18px;display:block}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.5vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 24px;color:var(--ink);max-width:860px}
+h2 em{color:var(--amber);font-style:italic;font-weight:300}
+h3{font-family:var(--serif);font-weight:500;font-size:26px;line-height:1.2;letter-spacing:-.01em;margin:48px 0 16px;color:var(--ink)}
+h4{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:32px 0 12px}
+p{margin:0 0 18px;max-width:70ch}
+p.lead{font-size:18.5px;color:var(--ink);max-width:68ch;line-height:1.6}
+strong{color:var(--ink);font-weight:500}
+em{color:var(--amber);font-style:italic}
+a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber-deep)}
+hr.divider{border:none;border-top:1px solid var(--rule);margin:72px 0}
+hr.divider-soft{border:none;border-top:1px dashed var(--rule-soft);margin:32px 0}
+
+/* ─────── Components ─────────────────────────────────── */
+.panel{background:var(--bg-panel);border:1px solid var(--rule);padding:28px 32px;margin:24px 0;position:relative}
+.panel::before{content:attr(data-label);position:absolute;top:-9px;left:20px;background:var(--bg);padding:0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.25em;color:var(--amber);text-transform:uppercase}
+.panel.inset{background:var(--bg-inset)}
+
+.callout{border-left:2px solid var(--amber);padding:4px 0 4px 24px;margin:24px 0;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-dim);line-height:1.5;max-width:60ch}
+
+.warn{background:linear-gradient(180deg, rgba(217,119,87,.08), rgba(217,119,87,.03));border-left:2px solid var(--rose);padding:18px 22px;margin:28px 0;font-size:15.5px}
+.warn strong{color:var(--rose)}
+
+.math-block{background:var(--bg-inset);border:1px solid var(--rule);padding:24px 28px;margin:20px 0;overflow-x:auto;position:relative}
+.math-block.labeled{padding-top:34px}
+.math-block .lbl{position:absolute;top:10px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-faint);text-transform:uppercase}
+.math-block .katex{color:var(--ink);font-size:1.05em}
+.math-block .katex-display{margin:.4em 0}
+
+dl.vars{font-family:var(--mono);font-size:13px;line-height:1.9;margin:16px 0 24px;display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:4px 28px}
+dl.vars dt{color:var(--amber);font-weight:500}
+dl.vars dd{color:var(--ink-dim);margin:0;font-family:var(--sans);font-size:14px}
+
+pre{background:var(--bg-inset);border:1px solid var(--rule);border-left:2px solid var(--amber-deep);padding:22px 26px;margin:24px 0;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--ink);position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:8px;right:16px;font-size:10px;letter-spacing:.25em;color:var(--ink-faint);text-transform:uppercase}
+code{font-family:var(--mono);font-size:.92em;color:var(--amber);background:rgba(232,163,61,.08);padding:1px 6px;border-radius:2px}
+pre code{color:var(--ink);background:none;padding:0}
+.tok-k{color:var(--rose)} .tok-s{color:var(--moss)} .tok-c{color:var(--ink-faint);font-style:italic} .tok-n{color:var(--amber)} .tok-f{color:var(--cyan)}
+
+table.ref{width:100%;border-collapse:collapse;margin:24px 0;font-family:var(--mono);font-size:13.5px}
+table.ref th,table.ref td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.ref th{color:var(--amber);font-weight:500;font-size:11px;letter-spacing:.18em;text-transform:uppercase;border-bottom:1px solid var(--amber-deep)}
+table.ref td:first-child{color:var(--amber);font-weight:500}
+table.ref td.v{color:var(--ink-dim);font-family:var(--sans);font-size:14px;font-weight:300}
+
+ul.steps{list-style:none;padding:0;margin:24px 0;counter-reset:st}
+ul.steps > li{counter-increment:st;padding:16px 0 16px 56px;border-bottom:1px dashed var(--rule-soft);position:relative;max-width:72ch}
+ul.steps > li::before{content:counter(st,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--amber)}
+ul.steps > li:last-child{border-bottom:none}
+ul.steps > li strong{display:block;margin-bottom:4px;color:var(--ink);font-weight:500}
+
+ul.bullets{list-style:none;padding:0;margin:16px 0;max-width:68ch}
+ul.bullets li{padding:6px 0 6px 24px;position:relative}
+ul.bullets li::before{content:"→";position:absolute;left:0;top:6px;color:var(--amber);font-family:var(--mono)}
+
+nav.toc{margin:32px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 48px}
+nav.toc a{display:block;color:var(--ink-dim);border:none;padding:8px 0;border-bottom:1px dashed var(--rule-soft);font-family:var(--sans);font-size:14px;font-weight:300;transition:color .2s,padding-left .2s}
+nav.toc a:hover{color:var(--amber);padding-left:8px}
+nav.toc a .n{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-faint);margin-right:14px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:24px 0}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:24px 0}
+@media (max-width:900px){.three-col{grid-template-columns:1fr}}
+
+.card{background:var(--bg-panel);border:1px solid var(--rule);padding:22px 24px}
+.card h5{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.card p{font-size:14.5px;color:var(--ink-dim);margin:0}
+.card .big{font-family:var(--serif);font-size:36px;font-weight:400;color:var(--ink);line-height:1;margin:4px 0 8px;letter-spacing:-.01em}
+
+.graph-wrap{background:var(--bg-panel);border:1px solid var(--rule);margin:28px 0;padding:24px 28px 28px;position:relative}
+.graph-wrap .g-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:12px}
+.graph-wrap .g-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink)}
+.graph-wrap .g-sub{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase}
+.graph-wrap .g-desc{color:var(--ink-dim);font-size:14.5px;max-width:65ch;margin:4px 0 18px}
+.graph-canvas{position:relative;height:340px;width:100%}
+
+.readouts{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--rule);font-family:var(--mono);font-size:12px}
+.readouts .ro{display:flex;flex-direction:column;gap:2px}
+.readouts .ro .k{font-size:10px;letter-spacing:.2em;color:var(--ink-faint);text-transform:uppercase}
+.readouts .ro .v{color:var(--amber);font-size:14px;font-weight:500}
+
+footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+.inline-eq{font-family:var(--mono);color:var(--amber);font-size:.94em}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" type="button" aria-label="Switch palette">
+  <span class="dot">●</span><span class="lbl">FIELD NOTES</span>
+</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">PVT · whole-body · drive-side PD</div>
+    <h1 class="title">The pendulum law, now <em>×25</em> joints.</h1>
+    <p class="subtitle">Whole-body PVT impedance control on the Harambe robot — the same CiA-402 mode-5 drive-side PD as the bench rig, generalised across 25 joints with body groups, a gravity-comp mode, real-time deployment and tuning telemetry.</p>
+
+    <div class="meta">
+      <div><span class="k">Status</span><span class="v">On robot</span></div>
+      <div><span class="k">Owner</span><span class="v">Andrei</span></div>
+      <div><span class="k">Stage</span><span class="v"><em>per-joint tuning</em></span></div>
+      <div><span class="k">Updated</span><span class="v">2026-06-03</span></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#vs"><span class="n">01</span>From pendulum to body</a>
+      <a href="#interfaces"><span class="n">02</span>Interfaces &amp; HarambePvtDriver</a>
+      <a href="#modes"><span class="n">03</span>Modes — incl. GRAVCOMP</a>
+      <a href="#hold"><span class="n">04</span>Endpoint hold &amp; start-knot</a>
+      <a href="#rt"><span class="n">05</span>Real-time deployment</a>
+      <a href="#diag"><span class="n">06</span>Tuning diagnostics</a>
+      <a href="#launch"><span class="n">07</span>Launching</a>
+      <a href="#safety"><span class="n">08</span>Safety integration</a>
+      <a href="#ref"><span class="n">09</span>Services &amp; params</a>
+    </nav>
+  </header>
+
+  <section id="vs">
+    <span class="section-num">§ 01 — From pendulum to body</span>
+    <h2>Same <em>law</em> in the drive. More joints around it.</h2>
+    <p class="lead">The <a href="pvt_tuning_guide.html">pendulum PVT guide</a> established the pattern: boot the MyActuator drive into <strong>PVT (CiA-402 mode 5)</strong> and let the <em>drive</em> run the impedance law internally at 1 kHz while the host streams the payload. <code>robot_pvt_control/RobotPVTController</code> is that controller scaled to the whole robot.</p>
+
+    <div class="math-block labeled">
+      <span class="lbl">Eq. 1 — drive-side impedance law (per joint)</span>
+      $$ \tau_j = K_{p,j}\,(q_{d,j} - q_j) + K_{d,j}\,(\dot q_{d,j} - \dot q_j) + \tau_{ff,j} $$
+    </div>
+
+    <p>What changes versus the bench rig:</p>
+    <ul class="bullets">
+      <li><strong>Per-joint everything</strong> — <code>Kp</code>, <code>Kd</code>, <code>Kd_damp</code> and the feedforward toggles are vectors over the joint roster, not scalars.</li>
+      <li><strong>Body groups</strong> — the active joint set is selected by <code>body_groups/&lt;group&gt;.yaml</code>: <code>arms</code>, <code>arms_waist</code>, <code>legs</code>, or <code>full</code>. Bring up a subset before trusting all 25.</li>
+      <li><strong>A real drive plugin</strong> — the bench rig used the generic ICube EtherCAT driver; the robot uses a purpose-built <code>HarambePvtDriver</code> (§02).</li>
+      <li><strong>A coupled ankle</strong> — the two ankle joints per foot are not independent motors; see the <a href="../hardware/ankle_linkage.html">ankle linkage note</a>.</li>
+    </ul>
+  </section>
+
+  <section id="interfaces">
+    <span class="section-num">§ 02 — Interfaces &amp; HarambePvtDriver</span>
+    <h2>Five command interfaces per joint, <em>one</em> drive plugin.</h2>
+    <p><code>harambe_ethercat_driver/HarambePvtDriver</code> is a ros2_control <code>SystemInterface</code> EtherCAT plugin. Every joint claims <strong>five</strong> command interfaces and exports a wide state vector, all carried on the PVT PDOs:</p>
+
+    <table class="ref">
+      <thead><tr><th>Direction</th><th>Interface</th><th>Object</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>command</td><td class="v">position</td><td class="v">0x607A</td><td class="v">drive PD setpoint (encoder counts after factor)</td></tr>
+        <tr><td>command</td><td class="v">velocity</td><td class="v">0x60FF</td><td class="v">drive PD velocity setpoint</td></tr>
+        <tr><td>command</td><td class="v">effort</td><td class="v">0x6071</td><td class="v">torque feedforward, added inside the drive</td></tr>
+        <tr><td>command</td><td class="v">kp</td><td class="v">0x2000</td><td class="v">drive applies value ×0.001; factor 1000 ⇒ host sends N·m/rad</td></tr>
+        <tr><td>command</td><td class="v">kd</td><td class="v">0x2001</td><td class="v">same ×1000 scaling as kp</td></tr>
+        <tr><td>state</td><td class="v">position / velocity / effort</td><td class="v">0x6064 / 0x606C / 0x6077</td><td class="v">actuals, fed to control + safety</td></tr>
+        <tr><td>state</td><td class="v">status_word / error_code</td><td class="v">0x6041 / 0x603F</td><td class="v">CiA-402 status + fault</td></tr>
+        <tr><td>state</td><td class="v">motor_temp / drive_temp / bus_voltage</td><td class="v">0x2009 / 0x200C / 0x200A</td><td class="v">telemetry for the supervisor</td></tr>
+      </tbody>
+    </table>
+
+    <p>The PDOs are <strong>RxPDO 0x1601</strong> (22 B, master→drive) and <strong>TxPDO 0x1A02</strong> (22 B, drive→master), one per-joint slave config in <code>robot_bringup/config/ethercat_pvt/</code>. Three SDOs configure each drive at startup: <code>0x6072</code> max torque = <code>800</code>‰ rated current, and <code>0x60C2</code> interpolation period = <span class="inline-eq">1\times10^{-3}</span> s ⇒ the 1 ms / 1 kHz cycle. The <code>×1000</code> kp/kd scaling and PVT PDO are documented drive-side in the <a href="../hardware/ethercat_control_guide.html">EtherCAT control guide</a> §23 / §28.</p>
+
+    <div class="panel" data-label="Ankle is special">
+      <p><code>HarambePvtDriver</code> derives from an <code>AnkleLinkageDriver</code> base that transforms position/velocity/effort between joint and motor space for the eccentric-pushrod ankles, while passing <code>kp</code>/<code>kd</code> through per-motor. Everything in this guide applies to the ankle joints, but read the <a href="../hardware/ankle_linkage.html">ankle linkage note</a> for what "a pitch gain" actually means on a coupled pair.</p>
+    </div>
+  </section>
+
+  <section id="modes">
+    <span class="section-num">§ 03 — Modes — incl. GRAVCOMP</span>
+    <h2>Four modes. The <em>fourth</em> is new.</h2>
+    <p>The controller carries the bench rig's <strong>FREE</strong> / <strong>PVT</strong> / <strong>DAMPING</strong> trio, plus a new <strong>GRAVCOMP</strong> mode for whole-body gravity-compensated back-driving. Each has a <code>std_srvs/srv/Trigger</code> service.</p>
+
+    <table class="ref">
+      <thead><tr><th>Mode</th><th>Service</th><th>What the joints do</th></tr></thead>
+      <tbody>
+        <tr><td>FREE</td><td class="v">~/free</td><td class="v">zero drive torque — every joint coasts</td></tr>
+        <tr><td>PVT</td><td class="v">~/hold + streaming</td><td class="v">track the streamed setpoint / trajectory (Eq. 1)</td></tr>
+        <tr><td>DAMPING</td><td class="v">~/damp</td><td class="v">Kp=0, Kd=Kd_damp on every active joint — viscous brake, no position regulation</td></tr>
+        <tr><td>GRAVCOMP</td><td class="v">~/gravcomp</td><td class="v">full PVT, but Kp forced to 0 on joints flagged ff_gravity — they float on gravity FF while the rest keep tracking</td></tr>
+      </tbody>
+    </table>
+
+    <h4>GRAVCOMP — selective Kp-zeroing</h4>
+    <p>DAMPING zeros Kp on <em>all</em> active joints; GRAVCOMP zeros <span class="inline-eq">K_p</span> only where <code>ff_gravity[j]</code> is true and leaves <span class="inline-eq">K_d</span> untouched. Those joints become hand-back-drivable but still hold against gravity through the feedforward channel; any joint without <code>ff_gravity</code> keeps tracking normally. The service reports the split, e.g. <code>"GRAVCOMP — Kp=0 on N of M active joints"</code>.</p>
+
+    <div class="warn">
+      <strong>A zeroed Kp must pin the rate limiter to measured q.</strong> While <span class="inline-eq">K_p=0</span> the joint drifts away from the stale position command; if the rate limiter kept ramping toward the old setpoint, restoring <span class="inline-eq">K_p&gt;0</span> (e.g. <code>~/hold</code> out of GRAVCOMP) would slam the joint across the accumulated error. So on every cycle a gravity-comped joint seeds its rate limiter to the <em>measured</em> position. This is the same invariant the DAMPING path relies on.
+    </div>
+
+    <p>All four services validate lifecycle state first — they refuse with <code>"controller not active; refuse to &lt;MODE&gt;"</code> if the controller isn't <code>ACTIVE</code>, so a mode call during bringup or after an e-stop can't touch unclaimed interfaces.</p>
+  </section>
+
+  <section id="hold">
+    <span class="section-num">§ 04 — Endpoint hold &amp; start-knot</span>
+    <h2>Hold the <em>commanded</em> endpoint — except when you shouldn't.</h2>
+    <p>Two related fixes govern how a joint behaves at the seams of a trajectory — at completion and at the implicit start knot. Both turn on one distinction: <strong>is the joint actively position-controlled, or back-driven?</strong></p>
+
+    <h4>Endpoint hold</h4>
+    <ul class="bullets">
+      <li><strong>Clean completion</strong> → hold the <em>commanded</em> trajectory endpoint (where the rate limiter converged). An under-tuned joint has steady-state following error; holding <em>measured</em> would zero the <span class="inline-eq">K_p(q_d-q)</span> term and let it sag. Holding the command preserves the holding torque <em>and</em> keeps the error visible for tuning — standard JTC "hold last setpoint" semantics.</li>
+      <li><strong>Abort / cancel / e-stop / mode change</strong> → promote the <em>measured</em> position (<code>promote_measured_to_setpoint()</code>). A stale endpoint would slam a back-driven or braked joint the moment Kp returns.</li>
+    </ul>
+
+    <h4>Start knot</h4>
+    <p>A single-point goal is prepended with an implicit start knot. Its position is chosen the same way: if the controller is <em>actively holding in PVT</em> (<code>mode == PVT &amp;&amp; !waiting_for_setpoint</code>) it seeds from the <em>commanded</em> hold position — starting from measured would inject a step equal to the following error and jerk the joint. In FREE / DAMP / GRAVCOMP or post-e-stop the joint is back-driven, the setpoint is stale, so it seeds from <em>measured</em>.</p>
+
+    <div class="callout">
+      The rule in one line: position-controlled → trust the command; back-driven → trust the measurement.
+    </div>
+  </section>
+
+  <section id="rt">
+    <span class="section-num">§ 05 — Real-time deployment</span>
+    <h2>1 kHz, <em>locked</em> memory, pinned core.</h2>
+    <p>Whole-body PVT runs the controller-manager at 1 kHz with hard real-time settings in <code>controllers_pvt.yaml</code>:</p>
+
+<pre data-lang="yaml"><code><span class="tok-k">controller_manager</span>:
+  <span class="tok-k">ros__parameters</span>:
+    <span class="tok-k">update_rate</span>: <span class="tok-n">1000</span>      <span class="tok-c"># PVT at 1 kHz — slave configs set the 1 ms cycle</span>
+    <span class="tok-k">lock_memory</span>: <span class="tok-n">true</span>      <span class="tok-c"># mlockall — kills page-fault stalls</span>
+    <span class="tok-k">thread_priority</span>: <span class="tok-n">80</span>    <span class="tok-c"># SCHED_FIFO; above the NIC IRQ thread</span>
+    <span class="tok-k">cpu_affinity</span>: <span class="tok-n">3</span>       <span class="tok-c"># pin to an isolated core (isolcpus)</span></code></pre>
+
+    <table class="ref">
+      <thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>update_rate</td><td>1000</td><td class="v">matches the drives' 1 ms interpolation period; PD runs in the drive, host streams every cycle</td></tr>
+        <tr><td>lock_memory</td><td>true</td><td class="v"><code>mlockall()</code> — no page-fault stalls in the RT loop</td></tr>
+        <tr><td>thread_priority</td><td>80</td><td class="v">SCHED_FIFO, raised above the EtherCAT NIC IRQ thread</td></tr>
+        <tr><td>cpu_affinity</td><td>3</td><td class="v">pin the control thread to an isolated core (boot <code>isolcpus</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="warn">
+      <strong>The controller spawns inactive.</strong> <code>robot_pvt_controller</code> comes up loaded-but-inactive. The operator activates it only after confirming telemetry is healthy (temps, bus voltage, error codes all green) — there is no auto-activation onto a 25-joint robot.
+    </div>
+  </section>
+
+  <section id="diag">
+    <span class="section-num">§ 06 — Tuning diagnostics</span>
+    <h2>What the loop <em>asked for</em> vs what it <em>sent</em>.</h2>
+    <p>Two per-cycle publishers expose the inside of the control loop, each a <code>trajectory_msgs/JointTrajectoryPoint</code> indexed in joint-roster order, wrapped in a non-blocking <code>RealtimePublisher</code>:</p>
+
+    <table class="ref">
+      <thead><tr><th>Topic</th><th>Carries</th><th>Tap point</th></tr></thead>
+      <tbody>
+        <tr><td>~/reference</td><td class="v">ref position / velocity / acceleration</td><td class="v">after the lag governor, <em>before</em> the rate limiter</td></tr>
+        <tr><td>~/command</td><td class="v">cmd position / velocity</td><td class="v">after the rate limiter and safety clamps — what actually goes on the wire</td></tr>
+      </tbody>
+    </table>
+
+    <p>The gap between <code>~/reference</code> and <code>~/command</code> is exactly what the rate limiter and clamps removed — the signal to watch when a joint won't track: a reference the limiter is throttling reads very differently from a command the drive is ignoring.</p>
+  </section>
+
+  <section id="launch">
+    <span class="section-num">§ 07 — Launching</span>
+    <h2>One launch for torque, <em>one</em> for looking.</h2>
+
+<pre data-lang="bash"><code><span class="tok-c"># Full PVT stack — drives enabled. Pick a body group; default is arms.</span>
+ros2 launch robot_bringup robot_pvt.launch.py robot_group:=arms
+ros2 launch robot_bringup robot_pvt.launch.py robot_group:=full use_rviz:=false  <span class="tok-c"># headless NUC</span>
+
+<span class="tok-c"># Read-only viewer — drives stay disabled, no torque output.</span>
+ros2 launch robot_bringup robot_pvt_viewer.launch.py</code></pre>
+
+    <ul class="bullets">
+      <li><code>robot_group</code> — <code>arms</code> (default), <code>arms_waist</code>, <code>legs</code>, or <code>full</code>.</li>
+      <li><code>use_rviz</code> — <code>true</code> (default) / <code>false</code> for a headless control box.</li>
+      <li><code>robot_pvt.launch.py</code> brings up the controller-manager, the joint-state broadcasters (raw 1 kHz + filtered), the drive-status broadcaster, the safety supervisor, and the PVT controller (inactive).</li>
+      <li><code>robot_pvt_viewer.launch.py</code> uses read-only slave configs that keep the drives in <code>SWITCH_ON_DISABLED</code> — back-drive the robot by hand and watch joint state with zero risk. Use it for pre-flight and calibration.</li>
+    </ul>
+  </section>
+
+  <section id="safety">
+    <span class="section-num">§ 08 — Safety integration</span>
+    <h2>Per-joint envelopes, <em>two</em> bus rails, hot-reloaded.</h2>
+    <p>The controller links <code>librobot_safety</code> the same way the <a href="../strategy/safety_supervisor_guide.html">supervisor</a> does, reading <code>safety.global.*</code> + <code>safety.joints.&lt;joint&gt;.*</code> from <code>safety_limits.yaml</code>. The table is held in a <code>RealtimeBuffer&lt;SafetyLimits&gt;</code>: <code>loadSafetyLimits()</code> writes it from <code>on_configure</code>, the RT <code>update()</code> reads it lock-free, so <code>ros2 param set safety.…</code> takes effect on the next cycle without a re-spawn.</p>
+
+    <h4>Per-joint overrides</h4>
+    <p>Only the fields that differ from <code>safety.global</code> are overridden. The defaults that matter:</p>
+    <table class="ref">
+      <thead><tr><th>Scope</th><th>effort_limit</th><th>position</th><th>bus_voltage</th></tr></thead>
+      <tbody>
+        <tr><td>global</td><td>12.0</td><td class="v">±π</td><td class="v">40.0 – 54.0 V (48 V rail)</td></tr>
+        <tr><td>wrists (X4)</td><td>6.0</td><td class="v">±π</td><td class="v">20.0 – 28.0 V (24 V rail)</td></tr>
+        <tr><td>hips pitch/roll (X8)</td><td>60.0</td><td class="v">±π</td><td class="v">40.0 – 54.0 V</td></tr>
+        <tr><td>knees (X8)</td><td>50.0</td><td class="v">0.0 – 2.5 (one-way hinge)</td><td class="v">40.0 – 54.0 V</td></tr>
+        <tr><td>ankles (X4)</td><td>20.0 pitch / 15.0 roll</td><td class="v">±0.785398 (±45°)</td><td class="v">20.0 – 28.0 V (24 V rail)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="panel" data-label="Two rails, one supervisor">
+      <p>The X4 drives (wrists, shoulder-yaw, ankles) run from a <strong>24 V rail</strong>; the X6/X8 drives run from <strong>48 V</strong>. A single global bus-voltage envelope can't span both without losing under/over-voltage discrimination, so the 24 V joints carry per-joint <code>bus_voltage_min/max</code> overrides. See the <a href="motor_id_report.html">motor identification report</a>.</p>
+    </div>
+
+    <p>The e-stop action map differs from the bench rig in one place: <code>action.sustained_effort: damp</code> — a loaded joint that holds high effort too long is braked viscously (<span class="inline-eq">\tau=-K_{d,damp}\,\dot q</span> on the active group) rather than left to coast under gravity. Position / overspeed / stale-feed faults <code>hold</code>; thermal / manual <code>free</code>. The supervisor also boots <code>start_latched: true</code> with a <code>startup_grace_sec: 2.0</code> window, so bringup transients can't latch a spurious e-stop and the drives stay limp until <code>~/reset</code>.</p>
+  </section>
+
+  <section id="ref">
+    <span class="section-num">§ 09 — Services &amp; params</span>
+    <h2>The <em>knobs</em>, in one place.</h2>
+
+    <h4>Mode services (all <code>std_srvs/srv/Trigger</code>)</h4>
+    <table class="ref">
+      <thead><tr><th>Service</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>~/hold</td><td class="v">snapshot measured position and hold it (enters PVT)</td></tr>
+        <tr><td>~/free</td><td class="v">zero drive torque (FREE)</td></tr>
+        <tr><td>~/damp</td><td class="v">viscous brake on every active joint (DAMPING)</td></tr>
+        <tr><td>~/gravcomp</td><td class="v">Kp=0 on ff_gravity joints, rest keep tracking (GRAVCOMP)</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Live-tunable parameters</h4>
+    <p>Per-joint <code>Kp</code>, <code>Kd</code>, <code>Kd_damp</code>, the <code>ff_gravity</code> / <code>ff_inertia</code> / <code>ff_viscous</code> toggles and every <code>safety.*</code> limit are re-read each <code>update()</code> via a <code>RealtimeBuffer</code> — <code>ros2 param set</code> applies on the next cycle, no re-spawn. On real hardware new <code>Kp</code>/<code>Kd</code> are streamed to the drives' <code>0x2000</code>/<code>0x2001</code> objects the following cycle.</p>
+
+    <h4>Diagnostic topics</h4>
+    <table class="ref">
+      <thead><tr><th>Topic</th><th>Type</th></tr></thead>
+      <tbody>
+        <tr><td>~/reference</td><td class="v">trajectory_msgs/JointTrajectoryPoint</td></tr>
+        <tr><td>~/command</td><td class="v">trajectory_msgs/JointTrajectoryPoint</td></tr>
+        <tr><td>/joint_states_raw</td><td class="v">sensor_msgs/JointState (raw, 1 kHz)</td></tr>
+        <tr><td>/joint_states_filtered</td><td class="v">sensor_msgs/JointState (IIR 30 Hz, 100 Hz publish)</td></tr>
+      </tbody>
+    </table>
+
+    <p>For the streaming-setpoint protocol, the <code>FollowJointTrajectory</code> action, the lag governor and the offline validation GUI, the mechanics are unchanged from the <a href="pvt_tuning_guide.html">pendulum PVT guide</a> — this guide covers only what the whole-body port adds.</p>
+  </section>
+
+  <footer>
+    <span>Field notes · harambe robot · whole-body PVT</span>
+    <span>v.26.06</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const KEY  = 'harambe-doc-theme';
+  const root = document.documentElement;
+  const btn  = document.querySelector('.theme-toggle');
+  const lbl  = btn.querySelector('.lbl');
+  function apply(mode){
+    if (mode === 'reactive') root.setAttribute('data-theme','reactive');
+    else root.removeAttribute('data-theme');
+    lbl.textContent = mode === 'reactive' ? 'REACTIVE' : 'FIELD NOTES';
+    btn.dataset.mode = mode;
+  }
+  apply(localStorage.getItem(KEY) || 'field-notes');
+  btn.addEventListener('click', () => {
+    const next = btn.dataset.mode === 'reactive' ? 'field-notes' : 'reactive';
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>

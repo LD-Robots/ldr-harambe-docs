@@ -196,6 +196,8 @@ footer{margin-top:120px;padding-top:32px;border-top:1px solid var(--rule);font-f
     </table>
 
     <p>The X6 row carries both the manufacturer-spec value and the bench-identified value for X6 #0 (<a href="motor_id_protocol.html#feedback">motor_id_protocol §12</a>). The 4.3 % spread is well inside the magnet/temperature tolerance MyActuator quotes, so the spec value is what the YAML uses across all six X6 drives. The same will be done for X4 and X8 once in-place identification on the assembled robot is possible — see <a href="#gaps">§ 04</a>.</p>
+
+    <p><strong>Bus voltage — two rails, not one.</strong> The 10 X4 drives run from a 24 V rail; the 6 X6 and 9 X8 drives run from a 48 V rail. The safety envelopes per family are 20.0 – 28.0 V (X4) and 40.0 – 54.0 V (X6/X8), both ±~15 % around their nominal. The <code>robot_safety</code> supervisor and the <code>robot_drive_status_broadcaster</code> both carry these envelopes as per-joint overrides — a single global envelope cannot span both rails without losing under/over-voltage discrimination. Overrides live in <code>safety_limits.yaml</code> (<code>safety.joints.&lt;name&gt;.bus_voltage_min/max</code>) and <code>controllers_pvt.yaml</code> / <code>controllers_pvt_viewer.yaml</code> (<code>joint_overrides.&lt;name&gt;.bus_voltage_min/max</code>). Torque-chain math is unaffected — K_t, I_rated, and the resulting factors are voltage-independent.</p>
   </section>
 
   <section id="joints">

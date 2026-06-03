@@ -2,6 +2,36 @@
 
 All notable changes to the LDR Harambe docs repository.
 
+## 2026-06-03 — Whole-body PVT system
+
+Documents the robot-level PVT stack landing in the robot repo — the
+multi-joint port of the bench-rig PVT controller plus the new
+`harambe_ethercat_driver` and its coupled ankle. The pendulum guides
+(`pvt_tuning_guide.html`, `safety_supervisor_guide.html`) are left as
+the single-joint bench-rig reference; the robot material goes into new
+notes.
+
+### Added
+
+- `tuning/robot_pvt_guide.html` — new field note on
+  `robot_pvt_control/RobotPVTController`: the per-joint drive-side PD law,
+  body groups (`arms` / `arms_waist` / `legs` / `full`), the five PVT
+  command interfaces and `HarambePvtDriver` (RxPDO `0x1601` / TxPDO
+  `0x1A02`, ×1000 kp/kd), the new **GRAVCOMP** mode (`~/gravcomp`,
+  selective Kp-zeroing with the rate limiter pinned to measured q),
+  commanded-vs-measured endpoint hold and start-knot seeding, the 1 kHz
+  real-time deployment (`lock_memory` / `thread_priority 80` /
+  `cpu_affinity 3`), `~/reference` + `~/command` tuning telemetry,
+  `robot_pvt.launch.py` / `robot_pvt_viewer.launch.py`, and the
+  per-joint / dual-bus-rail `robot_safety` integration.
+- `hardware/ankle_linkage.html` — new field note on the ankle
+  eccentric-pushrod linkage: two X4 drives → pitch+roll through cams,
+  the `r_exc` / `d_pitch` / `d_roll` / `pitch_sign` / `roll_sign`
+  geometry, forward (motor→joint) and inverse (joint→motor) position
+  kinematics, the velocity/effort Jacobian with cosine-singularity
+  guards, `ankle_linkage_pairs` wiring, the right-ankle pitch/roll name
+  swap (`c590020`), and the ±45° / dual-effort safety envelope.
+
 ## 2026-05-27 — DAMPING mode & live safety reload
 
 Documents the third controller mode and the runtime-mutable safety
